@@ -1,0 +1,81 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Question {
+  id             String   @id @default(cuid())
+  content        String
+  type           String
+  options        String?
+  answer         String?
+  explanation    String?
+  tags           String
+  difficulty     Int      @default(1)
+  status         String   @default("DRAFT")
+  knowledgePoint String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  examQuestions ExamQuestion[]
+
+  @@map("questions")
+}
+
+model Exam {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  duration    Int
+  totalScore  Int      @default(100)
+  status      String   @default("DRAFT")
+  startTime   DateTime?
+  endTime     DateTime?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  examQuestions ExamQuestion[]
+  submissions   Submission[]
+
+  @@map("exams")
+}
+
+model ExamQuestion {
+  id         String   @id @default(cuid())
+  examId     String
+  questionId String
+  order      Int
+  score      Int      @default(1)
+
+  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, questionId])
+  @@index([examId])
+  @@index([questionId])
+  @@map("exam_questions")
+}
+
+model Submission {
+  id          String   @id @default(cuid())
+  examId      String
+  answers     String
+  score       Float?
+  isAutoGraded Boolean  @default(false)
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@map("submissions")
+}

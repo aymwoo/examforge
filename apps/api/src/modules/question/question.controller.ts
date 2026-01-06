@@ -1,0 +1,63 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { QuestionService } from './question.service';
+import { CreateQuestionDto } from './dto/create-question.dto';
+import { UpdateQuestionDto } from './dto/update-question.dto';
+import { PaginationDto } from '@/common/dto/pagination.dto';
+
+@ApiTags('questions')
+@Controller('questions')
+export class QuestionController {
+  constructor(private readonly questionService: QuestionService) {}
+
+  @Post()
+  @ApiOperation({ summary: 'Create a new question' })
+  @ApiResponse({ status: 201, description: 'Question created successfully' })
+  create(@Body() dto: CreateQuestionDto) {
+    return this.questionService.create(dto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get all questions with pagination' })
+  @ApiResponse({ status: 200, description: 'Questions retrieved successfully' })
+  findAll(@Query() paginationDto: PaginationDto) {
+    return this.questionService.findAll(paginationDto);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a question by ID' })
+  @ApiParam({ name: 'id', description: 'Question ID' })
+  @ApiResponse({ status: 200, description: 'Question found' })
+  @ApiResponse({ status: 404, description: 'Question not found' })
+  findById(@Param('id') id: string) {
+    return this.questionService.findById(id);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Update a question' })
+  @ApiParam({ name: 'id', description: 'Question ID' })
+  @ApiResponse({ status: 200, description: 'Question updated successfully' })
+  update(@Param('id') id: string, @Body() dto: UpdateQuestionDto) {
+    return this.questionService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a question' })
+  @ApiParam({ name: 'id', description: 'Question ID' })
+  @ApiResponse({ status: 204, description: 'Question deleted successfully' })
+  delete(@Param('id') id: string) {
+    return this.questionService.delete(id);
+  }
+}
