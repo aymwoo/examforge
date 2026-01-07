@@ -5,32 +5,37 @@ import Button from "@/components/ui/Button";
 import {
   getSettings,
   updateSetting,
+  getProviders,
   type SystemSettings,
+  type AIModelConfig,
 } from "@/services/settings";
-import { generateExamFromAI, type AIQuestion } from "@/services/settings";
+import { generateExamFromAI } from "@/services/settings";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<SystemSettings>({
     aiProvider: "openai",
     aiApiKey: "",
-    aiBaseUrl: "https://api.openai.com/v1/chat/completions",
-    aiModel: "gpt-4o",
+    aiBaseUrl: "",
+    aiModel: "",
     promptTemplate: "",
-    ocrEngine: "tesseract",
   });
+  const [providers, setProviders] = useState<AIModelConfig[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
 
   const loadSettings = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getSettings();
-      setSettings(data);
+      const [settingsData, providersData] = await Promise.all([
+        getSettings(),
+        getProviders(),
+      ]);
+      setSettings(settingsData);
+      setProviders(providersData);
     } catch (err: unknown) {
       const axiosError = err as {
         response?: { data?: { message?: string } };
@@ -50,6 +55,15 @@ export default function SettingsPage() {
     loadSettings();
   }, []);
 
+  const handleProviderChange = (value: string) => {
+    const provider = providers.find((p) => p.id === value);
+    if (provider && provider.defaultBaseUrl && provider.defaultModel) {
+      handleInputChange("aiBaseUrl", provider.defaultBaseUrl);
+      handleInputChange("aiModel", provider.defaultModel);
+    }
+    handleInputChange("aiProvider", value);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -59,7 +73,6 @@ export default function SettingsPage() {
       await updateSetting("AI_BASE_URL", settings.aiBaseUrl);
       await updateSetting("AI_MODEL", settings.aiModel);
       await updateSetting("PROMPT_TEMPLATE", settings.promptTemplate);
-      await updateSetting("OCR_ENGINE", settings.ocrEngine);
       setError("设置保存成功");
     } catch (err: unknown) {
       const axiosError = err as {
@@ -121,9 +134,7 @@ export default function SettingsPage() {
 
     setTestResult(null);
     try {
-      const response = await generateExamFromAI(
-        "R0lGODlhAABAAEAAAIBRAA7c7wAAABJRU5ErkJggg==",
-      );
+      await generateExamFromAI("R0lGODlhAABAAEAAAIBRAA7c7wAAABJRU5ErkJggg==");
       setTestResult("AI 连接测试成功！");
     } catch (err: unknown) {
       const axiosError = err as {
@@ -191,13 +202,13 @@ export default function SettingsPage() {
                     <select
                       className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
                       value={settings.aiProvider}
-                      onChange={(e) =>
-                        handleInputChange("aiProvider", e.target.value)
-                      }
+                      onChange={(e) => handleProviderChange(e.target.value)}
                     >
-                      <option value="openai">OpenAI</option>
-                      <option value="anthropic">Anthropic</option>
-                      <option value="azure">Azure OpenAI</option>
+                      {providers.map((provider) => (
+                        <option key={provider.id} value={provider.id}>
+                          {provider.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -298,48 +309,6 @@ export default function SettingsPage() {
                     提示词模板用于指导AI如何根据试卷图像生成题目。支持变量占位符。
                   </p>
                 </div>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-              <h2 className="mb-6 text-lg font-semibold text-ink-900">
-                其他设置
-              </h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-ink-900">
-                    OCR 引擎
-                  </label>
-                  <select
-                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
-                    value={settings.ocrEngine}
-                    onChange={(e) =>
-                      handleInputChange("ocrEngine", e.target.value)
-                    }
-                  >
-                    <option value="tesseract">Tesseract</option>
-                    <option value="paddleocr">PaddleOCR</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-slate-50 p-4">
-                <h3 className="mb-3 text-sm font-semibold text-ink-900">
-                  AI 试卷生成说明
-                </h3>
-                <ul className="ml-4 list-decimal space-y-2 text-sm text-ink-700">
-                  <li>
-                    在考试管理页面上传试卷图像，系统将调用配置的AI
-                    Provider生成题目
-                  </li>
-                  <li>生成的题目会自动保存到题库，并可以添加到考试</li>
-                  <li>支持的图像格式：JPEG、PNG、WebP</li>
-                  <li>
-                    提示词模板中的约束会被传递给AI，请确保提示词包含明确的格式要求
-                  </li>
-                  <li>生成的题目会自动设置难度（1-5）、知识点和标签</li>
-                </ul>
               </div>
             </div>
           </div>

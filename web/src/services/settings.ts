@@ -6,7 +6,14 @@ export interface SystemSettings {
   aiBaseUrl: string;
   aiModel: string;
   promptTemplate: string;
-  ocrEngine: string;
+}
+
+export interface AIModelConfig {
+  id: string;
+  name: string;
+  provider: string;
+  defaultBaseUrl?: string;
+  defaultModel?: string;
 }
 
 export interface AIQuestion {
@@ -22,6 +29,11 @@ export interface AIQuestion {
 
 export const getSettings = async (): Promise<SystemSettings> => {
   const response = await api.get<SystemSettings>("/api/settings");
+  return response.data;
+};
+
+export const getProviders = async (): Promise<AIModelConfig[]> => {
+  const response = await api.get<AIModelConfig[]>("/api/settings/providers");
   return response.data;
 };
 
