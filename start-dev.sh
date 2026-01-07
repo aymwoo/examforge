@@ -23,6 +23,12 @@ print_warning() {
   echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
+# 检查参数
+REBUILD=false
+if [[ "$*" == *"--rebuild"* ]]; then
+  REBUILD=true
+fi
+
 # 检查依赖
 if ! command -v pnpm &> /dev/null; then
   echo -e "${RED}Error: pnpm is not installed${NC}"
@@ -40,6 +46,17 @@ print_info "Checking for running services..."
 fuser -k 3000/tcp 2>/dev/null || true
 fuser -k 5173/tcp 2>/dev/null || true
 sleep 2
+
+# 如果需要重新构建
+if [ "$REBUILD" = true ]; then
+  print_info "Rebuilding all packages..."
+  pnpm build
+  if [ $? -ne 0 ]; then
+    echo -e "${RED}Error: Build failed${NC}"
+    exit 1
+  fi
+  print_success "Build completed"
+fi
 
 # 启动服务
 print_info "Starting ExamForge services..."

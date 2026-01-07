@@ -20,19 +20,28 @@ export interface GenerateExamQuestionsResponse {
 export class AIService {
   constructor(private readonly settingsService: SettingsService) {}
 
+  private buildApiUrl(baseUrl: string): string {
+    const defaultUrl = 'https://api.openai.com/v1/chat/completions';
+    const url = baseUrl || defaultUrl;
+    return url.endsWith('/chat/completions') ? url : `${url}/chat/completions`;
+  }
+
   async generateExamQuestions(imageBuffer: Buffer): Promise<GenerateExamQuestionsResponse> {
     const settings = await this.settingsService.getSettings();
     const promptTemplate = await this.settingsService.getPromptTemplate();
 
     if (!settings.aiApiKey) {
-      throw new BadRequestException('AI API Key not configured. Please configure AI provider in settings.');
+      throw new BadRequestException(
+        'AI API Key not configured. Please configure AI provider in settings.'
+      );
     }
 
     try {
-      const response = await fetch(settings.aiBaseUrl || 'https://api.openai.com/v1/chat/completions', {
+      const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${settings.aiApiKey}`,
+          Authorization: `Bearer ${settings.aiApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -75,21 +84,84 @@ export class AIService {
     }
   }
 
-  async generateExamQuestionsFromImage(imageBase64: string): Promise<GenerateExamQuestionsResponse> {
+  async testConnection(message: string = 'Hello'): Promise<{ response: string }> {
+    const settings = await this.settingsService.getSettings();
+
+    if (!settings.aiApiKey) {
+      throw new BadRequestException(
+        'AI API Key not configured. Please configure AI provider in settings.'
+      );
+    }
+
+    const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
+
+    console.log(`AI Test Connection URL: ${apiUrl}`);
+    console.log(`AI Model: ${settings.aiModel || 'gpt-4'}`);
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${settings.aiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: settings.aiModel || 'gpt-4',
+          messages: [
+            {
+              role: 'user',
+              content: message,
+            },
+          ],
+          max_tokens: 100,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`AI API Error: ${response.status} - ${errorText}`);
+        throw new BadRequestException(`AI API error: ${response.status} - ${errorText}`);
+      }
+
+      const data: any = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        throw new BadRequestException('AI returned empty response');
+      }
+
+      return { response: content };
+    } catch (error: unknown) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      console.error('AI connection test error:', error);
+      throw new BadRequestException(
+        'Failed to connect to AI. Please check your API key and settings.'
+      );
+    }
+  }
+
+  async generateExamQuestionsFromImage(
+    imageBase64: string
+  ): Promise<GenerateExamQuestionsResponse> {
     const settings = await this.settingsService.getSettings();
     const promptTemplate = await this.settingsService.getPromptTemplate();
 
     if (!settings.aiApiKey) {
-      throw new BadRequestException('AI API Key not configured. Please configure AI provider in settings.');
+      throw new BadRequestException(
+        'AI API Key not configured. Please configure AI provider in settings.'
+      );
     }
 
     const imageBuffer = Buffer.from(imageBase64, 'base64');
 
     try {
-      const response = await fetch(settings.aiBaseUrl || 'https://api.openai.com/v1/chat/completions', {
+      const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${settings.aiApiKey}`,
+          Authorization: `Bearer ${settings.aiApiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -101,7 +173,8 @@ export class AIService {
             },
             {
               role: 'user',
-              content: '请分析上传的试卷图像并生成符合指定JSON格式的考试题目。只返回JSON格式的题目数据，不要有任何其他说明。',
+              content:
+                '请分析上传的试卷图像并生成符合指定JSON格式的考试题目。只返回JSON格式的题目数据，不要有任何其他说明。',
             },
             {
               role: 'user',

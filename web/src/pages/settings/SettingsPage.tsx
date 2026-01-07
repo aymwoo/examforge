@@ -9,7 +9,7 @@ import {
   type SystemSettings,
   type AIModelConfig,
 } from "@/services/settings";
-import { generateExamFromAI } from "@/services/settings";
+import { testAIConnection } from "@/services/settings";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -134,18 +134,21 @@ export default function SettingsPage() {
 
     setTestResult(null);
     try {
-      await generateExamFromAI("R0lGODlhAABAAEAAAIBRAA7c7wAAABJRU5ErkJggg==");
-      setTestResult("AI 连接测试成功！");
+      const result = await testAIConnection(
+        "Hello, please respond with just 'Connection successful!'",
+      );
+      setTestResult(`AI 连接测试成功！AI响应: ${result.response}`);
     } catch (err: unknown) {
       const axiosError = err as {
         response?: { data?: { message?: string } };
         message?: string;
       };
-      setError(
+      const errorMessage =
         axiosError.response?.data?.message ||
-          axiosError.message ||
-          "AI 连接测试失败",
-      );
+        axiosError.message ||
+        "AI 连接测试失败";
+      setError(errorMessage);
+      setTestResult(`测试失败: ${errorMessage}`);
     }
   };
 

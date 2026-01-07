@@ -1,13 +1,34 @@
-import { Controller, Post, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
+  Body,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AIService } from './ai.service';
 import { memoryStorage } from 'multer';
+import { IsOptional, IsString } from 'class-validator';
+
+class TestConnectionDto {
+  @IsOptional()
+  @IsString()
+  message?: string;
+}
 
 @ApiTags('ai')
 @Controller('ai')
 export class AIController {
   constructor(private readonly aiService: AIService) {}
+
+  @Post('test')
+  @ApiOperation({ summary: 'Test AI connection with a simple message' })
+  @ApiBody({ schema: { type: 'object', properties: { message: { type: 'string' } } } })
+  async testConnection(@Body() dto: TestConnectionDto) {
+    return this.aiService.testConnection(dto.message);
+  }
 
   @Post('generate-questions')
   @ApiOperation({ summary: 'Generate exam questions from uploaded exam image' })
@@ -27,12 +48,7 @@ export class AIController {
     FileInterceptor('image', {
       storage: memoryStorage(),
       fileFilter: (_req, file, cb) => {
-        const allowedMimes = [
-          'image/jpeg',
-          'image/jpg',
-          'image/png',
-          'image/webp',
-        ];
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
         if (allowedMimes.includes(file.mimetype)) {
           cb(null, true);
         } else {

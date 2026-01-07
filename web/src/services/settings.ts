@@ -58,3 +58,12 @@ export const generateExamFromAI = async (
   );
   return response.data;
 };
+
+export const testAIConnection = async (
+  message?: string,
+): Promise<{ response: string }> => {
+  const response = await api.post<{ response: string }>("/api/ai/test", {
+    message,
+  });
+  return response.data;
+};
