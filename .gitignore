@@ -38,6 +38,17 @@ lerna-debug.log*
 
 # Prisma
 prisma/migrations/**/migration.sql
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Uploads
+uploads/
+static/
+public/uploads/
+apps/api/uploads/
+apps/api/static/
 
 # Temp
 *.tmp
@@ -55,20 +66,6 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
-
-# Environment
-.env.local
-.env.*.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
 
 # Python
 __pycache__/

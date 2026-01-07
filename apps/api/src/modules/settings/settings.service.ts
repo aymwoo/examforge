@@ -7,7 +7,6 @@ export enum SettingKey {
   AI_BASE_URL = 'AI_BASE_URL',
   AI_MODEL = 'AI_MODEL',
   PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
-  OCR_ENGINE = 'OCR_ENGINE',
 }
 
 export interface SystemSettings {
@@ -16,7 +15,6 @@ export interface SystemSettings {
   aiBaseUrl: string;
   aiModel: string;
   promptTemplate: string;
-  ocrEngine: string;
 }
 
 @Injectable()
@@ -32,8 +30,8 @@ export class SettingsService {
       aiApiKey: settingsMap.get(SettingKey.AI_API_KEY) || '',
       aiBaseUrl: settingsMap.get(SettingKey.AI_BASE_URL) || '',
       aiModel: settingsMap.get(SettingKey.AI_MODEL) || 'gpt-4',
-      promptTemplate: settingsMap.get(SettingKey.PROMPT_TEMPLATE) || this.getDefaultPromptTemplate(),
-      ocrEngine: settingsMap.get(SettingKey.OCR_ENGINE) || 'tesseract',
+      promptTemplate:
+        settingsMap.get(SettingKey.PROMPT_TEMPLATE) || this.getDefaultPromptTemplate(),
     };
   }
 

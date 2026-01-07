@@ -7,7 +7,6 @@ export enum SettingKey {
   AI_BASE_URL = 'AI_BASE_URL',
   AI_MODEL = 'AI_MODEL',
   PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
-  OCR_ENGINE = 'OCR_ENGINE',
 }
 
 export class UpdateSettingDto {
