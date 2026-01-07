@@ -1,6 +1,6 @@
 import { Controller, Get, Put, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBody, ApiResponse } from '@nestjs/swagger';
-import { SettingsService, SystemSettings } from './settings.service';
+import { SettingsService, SystemSettings, AIModelConfig } from './settings.service';
 import { UpdateSettingDto } from './dto/update-setting.dto';
 
 @ApiTags('settings')
@@ -21,6 +21,13 @@ export class SettingsController {
   async getPrompt(): Promise<{ template: string }> {
     const template = await this.settingsService.getPromptTemplate();
     return { template };
+  }
+
+  @Get('providers')
+  @ApiOperation({ summary: 'Get available AI providers and models' })
+  @ApiResponse({ status: 200, description: 'Providers retrieved successfully' })
+  async getProviders(): Promise<AIModelConfig[]> {
+    return this.settingsService.getAvailableProviders();
   }
 
   @Put()

@@ -1,6 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+export enum AIProvider {
+  OPENAI = 'openai',
+  QWEN = 'qwen',
+  CUSTOM = 'custom',
+}
+
 export enum SettingKey {
   AI_PROVIDER = 'AI_PROVIDER',
   AI_API_KEY = 'AI_API_KEY',
@@ -8,6 +14,52 @@ export enum SettingKey {
   AI_MODEL = 'AI_MODEL',
   PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
 }
+
+export interface AIModelConfig {
+  id: string;
+  name: string;
+  provider: AIProvider;
+  defaultBaseUrl?: string;
+  defaultModel?: string;
+}
+
+export const AI_MODELS: AIModelConfig[] = [
+  {
+    id: 'gpt-4',
+    name: 'GPT-4',
+    provider: AIProvider.OPENAI,
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    defaultModel: 'gpt-4',
+  },
+  {
+    id: 'gpt-3.5-turbo',
+    name: 'GPT-3.5 Turbo',
+    provider: AIProvider.OPENAI,
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    defaultModel: 'gpt-3.5-turbo',
+  },
+  {
+    id: 'qwen-turbo',
+    name: 'Qwen Turbo',
+    provider: AIProvider.QWEN,
+    defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    defaultModel: 'qwen-turbo',
+  },
+  {
+    id: 'qwen-plus',
+    name: 'Qwen Plus',
+    provider: AIProvider.QWEN,
+    defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    defaultModel: 'qwen-plus',
+  },
+  {
+    id: 'qwen-max',
+    name: 'Qwen Max',
+    provider: AIProvider.QWEN,
+    defaultBaseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    defaultModel: 'qwen-max',
+  },
+];
 
 export interface SystemSettings {
   aiProvider: string;
@@ -25,14 +77,21 @@ export class SettingsService {
     const settings = await this.prisma.systemSetting.findMany();
     const settingsMap = new Map(settings.map((s) => [s.key, s.value]));
 
+    const provider = (settingsMap.get(SettingKey.AI_PROVIDER) || AIProvider.OPENAI) as AIProvider;
+    const modelConfig = AI_MODELS.find((m) => m.provider === provider);
+
     return {
-      aiProvider: settingsMap.get(SettingKey.AI_PROVIDER) || 'openai',
+      aiProvider: provider,
       aiApiKey: settingsMap.get(SettingKey.AI_API_KEY) || '',
-      aiBaseUrl: settingsMap.get(SettingKey.AI_BASE_URL) || '',
-      aiModel: settingsMap.get(SettingKey.AI_MODEL) || 'gpt-4',
+      aiBaseUrl: settingsMap.get(SettingKey.AI_BASE_URL) || modelConfig?.defaultBaseUrl || '',
+      aiModel: settingsMap.get(SettingKey.AI_MODEL) || modelConfig?.defaultModel || '',
       promptTemplate:
         settingsMap.get(SettingKey.PROMPT_TEMPLATE) || this.getDefaultPromptTemplate(),
     };
+  }
+
+  async getAvailableProviders(): Promise<AIModelConfig[]> {
+    return [...AI_MODELS, { id: 'custom', name: '自定义模型', provider: AIProvider.CUSTOM }];
   }
 
   async getSetting(key: string): Promise<string> {

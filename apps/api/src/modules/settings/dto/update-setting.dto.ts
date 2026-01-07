@@ -1,16 +1,10 @@
 import { IsString, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-
-export enum SettingKey {
-  AI_PROVIDER = 'AI_PROVIDER',
-  AI_API_KEY = 'AI_API_KEY',
-  AI_BASE_URL = 'AI_BASE_URL',
-  AI_MODEL = 'AI_MODEL',
-  PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
-}
+import { SettingKey } from '../settings.service';
+import { AIProvider } from '../settings.service';
 
 export class UpdateSettingDto {
-  @ApiProperty({ description: 'Setting key' })
+  @ApiProperty({ description: 'Setting key', enum: SettingKey })
   @IsString()
   @IsEnum(SettingKey)
   key: SettingKey;
@@ -19,3 +13,5 @@ export class UpdateSettingDto {
   @IsString()
   value: string;
 }
+
+export { AIProvider };
