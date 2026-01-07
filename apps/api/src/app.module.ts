@@ -6,6 +6,7 @@ import { ImportModule } from './modules/import/import.module';
 import { ExamModule } from './modules/exam/exam.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { AIModule } from './modules/ai/ai.module';
+import { SubmissionModule } from './modules/submission/submission.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { AIModule } from './modules/ai/ai.module';
     ExamModule,
     SettingsModule,
     AIModule,
+    SubmissionModule,
   ],
 })
 export class AppModule {}

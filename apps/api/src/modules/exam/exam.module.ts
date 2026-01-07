@@ -9,10 +9,4 @@ import { AIModule } from '../ai/ai.module';
   providers: [ExamService],
   exports: [ExamService],
 })
-@Module({
-  imports: [AIModule],
-  controllers: [ExamController],
-  providers: [ExamService],
-  exports: [ExamService],
-})
 export class ExamModule {}
