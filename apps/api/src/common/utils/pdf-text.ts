@@ -1,36 +1,31 @@
-import { PdfReader } from 'pdfreader';
+// Use legacy build for Node.js environment (no DOM dependencies)
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 
 export async function extractTextFromPdf(buffer: Buffer): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const items: Array<{ page: number; x: number; y: number; text: string }> = [];
+  const data = new Uint8Array(buffer);
+  const pdf = await getDocument({
+    data,
+    useSystemFonts: true,
+    disableFontFace: true,
+  }).promise;
 
-    new PdfReader().parseBuffer(buffer, (err, item) => {
-      if (err) {
-        reject(err);
-        return;
-      }
+  const pages: string[] = [];
 
-      if (!item) {
-        const text = items
-          .sort((a, b) => {
-            if (a.page !== b.page) return a.page - b.page;
-            if (a.y !== b.y) return a.y - b.y;
-            return a.x - b.x;
-          })
-          .map((i) => i.text)
-          .join(' ');
-        resolve(text);
-        return;
-      }
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
 
-      if (typeof item.text === 'string') {
-        items.push({
-          page: typeof item.page === 'number' ? item.page : 0,
-          x: typeof item.x === 'number' ? item.x : 0,
-          y: typeof item.y === 'number' ? item.y : 0,
-          text: item.text,
-        });
-      }
-    });
-  });
+    // Extract text items and join with space
+    const pageText = textContent.items
+      .filter((item): item is TextItem => 'str' in item)
+      .map((item) => item.str)
+      .join(' ');
+
+    if (pageText.trim()) {
+      pages.push(`--- Page ${i} ---\n${pageText}`);
+    }
+  }
+
+  return pages.join('\n\n');
 }

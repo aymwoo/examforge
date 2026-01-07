@@ -107,6 +107,20 @@ export class QuestionService {
     await this.prisma.question.delete({ where: { id } });
   }
 
+  async deleteMany(ids: string[]): Promise<{ deleted: number }> {
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException('No question IDs provided');
+    }
+
+    const result = await this.prisma.question.deleteMany({
+      where: {
+        id: { in: ids },
+      },
+    });
+
+    return { deleted: result.count };
+  }
+
   private transformQuestion(question: any) {
     return {
       ...question,

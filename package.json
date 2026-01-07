@@ -19,7 +19,6 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
   "devDependencies": {
-    "pdfreader": "^3.0.8",
     "prettier": "^3.7.4",
     "typescript": "^5.9.3"
   },

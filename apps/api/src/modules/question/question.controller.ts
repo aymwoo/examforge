@@ -60,4 +60,12 @@ export class QuestionController {
   delete(@Param('id') id: string) {
     return this.questionService.delete(id);
   }
+
+  @Post('batch-delete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete multiple questions' })
+  @ApiResponse({ status: 200, description: 'Questions deleted successfully' })
+  deleteMany(@Body() body: { ids: string[] }) {
+    return this.questionService.deleteMany(body.ids);
+  }
 }

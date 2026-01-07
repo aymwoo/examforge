@@ -65,3 +65,13 @@ export const updateQuestion = async (
 export const deleteQuestion = async (id: string): Promise<void> => {
   await api.delete(`/api/questions/${id}`);
 };
+
+export const deleteQuestions = async (
+  ids: string[],
+): Promise<{ deleted: number }> => {
+  const response = await api.post<{ deleted: number }>(
+    "/api/questions/batch-delete",
+    { ids },
+  );
+  return response.data;
+};

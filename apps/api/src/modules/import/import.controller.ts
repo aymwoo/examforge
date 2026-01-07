@@ -10,7 +10,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
 
@@ -73,6 +73,12 @@ export class ImportController {
 
   @Post('pdf')
   @ApiOperation({ summary: 'Import questions from PDF using AI' })
+  @ApiQuery({
+    name: 'mode',
+    required: false,
+    description: 'PDF import mode: text | vision | file (default: vision for qwen; otherwise text)',
+    schema: { type: 'string', enum: ['text', 'vision', 'file'] },
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -103,7 +109,7 @@ export class ImportController {
       },
     })
   )
-  async importPdf(@UploadedFile() file: Express.Multer.File) {
+  async importPdf(@UploadedFile() file: Express.Multer.File, @Query('mode') mode?: string) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
@@ -111,7 +117,7 @@ export class ImportController {
     const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     this.progressStore.createJob(jobId);
 
-    void this.importService.importFromPdf(jobId, file.buffer);
+    void this.importService.importFromPdf(jobId, file.buffer, mode);
 
     return { jobId };
   }
@@ -126,6 +132,11 @@ export class ImportController {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    // Avoid proxy buffering which can look like a dropped connection.
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    // Immediately flush headers so browser keeps the SSE open.
+    res.flushHeaders?.();
 
     const sinceTime = since ? Number(since) : undefined;
 
@@ -136,11 +147,16 @@ export class ImportController {
       }
     };
 
+    // Initial ping to keep intermediaries from closing the stream.
+    res.write(`: connected\n\n`);
+
     writeEvents();
 
     const interval = setInterval(() => {
       writeEvents();
-    }, 500);
+      // Comment ping to keep connection alive even when idle.
+      res.write(`: ping ${Date.now()}\n\n`);
+    }, 1000);
 
     res.on('close', () => {
       clearInterval(interval);

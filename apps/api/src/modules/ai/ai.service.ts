@@ -60,15 +60,27 @@ export class AIService {
               role: 'user',
               content:
                 opts?.chunkIndex && opts?.totalChunks
-                  ? `以下是从 PDF 解析得到的试题文本（分块 ${opts.chunkIndex}/${opts.totalChunks}）。请只基于当前分块抽取/生成题目，不要依赖其它分块。只返回 JSON：{"questions": [...] }。`
-                  : '以下是从 PDF 解析得到的试题文本。请根据要求抽取/生成题目。只返回 JSON：{"questions": [...] }。',
+                  ? `以下是从 PDF 解析得到的试题文本（分块 ${opts.chunkIndex}/${opts.totalChunks}）。
+
+要求：
+- 逐题输出：不要遗漏当前分块中出现的任何题目（包含选择题/判断题/填空题/简答题/实践应用题）。
+- 不要合并题目；每道题都要单独作为一个 question。
+- 如果题目/答案跨行或被打散，请尽量还原。
+- 只返回严格 JSON：{"questions":[...]}（不要输出 markdown 或说明）。`
+                  : `以下是从 PDF 解析得到的试题文本。
+
+要求：
+- 逐题输出：不要遗漏文本中出现的任何题目（包含选择题/判断题/填空题/简答题/实践应用题）。
+- 不要合并题目；每道题都要单独作为一个 question。
+- 如果题目/答案跨行或被打散，请尽量还原。
+- 只返回严格 JSON：{"questions":[...]}（不要输出 markdown 或说明）。`,
             },
             {
               role: 'user',
               content: trimmedText,
             },
           ],
-          max_tokens: 4000,
+          max_tokens: 8000,
         }),
       });
 
@@ -223,8 +235,6 @@ export class AIService {
       );
     }
 
-    const imageBuffer = Buffer.from(imageBase64, 'base64');
-
     try {
       const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
       const response = await fetch(apiUrl, {
@@ -238,20 +248,33 @@ export class AIService {
           messages: [
             {
               role: 'system',
-              content: settings.promptTemplate,
+              content: `${promptTemplate}`,
             },
             {
               role: 'user',
-              content:
-                '请分析上传的试卷图像并生成符合指定JSON格式的考试题目。只返回JSON格式的题目数据，不要有任何其他说明。',
-            },
-            {
-              role: 'user',
-              type: 'image_url',
-              image_url: `data:image/jpeg;base64,${imageBase64}`,
+              content: [
+                {
+                  type: 'text',
+                  text: `以下是试卷图片，请识别并逐题输出（不要遗漏任何题目）。
+
+要求：
+1. 不要合并题目；每道题都要单独作为一个 question。
+2. 如题目/答案跨行或被打散，请尽量还原完整内容。
+3. type 字段必须是以下之一：SINGLE_CHOICE, MULTIPLE_CHOICE, TRUE_FALSE, FILL_BLANK, ESSAY
+4. 选择题必须包含 options 数组，格式 [{"label":"A","content":"..."},...]
+5. answer 字段：选择题填选项字母（如 "A" 或 "AB"），判断题填 "正确"/"错误" 或 "对"/"错"，其他题型填完整答案。
+6. 只返回严格 JSON：{"questions":[...]}（不要输出 markdown、代码块或任何说明文字）。`,
+                },
+                {
+                  type: 'image_url',
+                  image_url: {
+                    url: `data:image/png;base64,${imageBase64}`,
+                  },
+                },
+              ],
             },
           ],
-          max_tokens: 4000,
+          max_tokens: 8000,
         }),
       });
 
@@ -279,23 +302,153 @@ export class AIService {
     }
   }
 
-  private parseAIResponse(content: string): AIQuestion[] {
-    try {
-      const cleanedContent = content
-        .replace(/```json/g, '')
-        .replace(/```/g, '')
-        .trim();
+  /**
+   * Extract first balanced JSON object or array from text.
+   */
+  private extractFirstJson(text: string): { type: 'object' | 'array'; json: string } | null {
+    const cleaned = text
+      .replace(/```json/gi, '')
+      .replace(/```/g, '')
+      .trim();
 
-      const parsed = JSON.parse(cleanedContent);
+    const objStart = cleaned.indexOf('{');
+    const arrStart = cleaned.indexOf('[');
 
-      if (!parsed.questions || !Array.isArray(parsed.questions)) {
-        throw new Error('Invalid AI response format');
+    // Determine which comes first
+    let start = -1;
+    let openChar = '{';
+    let closeChar = '}';
+
+    if (objStart === -1 && arrStart === -1) {
+      return null;
+    } else if (objStart === -1) {
+      start = arrStart;
+      openChar = '[';
+      closeChar = ']';
+    } else if (arrStart === -1) {
+      start = objStart;
+    } else if (arrStart < objStart) {
+      start = arrStart;
+      openChar = '[';
+      closeChar = ']';
+    } else {
+      start = objStart;
+    }
+
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+
+    for (let i = start; i < cleaned.length; i++) {
+      const ch = cleaned[i];
+
+      if (escape) {
+        escape = false;
+        continue;
       }
 
-      return parsed.questions;
+      if (ch === '\\') {
+        escape = true;
+        continue;
+      }
+
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (inString) continue;
+
+      if (ch === openChar) depth++;
+      if (ch === closeChar) depth--;
+
+      if (depth === 0) {
+        return {
+          type: openChar === '{' ? 'object' : 'array',
+          json: cleaned.slice(start, i + 1),
+        };
+      }
+    }
+
+    // Unbalanced, return what we have
+    return {
+      type: openChar === '{' ? 'object' : 'array',
+      json: cleaned.slice(start),
+    };
+  }
+
+  private parseAIResponse(content: string): AIQuestion[] {
+    // Log raw content for debugging (first 500 chars)
+    console.log('[AI Response] Raw content preview:', content.slice(0, 500));
+
+    try {
+      const extracted = this.extractFirstJson(content);
+
+      if (!extracted) {
+        // Check if this is a "no questions" response
+        const lowerContent = content.toLowerCase();
+        if (
+          lowerContent.includes('没有题目') ||
+          lowerContent.includes('无法识别') ||
+          lowerContent.includes('no question') ||
+          lowerContent.includes('空白') ||
+          lowerContent.includes('封面') ||
+          lowerContent.includes('答案')
+        ) {
+          console.log('[AI Response] Page appears to have no questions, returning empty array');
+          return [];
+        }
+        throw new Error('No JSON found in response');
+      }
+
+      const parsed = JSON.parse(extracted.json);
+
+      // Case 1: {"questions": [...]}
+      if (parsed.questions && Array.isArray(parsed.questions)) {
+        console.log(`[AI Response] Parsed ${parsed.questions.length} questions from object`);
+        return parsed.questions;
+      }
+
+      // Case 2: Direct array [...]
+      if (Array.isArray(parsed)) {
+        console.log(`[AI Response] Parsed ${parsed.length} questions from array`);
+        return parsed;
+      }
+
+      // Case 3: Single question object
+      if (parsed.content && parsed.type) {
+        console.log('[AI Response] Parsed single question object');
+        return [parsed];
+      }
+
+      // Case 4: Empty object or other structure
+      if (typeof parsed === 'object' && Object.keys(parsed).length === 0) {
+        console.log('[AI Response] Empty object, returning empty array');
+        return [];
+      }
+
+      throw new Error('Unexpected JSON structure');
     } catch (error: unknown) {
-      console.error('Failed to parse AI response:', error);
-      throw new BadRequestException('AI returned invalid format. Expected: { "questions": [...] }');
+      console.error('[AI Response] Parse error:', (error as Error).message);
+      console.error('[AI Response] Full content:', content);
+
+      // Last resort: check for "no questions" indicators
+      const lowerContent = content.toLowerCase();
+      if (
+        lowerContent.includes('没有题目') ||
+        lowerContent.includes('无法识别') ||
+        lowerContent.includes('无题目') ||
+        lowerContent.includes('空白页') ||
+        lowerContent.includes('封面') ||
+        lowerContent.includes('目录')
+      ) {
+        console.log('[AI Response] Detected no-question page from error path');
+        return [];
+      }
+
+      throw new BadRequestException(
+        `AI returned invalid format. Expected: { "questions": [...] }. Got: ${content.slice(0, 200)}`
+      );
     }
   }
 }

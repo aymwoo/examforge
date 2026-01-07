@@ -1,6 +1,7 @@
 export type PdfImportStage =
   | 'received'
   | 'extracting_text'
+  | 'converting_pdf_to_images'
   | 'calling_ai'
   | 'ai_response_received'
   | 'parsing_ai_response'
@@ -15,6 +16,7 @@ export interface PdfImportProgressEvent {
   message: string;
   current?: number;
   total?: number;
+  meta?: Record<string, unknown>;
   result?: {
     success: number;
     failed: number;

@@ -11,6 +11,18 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import axios from "axios";
+import {
+  getProviders,
+  getSettings,
+  updateSetting,
+  type AIModelConfig,
+} from "@/services/settings";
+
+const PROVIDER_LABELS: Record<string, string> = {
+  openai: "OpenAI",
+  qwen: "Qwen",
+  custom: "自定义",
+};
 
 export default function ImportPage() {
   const navigate = useNavigate();
@@ -18,6 +30,7 @@ export default function ImportPage() {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
+  const [pdfMode, setPdfMode] = useState<"vision" | "file" | "text">("vision");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{
     success: number;
@@ -26,6 +39,8 @@ export default function ImportPage() {
   } | null>(null);
 
   const [pdfJobId, setPdfJobId] = useState<string | null>(null);
+  const [aiProvider, setAiProvider] = useState<string>("gpt-4");
+  const [providerOptions, setProviderOptions] = useState<AIModelConfig[]>([]);
   const [pdfEvents, setPdfEvents] = useState<any[]>([]);
   const [pdfError, setPdfError] = useState<string | null>(null);
 
@@ -177,15 +192,47 @@ export default function ImportPage() {
           latestPdfEvent?.current &&
           latestPdfEvent?.total
         ? `保存题目（${latestPdfEvent.current}/${latestPdfEvent.total}）`
-        : undefined;
+        : pdfStage === "converting_pdf_to_images"
+          ? "PDF 转图片中"
+          : undefined;
+
+  useEffect(() => {
+    // Load current AI provider + available providers for dropdown.
+    void (async () => {
+      try {
+        const [settingsData, providersData] = await Promise.all([
+          getSettings(),
+          getProviders(),
+        ]);
+        const preferredId =
+          providersData.find((p) => p.provider === settingsData.aiProvider)
+            ?.id ||
+          providersData[0]?.id ||
+          "";
+        setAiProvider(preferredId);
+        setProviderOptions(providersData);
+      } catch {
+        // ignore settings load errors on import page
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!pdfJobId) return;
 
     const url = `/api/import/pdf/progress/${pdfJobId}`;
     const es = new EventSource(url);
+    let didReceiveAnyEvent = false;
+    const timeout = window.setTimeout(() => {
+      if (!didReceiveAnyEvent) {
+        setPdfError("进度连接中断，请稍后重试");
+        es.close();
+      }
+    }, 8000);
 
     es.onmessage = (event) => {
+      didReceiveAnyEvent = true;
+      window.clearTimeout(timeout);
       try {
         const data = JSON.parse(event.data);
         setPdfEvents((prev) => [...prev, data]);
@@ -195,11 +242,13 @@ export default function ImportPage() {
     };
 
     es.onerror = () => {
+      window.clearTimeout(timeout);
       setPdfError("进度连接中断，请稍后重试");
       es.close();
     };
 
     return () => {
+      window.clearTimeout(timeout);
       es.close();
     };
   }, [pdfJobId]);
@@ -216,7 +265,10 @@ export default function ImportPage() {
     formData.append("file", selectedPdf);
 
     try {
-      const response = await axios.post("/api/import/pdf", formData);
+      const response = await axios.post(
+        `/api/import/pdf?mode=${pdfMode}`,
+        formData,
+      );
       setPdfJobId(response.data.jobId);
       setSelectedPdf(null);
     } catch (error: unknown) {
@@ -466,20 +518,74 @@ export default function ImportPage() {
 
             <div className="rounded-2xl border border-border bg-slate-50 p-4">
               <p className="text-sm text-ink-700">
-                上传 PDF 后，系统会提取文本并调用 AI 生成题目，最后保存到题库。
+                上传 PDF 后，系统会按所选模式调用 AI 生成题目，最后保存到题库。
               </p>
 
-              <div className="mt-4 flex items-center gap-3">
-                <input
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  onChange={handlePdfSelect}
-                  className="block w-full text-sm text-ink-900 file:mr-4 file:rounded-xl file:border-0 file:bg-white file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-ink-900 file:shadow-sm"
-                />
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-semibold text-ink-900">
+                  AI Provider（全局设置）
+                </p>
+                <select
+                  value={aiProvider}
+                  onChange={async (e) => {
+                    const selectedId = e.target.value;
+                    const model = providerOptions.find(
+                      (p) => p.id === selectedId,
+                    );
+                    if (!model) return;
+
+                    setAiProvider(model.provider);
+
+                    try {
+                      await updateSetting("AI_PROVIDER", model.provider);
+
+                      if (model.defaultBaseUrl) {
+                        await updateSetting(
+                          "AI_BASE_URL",
+                          model.defaultBaseUrl,
+                        );
+                      }
+                      if (model.defaultModel) {
+                        await updateSetting("AI_MODEL", model.defaultModel);
+                      }
+                    } catch {
+                      // ignore update errors here (Settings page is source of truth)
+                    }
+                  }}
+                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-ink-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:w-72"
+                >
+                  {providerOptions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}（{PROVIDER_LABELS[p.provider] || p.provider}）
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={handlePdfSelect}
+                    className="block w-full text-sm text-ink-900 file:mr-4 file:rounded-xl file:border-0 file:bg-white file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-ink-900 file:shadow-sm"
+                  />
+
+                  <select
+                    value={pdfMode}
+                    onChange={(e) => setPdfMode(e.target.value as any)}
+                    className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-ink-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:w-64"
+                  >
+                    <option value="vision">图片识别（推荐）</option>
+                    <option value="text">文本解析（可复制 PDF）</option>
+                    <option value="file">直接发送 PDF（若模型支持）</option>
+                  </select>
+                </div>
+
                 <button
                   onClick={handlePdfUpload}
                   disabled={!selectedPdf || isUploading}
-                  className="inline-flex items-center justify-center rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex h-10 items-center justify-center rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUploading ? "上传中..." : "开始导入"}
                 </button>
@@ -494,6 +600,8 @@ export default function ImportPage() {
               {(pdfMessage || pdfProgress !== undefined) && (
                 <div className="mt-4 rounded-xl border border-border bg-white p-4">
                   <p className="text-sm font-semibold text-ink-900">进度</p>
+                  <p className="mt-1 text-xs text-ink-700">模式：{pdfMode}</p>
+
                   {pdfProgressLabel && (
                     <p className="mt-1 text-sm font-semibold text-ink-900">
                       {pdfProgressLabel}
