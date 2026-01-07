@@ -10,6 +10,7 @@ export interface ImportResult {
 export declare class ImportService {
     private readonly prisma;
     constructor(prisma: PrismaService);
+    private get question();
     importFromExcel(buffer: Buffer): Promise<ImportResult>;
     private mapRowToDto;
     private parseOptions;

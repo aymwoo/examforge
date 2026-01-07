@@ -48,13 +48,17 @@ __decorate([
     }),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
         storage: (0, multer_1.memoryStorage)(),
-        fileFilter: (req, file, cb) => {
+        fileFilter: (_req, file, cb) => {
             const allowedMimes = [
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                 'application/vnd.ms-excel',
                 'text/csv',
+                'application/csv',
+                'application/octet-stream',
             ];
-            if (allowedMimes.includes(file.mimetype)) {
+            const allowedExtensions = ['.xlsx', '.xls', '.csv'];
+            const fileExt = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+            if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
                 cb(null, true);
             }
             else {

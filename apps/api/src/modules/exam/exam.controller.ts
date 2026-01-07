@@ -10,17 +10,46 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { ExamService } from './exam.service';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
 import { AddQuestionDto } from './dto/add-question.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { AIService } from '../ai/ai.service';
 
 @ApiTags('exams')
 @Controller('exams')
 export class ExamController {
-  constructor(private readonly examService: ExamService) {}
+  constructor(
+    private readonly examService: ExamService,
+    private readonly aiService: AIService,
+  ) {}
+
+  @Post('generate-from-ai')
+  @ApiOperation({ summary: 'Generate exam questions from uploaded image using AI' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  async generateFromAI(@Body('image') body: { image: string }) {
+    return this.aiService.generateExamQuestionsFromImage(body.image);
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create a new exam' })

@@ -18,6 +18,9 @@ let QuestionService = class QuestionService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    get question() {
+        return this.prisma.question;
+    }
     async create(dto) {
         const optionsJson = dto.options ? JSON.stringify(dto.options) : null;
         const tagsStr = dto.tags ? JSON.stringify(dto.tags) : '[]';

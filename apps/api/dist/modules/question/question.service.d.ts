@@ -5,17 +5,18 @@ import { PaginationDto } from '@/common/dto/pagination.dto';
 export declare class QuestionService {
     private readonly prisma;
     constructor(prisma: PrismaService);
+    private get question();
     create(dto: CreateQuestionDto): Promise<{
-        type: string;
+        id: string;
         content: string;
+        type: string;
         options: string | null;
         answer: string | null;
         explanation: string | null;
         tags: string;
         difficulty: number;
-        knowledgePoint: string | null;
         status: string;
-        id: string;
+        knowledgePoint: string | null;
         createdAt: Date;
         updatedAt: Date;
     }>;

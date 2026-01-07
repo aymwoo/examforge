@@ -1,0 +1,26 @@
+# Stage 1: Build
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm --filter @examforge/web build
+
+# Stage 2: Run
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml ./
+RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
+
+COPY --from=builder /app/apps/web/dist ./apps/web/dist
+
+ENV NODE_ENV=production
+
+EXPOSE 5173
+
+CMD ["sh", "-c", "npx serve -s apps/web/dist -l 5173"]

@@ -13,6 +13,8 @@ const prisma_module_1 = require("./prisma/prisma.module");
 const question_module_1 = require("./modules/question/question.module");
 const import_module_1 = require("./modules/import/import.module");
 const exam_module_1 = require("./modules/exam/exam.module");
+const settings_module_1 = require("./modules/settings/settings.module");
+const ai_module_1 = require("./modules/ai/ai.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -26,6 +28,8 @@ exports.AppModule = AppModule = __decorate([
             question_module_1.QuestionModule,
             import_module_1.ImportModule,
             exam_module_1.ExamModule,
+            settings_module_1.SettingsModule,
+            ai_module_1.AIModule,
         ],
     })
 ], AppModule);

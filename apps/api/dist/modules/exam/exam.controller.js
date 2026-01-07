@@ -20,10 +20,16 @@ const create_exam_dto_1 = require("./dto/create-exam.dto");
 const update_exam_dto_1 = require("./dto/update-exam.dto");
 const add_question_dto_1 = require("./dto/add-question.dto");
 const pagination_dto_1 = require("../../common/dto/pagination.dto");
+const ai_service_1 = require("../ai/ai.service");
 let ExamController = class ExamController {
     examService;
-    constructor(examService) {
+    aiService;
+    constructor(examService, aiService) {
         this.examService = examService;
+        this.aiService = aiService;
+    }
+    async generateFromAI(body) {
+        return this.aiService.generateExamQuestionsFromImage(body.image);
     }
     create(dto) {
         return this.examService.create(dto);
@@ -51,6 +57,26 @@ let ExamController = class ExamController {
     }
 };
 exports.ExamController = ExamController;
+__decorate([
+    (0, common_1.Post)('generate-from-ai'),
+    (0, swagger_1.ApiOperation)({ summary: 'Generate exam questions from uploaded image using AI' }),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    }),
+    __param(0, (0, common_1.Body)('image')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], ExamController.prototype, "generateFromAI", null);
 __decorate([
     (0, common_1.Post)(),
     (0, swagger_1.ApiOperation)({ summary: 'Create a new exam' }),
@@ -142,6 +168,7 @@ __decorate([
 exports.ExamController = ExamController = __decorate([
     (0, swagger_1.ApiTags)('exams'),
     (0, common_1.Controller)('exams'),
-    __metadata("design:paramtypes", [exam_service_1.ExamService])
+    __metadata("design:paramtypes", [exam_service_1.ExamService,
+        ai_service_1.AIService])
 ], ExamController);
 //# sourceMappingURL=exam.controller.js.map

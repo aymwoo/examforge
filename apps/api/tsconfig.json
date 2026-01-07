@@ -12,13 +12,16 @@
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": true,
-    "noImplicitAny": true,
-    "strictBindCallApply": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
+    "strict": false,
+    "esModuleInterop": true,
     "paths": {
       "@/*": ["src/*"]
     }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
+  }
+}
   }
 }

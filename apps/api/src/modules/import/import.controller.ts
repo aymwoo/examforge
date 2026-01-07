@@ -32,13 +32,18 @@ export class ImportController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_req, file, cb) => {
         const allowedMimes = [
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'application/vnd.ms-excel',
           'text/csv',
+          'application/csv',
+          'application/octet-stream', // Some browsers send this for xlsx
         ];
-        if (allowedMimes.includes(file.mimetype)) {
+        const allowedExtensions = ['.xlsx', '.xls', '.csv'];
+        const fileExt = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+
+        if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
           cb(null, true);
         } else {
           cb(new BadRequestException('Only Excel and CSV files are allowed'), false);
@@ -47,7 +52,7 @@ export class ImportController {
       limits: {
         fileSize: 10 * 1024 * 1024,
       },
-    }),
+    })
   )
   async importExcel(@UploadedFile() file: Express.Multer.File) {
     if (!file) {

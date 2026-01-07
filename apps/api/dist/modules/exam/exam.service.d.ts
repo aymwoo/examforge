@@ -7,12 +7,12 @@ export declare class ExamService {
     private readonly prisma;
     constructor(prisma: PrismaService);
     create(dto: CreateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
+        title: string;
         duration: number;
         totalScore: number;
         startTime: Date | null;
@@ -29,12 +29,12 @@ export declare class ExamService {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
+        description: string | null;
+        title: string;
         duration: number;
         totalScore: number;
         startTime: Date | null;
@@ -43,18 +43,18 @@ export declare class ExamService {
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
-        questionId: string;
         order: number;
-        score: number;
         examId: string;
+        questionId: string;
+        score: number;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
     updateQuestionOrder(examId: string, questionId: string, order: number, score?: number): Promise<{
         id: string;
-        questionId: string;
         order: number;
-        score: number;
         examId: string;
+        questionId: string;
+        score: number;
     }>;
     private transformExam;
 }

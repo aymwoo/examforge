@@ -14,6 +14,10 @@ import { PaginationDto } from '@/common/dto/pagination.dto';
 export class QuestionService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private get question() {
+    return this.prisma.question;
+  }
+
   async create(dto: CreateQuestionDto) {
     const optionsJson = dto.options ? JSON.stringify(dto.options) : null;
     const tagsStr = dto.tags ? JSON.stringify(dto.tags) : '[]';

@@ -14,6 +14,10 @@ export interface ImportResult {
 export class ImportService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private get question() {
+    return this.prisma.question;
+  }
+
   async importFromExcel(buffer: Buffer): Promise<ImportResult> {
     const workbook = XLSX.read(buffer);
     const sheetName = workbook.SheetNames[0];
@@ -54,7 +58,7 @@ export class ImportService {
         result.failed++;
         result.errors.push({
           row: rowNum,
-          message: error.message || 'Unknown error',
+          message: (error as any).message || 'Unknown error',
         });
       }
     }
@@ -68,27 +72,27 @@ export class ImportService {
     const answer = row['答案'] || row['answer'] || row['Answer'] || '';
 
     if (!content) {
-      throw new BadRequestException('Question content is required');
+      throw new BadRequestException('题干不能为空，请确保 Excel 包含"题干"列');
     }
 
     const typeMap: Record<string, QuestionType> = {
-      '单选题': QuestionType.SINGLE_CHOICE,
-      'single': QuestionType.SINGLE_CHOICE,
-      'single_choice': QuestionType.SINGLE_CHOICE,
-      'SINGLE_CHOICE': QuestionType.SINGLE_CHOICE,
-      '多选题': QuestionType.MULTIPLE_CHOICE,
-      'multiple': QuestionType.MULTIPLE_CHOICE,
-      'multiple_choice': QuestionType.MULTIPLE_CHOICE,
-      'MULTIPLE_CHOICE': QuestionType.MULTIPLE_CHOICE,
-      '判断题': QuestionType.TRUE_FALSE,
-      'true_false': QuestionType.TRUE_FALSE,
-      'TRUE_FALSE': QuestionType.TRUE_FALSE,
-      '填空题': QuestionType.FILL_BLANK,
-      'fill_blank': QuestionType.FILL_BLANK,
-      'FILL_BLANK': QuestionType.FILL_BLANK,
-      '简答题': QuestionType.ESSAY,
-      'essay': QuestionType.ESSAY,
-      'ESSAY': QuestionType.ESSAY,
+      单选题: QuestionType.SINGLE_CHOICE,
+      single: QuestionType.SINGLE_CHOICE,
+      single_choice: QuestionType.SINGLE_CHOICE,
+      SINGLE_CHOICE: QuestionType.SINGLE_CHOICE,
+      多选题: QuestionType.MULTIPLE_CHOICE,
+      multiple: QuestionType.MULTIPLE_CHOICE,
+      multiple_choice: QuestionType.MULTIPLE_CHOICE,
+      MULTIPLE_CHOICE: QuestionType.MULTIPLE_CHOICE,
+      判断题: QuestionType.TRUE_FALSE,
+      true_false: QuestionType.TRUE_FALSE,
+      TRUE_FALSE: QuestionType.TRUE_FALSE,
+      填空题: QuestionType.FILL_BLANK,
+      fill_blank: QuestionType.FILL_BLANK,
+      FILL_BLANK: QuestionType.FILL_BLANK,
+      简答题: QuestionType.ESSAY,
+      essay: QuestionType.ESSAY,
+      ESSAY: QuestionType.ESSAY,
     };
 
     const type = typeMap[typeStr.toLowerCase()] || QuestionType.SINGLE_CHOICE;
@@ -113,7 +117,12 @@ export class ImportService {
 
     if (row['标签'] || row['tags'] || row['Tags']) {
       const tagsStr = row['标签'] || row['tags'] || row['Tags'];
-      dto.tags = Array.isArray(tagsStr) ? tagsStr : tagsStr.toString().split(',').map((t: string) => t.trim());
+      dto.tags = Array.isArray(tagsStr)
+        ? tagsStr
+        : tagsStr
+            .toString()
+            .split(',')
+            .map((t: string) => t.trim());
     }
 
     if (row['难度'] || row['difficulty'] || row['Difficulty']) {
@@ -139,7 +148,7 @@ export class ImportService {
     }
 
     if (typeof optionsStr === 'string') {
-      const parts = optionsStr.split(/[,;|]/).map(s => s.trim());
+      const parts = optionsStr.split(/[,;|]/).map((s) => s.trim());
       return parts.map((opt, idx) => ({
         label: String.fromCharCode(65 + idx),
         content: opt,

@@ -1,313 +1,381 @@
-# AGENTS.md - ExamForge Development Guide
+# AGENTS.md — ExamForge (Monorepo) Agent Guide
 
-> Guidelines for AI coding agents working on this Monorepo codebase.
+This file is for agentic coding tools operating in this repo. Follow it strictly.
 
-## Project Overview
+## Repo layout
 
-ExamForge is an AI-driven multi-source question bank and online examination system using **Monorepo** architecture.
-- **Backend**: Node.js + TypeScript + NestJS
-- **Frontend**: React / Vue (in apps/web)
-- **Database**: SQLite (dev) / PostgreSQL (prod) via Prisma ORM
-- **API Style**: REST
-- **Package Manager**: pnpm workspace
+- `apps/api/` — NestJS + TypeScript REST API
+- `packages/*` — shared packages (some stubs)
+- `apps/web` / `web` — present but not the primary focus yet
 
----
+Key folders:
 
-## Build / Lint / Test Commands
+- Feature modules live in `apps/api/src/modules/<feature>/` (meaning: controller/service/dto/module in one folder)
+- Shared DTOs and enums live in `apps/api/src/common/`
+- Prisma schema: `apps/api/prisma/schema.prisma`
 
-### Root Level Commands
+## Environment / prereqs
+
+- Node: >= 18 (repo also tested locally with Node v24)
+- pnpm: >= 8 (repo uses pnpm 10.x)
+
+Install:
 
 ```bash
-# Install all dependencies
 pnpm install
-
-# Run in specific app
-pnpm --filter @examforge/api start:dev
-pnpm --filter @examforge/web dev
-
-# Build all apps
-pnpm build
-
-# Run all tests
-pnpm test
 ```
 
-### Backend (apps/api) Commands
+API env file (dev): `apps/api/.env` (do **not** commit it; `.env*` is gitignored).
+
+### Quick start (all services)
+
+Start both API and web frontend in one command:
 
 ```bash
-# Navigate to api directory or use filter
-cd apps/api
-# OR: pnpm --filter @examforge/api <command>
+# Using pnpm script (recommended)
+pnpm dev
 
-# Development
-pnpm run start:dev          # Start with hot-reload
-
-# Build
-pnpm run build              # Compile TypeScript
-
-# Linting & Formatting
-pnpm run lint               # ESLint check
-pnpm run lint:fix           # ESLint auto-fix
-pnpm run format             # Prettier format
-
-# Testing
-pnpm run test               # Run all unit tests
-pnpm run test:cov           # Coverage report
-pnpm run test:e2e           # End-to-end tests
-
-# Run a single test file
-pnpm run test -- --testPathPattern="question.service"
-pnpm run test -- src/modules/question/question.service.spec.ts
-
-# Run a single test by name
-pnpm run test -- -t "should create a question"
-
-# Database
-pnpm run prisma:generate    # Generate Prisma client
-pnpm run prisma:migrate     # Run migrations (dev)
-pnpm run prisma:studio      # Open Prisma Studio GUI
+# Or use the shell script
+./start-dev.sh
 ```
 
----
+This will start:
 
-## Monorepo Project Structure
+- API at http://localhost:3000 (NestJS)
+- Web at http://localhost:5173 (Vite)
 
-```
-examforge/
-├── apps/                     # 应用层（真正运行的）
-│   ├── api/                  # 后端 API（Node.js + NestJS）
-│   │   ├── src/
-│   │   │   ├── modules/      # 业务模块（强烈推荐）
-│   │   │   │   ├── question/   # Question bank CRUD
-│   │   │   │   ├── exam/       # Exam management
-│   │   │   │   ├── import/     # File import (Excel/CSV/PDF)
-│   │   │   │   ├── submission/ # Exam submissions
-│   │   │   │   └── auth/       # Authentication & authorization
-│   │   │   ├── common/       # 通用模块
-│   │   │   │   ├── dto/       # Request/Response DTOs
-│   │   │   │   ├── errors/    # Custom exceptions
-│   │   │   │   ├── guards/    # Auth guards
-│   │   │   │   └── utils/     # Helper functions
-│   │   │   ├── main.ts       # Application entry point
-│   │   │   └── app.module.ts  # Root module
-│   │   ├── prisma/
-│   │   │   └── schema.prisma  # Database schema
-│   │   ├── test/              # E2E tests
-│   │   └── package.json
-│   │
-│   └── web/                  # 前端 Web（React / Vue）
-│       ├── src/
-│       │   ├── pages/        # 路由页面
-│       │   ├── components/   # 通用组件
-│       │   ├── features/     # 业务功能模块（推荐）
-│       │   │   ├── question/
-│       │   │   ├── exam/
-│       │   │   └── import/
-│       │   ├── services/     # API 调用封装
-│       │   ├── hooks/        # React hooks / Vue composables
-│       │   ├── types/        # 前端类型
-│       │   └── main.tsx
-│       └── package.json
-│
-├── packages/                 # 共享代码（非常重要）
-│   ├── shared-types/         # 前后端共享 DTO / Enum / Types
-│   │   ├── src/
-│   │   │   ├── question.ts
-│   │   │   ├── exam.ts
-│   │   │   └── index.ts
-│   │   └── package.json
-│   │
-│   └── config/               # 共享配置（eslint / tsconfig / prettier）
-│       ├── eslint.base.js
-│       ├── tsconfig.base.json
-│       └── prettier.config.js
-│
-├── services/                 # 可选：独立微服务
-│   ├── ocr-service/          # OCR 服务（Python / Node）
-│   └── llm-service/          # 大模型解析服务
-│
-├── scripts/                  # 构建 / 初始化 / 导入脚本
-│   ├── import-excel.ts
-│   └── seed.ts
-│
-├── docker/
-│   ├── Dockerfile.api
-│   ├── Dockerfile.web
-│   └── docker-compose.yml
-│
-├── package.json              # 根 package.json（workspace）
-├── pnpm-workspace.yaml       # pnpm workspace 配置
-├── tsconfig.json
-└── README.md
-```
+## Build / lint / test commands
 
----
+### Workspace-level (from repo root)
 
-## Architecture Principles
+- Build everything:
+  ```bash
+  pnpm run build
+  ```
+- Lint everything:
+  ```bash
+  pnpm run lint
+  ```
+- Lint & auto-fix (note: current script runs eslint with `--fix`):
+  ```bash
+  pnpm run lint:fix
+  ```
+- Format whole repo (Prettier):
+  ```bash
+  pnpm run format
+  ```
+- Check formatting:
+  ```bash
+  pnpm run format:check
+  ```
+- Run all tests in all workspaces:
+  ```bash
+  pnpm run test
+  ```
 
-### Module Organization
+### API-only (recommended while working)
 
-1. **Business Features** (`apps/*/src/modules/` or `apps/*/src/features/`)
-   - Each feature should be self-contained (controller/service/dto/components)
-   - Use feature-based organization, not layer-based
-   - Example: `question/` contains all question-related code
+Run commands from repo root using pnpm filters (preferred):
 
-2. **Shared Code** (`packages/`)
-   - **shared-types**: All DTOs, enums, interfaces shared between frontend and backend
-   - **config**: ESLint, TypeScript, Prettier configs to ensure consistency
+- Start dev server:
+  ```bash
+  pnpm run dev:api
+  # equivalent: pnpm --filter ./apps/api run start:dev
+  ```
+- Build API:
+  ```bash
+  pnpm run build:api
+  # equivalent: pnpm --filter ./apps/api run build
+  ```
+- Lint API:
+  ```bash
+  pnpm --filter ./apps/api run lint
+  ```
+- Format API:
+  ```bash
+  pnpm --filter ./apps/api run format
+  ```
 
-3. **Independent Services** (`services/`)
-   - OCR and LLM services can be deployed separately
-   - Communicate via HTTP/gRPC
+### Tests (Jest)
 
-### Working with Monorepo
+API scripts live in `apps/api/package.json`:
+
+- Unit tests:
+  ```bash
+  pnpm --filter ./apps/api run test
+  ```
+- Watch mode:
+  ```bash
+  pnpm --filter ./apps/api run test:watch
+  ```
+- Coverage:
+  ```bash
+  pnpm --filter ./apps/api run test:cov
+  ```
+- E2E tests:
+  ```bash
+  pnpm --filter ./apps/api run test:e2e
+  ```
+
+#### Run a single test (unit)
+
+Jest supports path filtering and name filtering:
+
+- By file path:
+  ```bash
+  pnpm --filter ./apps/api run test -- src/modules/question/question.service.spec.ts
+  ```
+- By test name (pattern):
+  ```bash
+  pnpm --filter ./apps/api run test -- -t "should create question"
+  ```
+- By file + name:
+  ```bash
+  pnpm --filter ./apps/api run test -- src/modules/question/question.service.spec.ts -t "should create"
+  ```
+
+#### Run a single e2e test
+
+E2E uses `apps/api/test/jest-e2e.json` (regex `.e2e-spec.ts$`).
+
+- By file path:
+  ```bash
+  pnpm --filter ./apps/api run test:e2e -- test/app.e2e-spec.ts
+  ```
+- By test name:
+  ```bash
+  pnpm --filter ./apps/api run test:e2e -- -t "health"
+  ```
+
+### Prisma / DB
+
+From repo root:
 
 ```bash
-# When working on backend only
-cd apps/api
-pnpm run start:dev
-
-# When working on frontend only
-cd apps/web
-pnpm run dev
-
-# When working on shared types (affects both frontend and backend)
-cd packages/shared-types
-pnpm build  # Rebuilds shared package
-pnpm --filter @examforge/api start:dev  # Restart backend to pick up changes
-pnpm --filter @examforge/web dev         # Restart frontend to pick up changes
+pnpm --filter ./apps/api run prisma:generate
+pnpm --filter ./apps/api run prisma:migrate
+pnpm --filter ./apps/api run prisma:studio
 ```
 
-### Import Paths
+Notes:
 
-```typescript
-// Backend (apps/api)
-import { QuestionType } from '@examforge/shared-types';  // From packages/shared-types
-import { PrismaService } from '../common/prisma/prisma.service';
+- Dev uses SQLite via `DATABASE_URL="file:./dev.db"`.
+- Schema changes require `prisma:generate` and typically a migration.
 
-// Frontend (apps/web)
-import { QuestionType, CreateQuestionDto } from '@examforge/shared-types';
-import { api } from '@/services/api';
-```
+## Cursor / Copilot rules
 
----
+- No `.cursorrules`
+- No `.cursor/rules/`
+- No `.github/copilot-instructions.md`
 
-## Code Style Guidelines
+(If these appear later, mirror them here and treat them as higher priority than the rest of this document.)
 
-### TypeScript
-- Strict mode enabled, no implicit `any`
-- Use `interface` for object shapes, `type` for unions/intersections
-- Import shared types from `@examforge/shared-types`
+## Code style & conventions
 
-### Imports Order
-1. Node.js built-ins
-2. External packages (alphabetized)
-3. Internal packages (e.g., `@examforge/shared-types`)
-4. Internal modules (`@/` alias for local paths)
-5. Relative imports (same module)
+### TypeScript & compiler settings
 
-### Naming Conventions
-| Element | Convention | Example |
-|---------|------------|---------|
-| Files | kebab-case | `question.service.ts` |
-| Classes | PascalCase | `QuestionService` |
-| Interfaces | PascalCase (no `I` prefix) | `Question` |
-| Functions | camelCase | `findById()` |
-| Constants | SCREAMING_SNAKE | `MAX_FILE_SIZE` |
-| DB tables | snake_case | `exam_questions` |
+- TS is strict (`strict: true`, `noImplicitAny: true`).
+- API tsconfig alias: `@/* -> src/*` within `apps/api`.
+  - Prefer alias imports for common code: `@/common/...`.
 
-### Formatting (Prettier)
-- Print width: 100, Tab: 2 spaces, Semicolons: always, Single quotes, Trailing commas: ES5
+### Formatting
 
-### NestJS Patterns
-- **Controllers**: Thin, delegate to services
-- **Services**: All business logic, inject PrismaService
-- **DTOs**: Use class-validator decorators for all inputs, import from shared-types when possible
+- Prettier settings (API):
+  - single quotes, semicolons
+  - trailing commas (es5)
+  - print width 100
+  - tab width 2
 
-```typescript
-@Controller('questions')
-export class QuestionController {
-  constructor(private readonly questionService: QuestionService) {}
+### Imports
 
-  @Post()
-  create(@Body() dto: CreateQuestionDto): Promise<Question> {
-    return this.questionService.create(dto);
-  }
-}
-```
+- Prefer `@nestjs/*` imports at top.
+- Prefer absolute alias imports for shared code inside API:
+  - ✅ `import { PaginationDto } from '@/common/dto/pagination.dto';`
+  - ✅ `import { QuestionType } from '@/common/enums/question.enum';`
+- Relative imports are OK within a feature module.
 
-### Error Handling
-```typescript
-// Use NestJS built-in exceptions
-throw new NotFoundException(`Question #${id} not found`);
-throw new BadRequestException('Invalid file format');
+### NestJS module organization (IMPORTANT)
 
-// Always check existence before returning
-async findById(id: string): Promise<Question> {
-  const question = await this.prisma.question.findUnique({ where: { id } });
-  if (!question) throw new NotFoundException(`Question #${id} not found`);
-  return question;
-}
-```
+- Feature-based folders (not layer-based):
+  - `apps/api/src/modules/<feature>/`
+    - `<feature>.controller.ts` — routing only
+    - `<feature>.service.ts` — business logic + DB
+    - `<feature>.module.ts` — Nest module wiring
+    - `dto/*.dto.ts` — all request/response input shapes
 
-### Testing
-- Unit tests: `*.spec.ts` alongside source files in apps/api/src
-- E2E tests: `test/*.e2e-spec.ts` in apps/api/test
-- Frontend tests: `*.spec.ts` or `*.test.tsx` in apps/web/src
-- Minimum: one happy path + one error case per feature
+### Validation & DTOs
 
-```typescript
-describe('QuestionService', () => {
-  it('should create a question', async () => {
-    const dto = { content: 'Test?', type: QuestionType.SINGLE_CHOICE };
-    const result = await service.create(dto);
-    expect(result.content).toBe(dto.content);
-  });
-});
-```
+- Global ValidationPipe is enabled (`whitelist`, `forbidNonWhitelisted`, `transform`).
+  - This means DTOs must be complete and accurate.
+- All controller inputs must use DTOs with `class-validator` decorators.
+- Prefer `@IsOptional()` + specific type validator over untyped fields.
 
----
+### Naming
 
-## API Response Format
+- Files: kebab-case
+- Classes: PascalCase
+- Functions/methods: camelCase
+- DB tables: snake_case (Prisma schema)
+- Avoid `I*` interface prefix.
 
-```typescript
-// Success: { "data": {...}, "meta": { "total": 100, "page": 1 } }
-// Error:   { "statusCode": 404, "message": "Not found", "error": "Not Found" }
-```
+### Error handling
 
----
+- Use Nest exceptions, not raw Errors:
+  - `NotFoundException` for missing resources
+  - `BadRequestException` for validation/semantic failures
+  - `UnprocessableEntityException` if input is well-formed but invalid for domain rules
+- Pattern used in services:
+  - check existence before update/delete and throw early.
 
-## Environment Variables
+### Database access (Prisma)
 
-### Backend (apps/api/.env)
+- Controllers MUST NOT touch Prisma directly.
+- Services inject `PrismaService` and perform DB operations.
+- Use transactions for multi-step writes that must be atomic.
 
-```bash
-DATABASE_URL="file:./dev.db"    # SQLite dev / PostgreSQL prod
-LLM_PROVIDER="qwen"             # qwen | doubao | custom
-LLM_API_KEY="sk-xxx"
-OCR_ENGINE="paddleocr"          # paddleocr | tesseract
-PORT=3000
-NODE_ENV="development"
-```
+### Known codebase debt (don’t cargo-cult)
 
-### Frontend (apps/web/.env)
+- ESLint forbids `any` (`@typescript-eslint/no-explicit-any: error`).
+- However, there are currently a few `as any` usages for Prisma enum fields / sheet parsing.
+  - Prefer fixing type correctness when touching these areas (don’t spread `any`).
 
-```bash
-VITE_API_URL="http://localhost:3000"
-```
+## Frontend UI style (web/) — Source of truth: /demo.html
 
----
+The root frontend lives in `web/`. All new frontend pages/components MUST follow the UI style demonstrated in `demo.html`.
+Goal: clean academic look, high readability, clear spacing, large tap targets, accessible focus states.
 
-## Key Reminders for AI Agents
+### 1) Tailwind design tokens (MUST match demo.html)
 
-1. **Use workspace commands**: `pnpm --filter <package> <command>` to run commands in specific packages
-2. **Shared types**: Always check `packages/shared-types` before creating new DTOs/interfaces
-3. **Rebuild after shared changes**: When changing `shared-types`, rebuild dependent packages
-4. **Run tests after changes**: `pnpm run test -- --testPathPattern="<module>"`
-5. **Validate with lint**: `pnpm run lint` before committing
-6. **Use DTOs for all inputs**: Never trust raw request data
-7. **Handle errors explicitly**: Use appropriate HTTP exceptions
-8. **Keep controllers thin**: Business logic belongs in services
-9. **Write tests for new features**: Minimum one happy path + one error case
-10. **Use transactions for multi-step DB operations**
-11. **Log meaningful context**: Use NestJS Logger with proper levels
+Use Tailwind with the following `theme.extend` tokens:
+
+**Colors**
+
+- ink.950: #020617
+- ink.900: #0F172A
+- ink.800: #1E293B
+- ink.700: #334155
+- slatebg: #F8FAFC
+- accent.600: #F97316
+- accent.700: #EA580C
+- link.700: #0369A1
+- link.800: #075985
+- border: #E2E8F0
+
+**Shadows**
+
+- shadow-soft: 0 10px 30px rgba(2,6,23,.10)
+- shadow-lift: 0 16px 40px rgba(2,6,23,.14)
+
+### 2) Global base styles (A11y required)
+
+- Base page (apply on `<body>` or app root container):
+  - `bg-slatebg text-ink-900 antialiased`
+
+- Focus ring (required):
+  - `:focus-visible { outline: 2px solid #f97316; outline-offset: 3px; }`
+
+- Reduced motion support (required):
+  - `@media (prefers-reduced-motion: reduce) { * { scroll-behavior:auto !important; transition-duration:0.001ms !important; animation-duration:0.001ms !important; } }`
+
+- Prefer adding a “Skip to content” link on pages with a header (see `demo.html`).
+
+### 3) Layout & spacing recipes (copy these patterns)
+
+- Main page container:
+  - `mx-auto max-w-7xl px-4 sm:px-6 lg:px-8`
+
+- Section spacing:
+  - large sections typically: `mt-16`
+  - anchor alignment: `scroll-mt-28`
+  - fixed header spacing: main content uses `pt-28`
+
+### 4) Surface / card recipes
+
+- Border baseline:
+  - `border border-border`
+
+- Radii hierarchy:
+  - small controls: `rounded-xl`
+  - cards: `rounded-2xl`
+  - large panels: `rounded-3xl`
+
+- Card (default):
+  - `rounded-2xl border border-border bg-white p-5 shadow-sm`
+- Panel (emphasis):
+  - `rounded-3xl border border-border bg-white p-6 shadow-soft`
+- Muted block:
+  - `rounded-2xl bg-slate-50 p-4`
+
+### 5) Buttons (standardize on these)
+
+- Primary button:
+  - `inline-flex items-center justify-center rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700`
+- Secondary button:
+  - `inline-flex items-center justify-center rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50`
+- Text link:
+  - `text-xs font-semibold text-link-800 hover:text-link-700`
+
+### 6) Forms (inputs/select)
+
+- Input/select baseline:
+  - `mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900`
+- Helper text:
+  - `mt-1 text-xs text-ink-700`
+
+### 7) Implementation requirement (Option B: enforce via shared Tailwind preset)
+
+Do NOT copy tokens per-project. Implement the design system once and reuse it across the workspace:
+
+**Create shared Tailwind preset**
+
+- Location: `packages/config/tailwind.preset.js`
+- Export the `theme.extend` tokens from section 1 (colors + shadows)
+- Example:
+  ```js
+  // packages/config/tailwind.preset.js
+  module.exports = {
+    theme: {
+      extend: {
+        colors: {
+          ink: {
+            950: "#020617",
+            900: "#0F172A",
+            800: "#1E293B",
+            700: "#334155",
+          },
+          slatebg: "#F8FAFC",
+          accent: { 600: "#F97316", 700: "#EA580C" },
+          link: { 700: "#0369A1", 800: "#075985" },
+          border: "#E2E8F0",
+        },
+        boxShadow: {
+          soft: "0 10px 30px rgba(2,6,23,.10)",
+          lift: "0 16px 40px rgba(2,6,23,.14)",
+        },
+      },
+    },
+  };
+  ```
+
+**Configure web/ to consume the preset**
+
+- In `web/tailwind.config.js` (or `.ts`):
+  ```js
+  module.exports = {
+    presets: [require("@examforge/config/tailwind.preset")],
+    // ... other web-specific config
+  };
+  ```
+- Ensure `packages/config` is listed in workspace and accessible to `web/`.
+
+**Add global CSS**
+
+- In `web/` (e.g., `src/index.css` or `src/globals.css`):
+  - Include `:focus-visible` ring and `prefers-reduced-motion` rules from section 2
+  - Ensure base `bg-slatebg text-ink-900 antialiased` is applied by the root layout component
+
+## Project notes
+
+- Swagger decorators (`@ApiTags`, `@ApiOperation`, etc.) are used; keep API docs consistent.
+- Frontend lives in `web/` and MUST follow the UI style defined in this document.
+- Do not add new dependencies without an explicit reason and approval.

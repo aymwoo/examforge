@@ -45,3 +45,39 @@ prisma/migrations/**/migration.sql
 
 /generated/prisma
 apps/api/node_modules
+
+# Node
+node_modules/
+.pnpm-store/
+*.log
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Docker
+*.pid
+*.seed
+*.pid.lock
