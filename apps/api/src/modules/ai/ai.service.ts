@@ -26,6 +26,75 @@ export class AIService {
     return url.endsWith('/chat/completions') ? url : `${url}/chat/completions`;
   }
 
+  async generateQuestionsFromText(
+    text: string,
+    opts?: { chunkIndex?: number; totalChunks?: number }
+  ): Promise<GenerateExamQuestionsResponse> {
+    const settings = await this.settingsService.getSettings();
+    const promptTemplate = await this.settingsService.getPromptTemplate();
+
+    if (!settings.aiApiKey) {
+      throw new BadRequestException(
+        'AI API Key not configured. Please configure AI provider in settings.'
+      );
+    }
+
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      throw new BadRequestException('No text found for AI generation');
+    }
+
+    try {
+      const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${settings.aiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: settings.aiModel || 'gpt-4',
+          messages: [
+            { role: 'system', content: `${promptTemplate}` },
+            {
+              role: 'user',
+              content:
+                opts?.chunkIndex && opts?.totalChunks
+                  ? `以下是从 PDF 解析得到的试题文本（分块 ${opts.chunkIndex}/${opts.totalChunks}）。请只基于当前分块抽取/生成题目，不要依赖其它分块。只返回 JSON：{"questions": [...] }。`
+                  : '以下是从 PDF 解析得到的试题文本。请根据要求抽取/生成题目。只返回 JSON：{"questions": [...] }。',
+            },
+            {
+              role: 'user',
+              content: trimmedText,
+            },
+          ],
+          max_tokens: 4000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new BadRequestException(`AI API error: ${response.status} - ${errorText}`);
+      }
+
+      const data: any = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        throw new BadRequestException('AI returned empty response');
+      }
+
+      const questions = this.parseAIResponse(content);
+      return { questions };
+    } catch (error: unknown) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      console.error('AI generation error:', error);
+      throw new BadRequestException('Failed to generate questions from AI. Please try again.');
+    }
+  }
+
   async generateExamQuestions(imageBuffer: Buffer): Promise<GenerateExamQuestionsResponse> {
     const settings = await this.settingsService.getSettings();
     const promptTemplate = await this.settingsService.getPromptTemplate();

@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
-import { ImportController } from './import.controller';
-import { ImportService } from './import.service';
 import { memoryStorage } from 'multer';
+
+import { AIService } from '../ai/ai.service';
+import { SettingsService } from '../settings/settings.service';
+import { ImportController } from './import.controller';
+import { ImportProgressStore } from './import-progress.store';
+import { ImportService } from './import.service';
 
 @Module({
   imports: [
@@ -11,7 +15,7 @@ import { memoryStorage } from 'multer';
     }),
   ],
   controllers: [ImportController],
-  providers: [ImportService],
+  providers: [ImportService, ImportProgressStore, AIService, SettingsService],
   exports: [ImportService],
 })
 export class ImportModule {}

@@ -2,7 +2,10 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import * as XLSX from 'xlsx';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateQuestionDto } from '../question/dto/create-question.dto';
-import { QuestionType, QuestionStatus } from '@/common/enums/question.enum';
+import { QuestionStatus, QuestionType } from '@/common/enums/question.enum';
+import { AIService } from '../ai/ai.service';
+import { extractTextFromPdf } from '@/common/utils/pdf-text';
+import { ImportProgressStore } from './import-progress.store';
 
 export interface ImportResult {
   success: number;
@@ -10,9 +13,17 @@ export interface ImportResult {
   errors: { row: number; message: string }[];
 }
 
+export interface PdfImportResponse {
+  jobId: string;
+}
+
 @Injectable()
 export class ImportService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly aiService: AIService,
+    private readonly progressStore: ImportProgressStore
+  ) {}
 
   private get question() {
     return this.prisma.question;
@@ -64,6 +75,177 @@ export class ImportService {
     }
 
     return result;
+  }
+
+  async importFromPdf(jobId: string, buffer: Buffer): Promise<void> {
+    this.progressStore.append(jobId, {
+      stage: 'received',
+      message: '已收到 PDF，开始解析',
+    });
+
+    try {
+      this.progressStore.append(jobId, {
+        stage: 'extracting_text',
+        message: '正在提取 PDF 文本',
+      });
+      const text = await extractTextFromPdf(buffer);
+
+      const normalizedText = text.replace(/\s+/g, ' ').trim();
+      if (!normalizedText) {
+        throw new BadRequestException('PDF 文本为空，无法导入');
+      }
+
+      const chunks = this.splitTextIntoChunks(normalizedText, 12000);
+
+      const result: ImportResult = { success: 0, failed: 0, errors: [] };
+
+      const collectedQuestions: any[] = [];
+      for (let i = 0; i < chunks.length; i++) {
+        this.progressStore.append(jobId, {
+          stage: 'calling_ai',
+          message: `正在调用 AI 生成题目（${i + 1}/${chunks.length}）`,
+          current: i + 1,
+          total: chunks.length,
+        });
+
+        try {
+          const { questions } = await this.aiService.generateQuestionsFromText(chunks[i], {
+            chunkIndex: i + 1,
+            totalChunks: chunks.length,
+          });
+
+          this.progressStore.append(jobId, {
+            stage: 'ai_response_received',
+            message: `AI 返回 ${questions.length} 道题（分块 ${i + 1}/${chunks.length}）`,
+            current: i + 1,
+            total: chunks.length,
+          });
+
+          collectedQuestions.push(...questions);
+        } catch (error) {
+          result.failed++;
+          result.errors.push({
+            row: i + 1,
+            message: (error as any).message || 'AI 处理失败',
+          });
+        }
+      }
+
+      this.progressStore.append(jobId, {
+        stage: 'merging_questions',
+        message: '正在合并与去重题目',
+      });
+
+      const mergedQuestions = this.mergeAndDedupeQuestions(collectedQuestions, result);
+
+      this.progressStore.append(jobId, {
+        stage: 'saving_questions',
+        message: '正在保存题目到题库',
+        current: 0,
+        total: mergedQuestions.length,
+      });
+
+      for (let i = 0; i < mergedQuestions.length; i++) {
+        const q = mergedQuestions[i] as any;
+        const rowNum = i + 1;
+
+        try {
+          await this.prisma.question.create({
+            data: {
+              content: q.content,
+              type: q.type as any,
+              options: q.options ? JSON.stringify(q.options) : null,
+              answer: q.answer,
+              explanation: q.explanation,
+              tags: q.tags ? JSON.stringify(q.tags) : '[]',
+              difficulty: q.difficulty || 1,
+              status: QuestionStatus.DRAFT,
+              knowledgePoint: q.knowledgePoint,
+            },
+          });
+          result.success++;
+        } catch (error) {
+          result.failed++;
+          result.errors.push({
+            row: rowNum,
+            message: (error as any).message || 'Unknown error',
+          });
+        }
+
+        this.progressStore.append(jobId, {
+          stage: 'saving_questions',
+          message: '正在保存题目到题库',
+          current: i + 1,
+          total: mergedQuestions.length,
+        });
+      }
+
+      this.progressStore.append(jobId, {
+        stage: 'done',
+        message: '导入完成',
+        result,
+      });
+    } catch (error: unknown) {
+      this.progressStore.append(jobId, {
+        stage: 'error',
+        message: (error as any)?.message || '导入失败',
+      });
+      throw error;
+    }
+  }
+
+  private splitTextIntoChunks(text: string, maxChunkChars: number): string[] {
+    if (text.length <= maxChunkChars) return [text];
+
+    const separators = ['\n\n', '\n', '。', '.', ';'];
+
+    const chunks: string[] = [];
+    let remaining = text;
+
+    while (remaining.length > maxChunkChars) {
+      let cutIndex = -1;
+
+      for (const sep of separators) {
+        const idx = remaining.lastIndexOf(sep, maxChunkChars);
+        if (idx > Math.floor(maxChunkChars * 0.6)) {
+          cutIndex = idx + sep.length;
+          break;
+        }
+      }
+
+      if (cutIndex === -1) {
+        cutIndex = maxChunkChars;
+      }
+
+      const chunk = remaining.slice(0, cutIndex).trim();
+      if (chunk) chunks.push(chunk);
+      remaining = remaining.slice(cutIndex).trim();
+    }
+
+    if (remaining) chunks.push(remaining);
+    return chunks;
+  }
+
+  private mergeAndDedupeQuestions(questions: any[], result: ImportResult): any[] {
+    const map = new Map<string, any>();
+
+    for (const q of questions) {
+      const content = String(q?.content || '').trim();
+      const type = String(q?.type || '').trim();
+
+      if (!content || !type) {
+        result.failed++;
+        result.errors.push({ row: 0, message: 'AI 返回题目缺少 content/type，已跳过' });
+        continue;
+      }
+
+      const key = `${type}::${content}`;
+      if (!map.has(key)) {
+        map.set(key, { ...q, content, type });
+      }
+    }
+
+    return Array.from(map.values());
   }
 
   private mapRowToDto(row: any): CreateQuestionDto {

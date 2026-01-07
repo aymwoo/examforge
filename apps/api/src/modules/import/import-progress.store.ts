@@ -4,6 +4,7 @@ export type PdfImportStage =
   | 'calling_ai'
   | 'ai_response_received'
   | 'parsing_ai_response'
+  | 'merging_questions'
   | 'saving_questions'
   | 'done'
   | 'error';

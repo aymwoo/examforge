@@ -24,6 +24,13 @@ async function bootstrap() {
     })
   );
 
+  app.use((req, res, next) => {
+    const dbUrl = process.env.DATABASE_URL || '';
+    const instanceHint = dbUrl.split('/').pop() || 'default';
+    res.setHeader('X-ExamForge-Instance', instanceHint);
+    next();
+  });
+
   const port = process.env.PORT || 3000;
   await app.listen(port);
   console.log(`🚀 ExamForge is running on http://localhost:${port}`);
