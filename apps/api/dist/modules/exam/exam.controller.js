@@ -75,6 +75,24 @@ let ExamController = class ExamController {
     deleteExamStudent(examId, studentId) {
         return this.examService.deleteExamStudent(examId, studentId);
     }
+    getExamForTaking(examId) {
+        return this.examService.getExamForTaking(examId);
+    }
+    submitExam(examId, body) {
+        return this.examService.submitExam(examId, body.examStudentId, body.answers);
+    }
+    saveAnswers(examId, body) {
+        return this.examService.saveAnswers(examId, body.examStudentId, body.answers);
+    }
+    getExamSubmissions(examId) {
+        return this.examService.getExamSubmissions(examId);
+    }
+    gradeSubmission(examId, submissionId, body) {
+        return this.examService.gradeSubmission(submissionId, body.scores, body.totalScore, body.feedback);
+    }
+    getAIGradingSuggestions(examId, submissionId) {
+        return this.examService.getAIGradingSuggestions(examId, submissionId);
+    }
 };
 exports.ExamController = ExamController;
 __decorate([
@@ -266,6 +284,104 @@ __decorate([
     __metadata("design:paramtypes", [String, String]),
     __metadata("design:returntype", void 0)
 ], ExamController.prototype, "deleteExamStudent", null);
+__decorate([
+    (0, common_1.Get)(':id/take'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get exam questions for taking exam' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Exam questions retrieved successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "getExamForTaking", null);
+__decorate([
+    (0, common_1.Post)(':id/submit'),
+    (0, swagger_1.ApiOperation)({ summary: 'Submit exam answers' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                answers: { type: 'object', description: 'Answers object with questionId as key' },
+                examStudentId: { type: 'string', description: 'Exam student ID' },
+            },
+            required: ['answers', 'examStudentId'],
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Exam submitted successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "submitExam", null);
+__decorate([
+    (0, common_1.Post)(':id/save-answers'),
+    (0, swagger_1.ApiOperation)({ summary: 'Save exam answers (auto-save)' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                answers: { type: 'object', description: 'Answers object with questionId as key' },
+                examStudentId: { type: 'string', description: 'Exam student ID' },
+            },
+            required: ['answers', 'examStudentId'],
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Answers saved successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "saveAnswers", null);
+__decorate([
+    (0, common_1.Get)(':id/submissions'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get exam submissions for grading' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Submissions retrieved successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "getExamSubmissions", null);
+__decorate([
+    (0, common_1.Post)(':id/submissions/:submissionId/grade'),
+    (0, swagger_1.ApiOperation)({ summary: 'Grade a submission' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiParam)({ name: 'submissionId', description: 'Submission ID' }),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                scores: { type: 'object', description: 'Scores for each question' },
+                totalScore: { type: 'number', description: 'Total score' },
+                feedback: { type: 'string', description: 'Overall feedback' },
+            },
+            required: ['scores', 'totalScore'],
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Submission graded successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('submissionId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "gradeSubmission", null);
+__decorate([
+    (0, common_1.Post)(':id/submissions/:submissionId/ai-grade'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get AI grading suggestions for subjective questions' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiParam)({ name: 'submissionId', description: 'Submission ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'AI grading suggestions retrieved' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('submissionId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "getAIGradingSuggestions", null);
 exports.ExamController = ExamController = __decorate([
     (0, swagger_1.ApiTags)('exams'),
     (0, common_1.Controller)('exams'),

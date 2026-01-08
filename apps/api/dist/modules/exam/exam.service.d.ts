@@ -9,17 +9,17 @@ export declare class ExamService {
     private readonly prisma;
     constructor(prisma: PrismaService);
     create(dto: CreateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
+        title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
+        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     findAll(paginationDto: PaginationDto): Promise<{
         data: any[];
@@ -32,33 +32,33 @@ export declare class ExamService {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
+        title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
+        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
         order: number;
-        score: number;
         examId: string;
         questionId: string;
+        score: number;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
     updateQuestionOrder(examId: string, questionId: string, order: number, score?: number): Promise<{
         id: string;
         order: number;
-        score: number;
         examId: string;
         questionId: string;
+        score: number;
     }>;
     private transformExam;
     addStudent(examId: string, dto: CreateExamStudentDto): Promise<{
@@ -99,6 +99,71 @@ export declare class ExamService {
         studentId: string | null;
     }>;
     deleteExamStudent(examId: string, studentId: string): Promise<void>;
+    getExamForTaking(examId: string): Promise<{
+        id: string;
+        title: string;
+        description: string;
+        duration: number;
+        totalScore: number;
+        questions: {
+            id: string;
+            content: string;
+            type: string;
+            options: any;
+            score: number;
+            order: number;
+        }[];
+    }>;
+    submitExam(examId: string, examStudentId: string, answers: Record<string, any>): Promise<{
+        id: string;
+        score: number;
+        isAutoGraded: boolean;
+        submittedAt: Date;
+        gradingResults: {
+            details: Record<string, any>;
+            totalScore: number;
+            maxTotalScore: any;
+            isFullyAutoGraded: boolean;
+        };
+    }>;
+    private autoGradeSubmission;
+    private getAIGradingForSubjective;
+    private buildGradingPrompt;
+    private checkKeywords;
+    private generateReasoning;
+    private generateSuggestions;
+    saveAnswers(examId: string, examStudentId: string, answers: Record<string, any>): Promise<{
+        message: string;
+        timestamp: Date;
+    }>;
+    getExamSubmissions(examId: string): Promise<{
+        id: string;
+        student: {
+            id: string;
+            username: string;
+            displayName: string;
+        };
+        answers: any;
+        score: number;
+        isAutoGraded: boolean;
+        gradingDetails: any;
+        submittedAt: Date;
+    }[]>;
+    gradeSubmission(submissionId: string, scores: Record<string, number>, totalScore: number, feedback?: string): Promise<{
+        id: string;
+        score: number;
+        gradedAt: Date;
+    }>;
+    getAIGradingSuggestions(examId: string, submissionId: string): Promise<{
+        submissionId: string;
+        suggestions: Record<string, any>;
+        totalMaxScore: number;
+        preGradingInfo: {
+            totalScore: any;
+            isFullyAutoGraded: any;
+        };
+    }>;
+    private compareAnswers;
     generateStudentAccounts(examId: string, count: number, prefix?: string): Promise<{
         success: number;
         failed: number;

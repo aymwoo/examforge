@@ -151,10 +151,13 @@ export default function ExamsPage() {
                         className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${
                           exam.status === "PUBLISHED"
                             ? "bg-green-100 text-green-800"
+                            : exam.status === "ARCHIVED"
+                            ? "bg-gray-100 text-gray-800"
                             : "bg-yellow-100 text-yellow-800"
                         }`}
                       >
-                        {exam.status === "PUBLISHED" ? "已发布" : "草稿"}
+                        {exam.status === "PUBLISHED" ? "已发布" : 
+                         exam.status === "ARCHIVED" ? "已归档" : "草稿"}
                       </span>
                     </span>
                     <span className="flex items-center gap-1 text-ink-700">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, Plus, Check, Users, BookOpen } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, Check, Users, BookOpen, CheckCircle, Filter, Clock } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { getExamById, deleteExam, addQuestionToExam, getExamStudents, addExamStudent, generateExamStudents, deleteExamStudent, type Exam } from "@/services/exams";
 import { listQuestions, type Question } from "@/services/questions";
@@ -26,6 +26,13 @@ export default function ExamDetailPage() {
   const [showQuestionBank, setShowQuestionBank] = useState(false);
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    type: '',
+    difficulty: '',
+    knowledgePoint: '',
+    tags: '',
+  });
+  const [showFilters, setShowFilters] = useState(false);
   const [addingQuestions, setAddingQuestions] = useState(false);
   const [activeTab, setActiveTab] = useState<'questions' | 'students'>('questions');
   const [students, setStudents] = useState<any[]>([]);
@@ -55,6 +62,27 @@ export default function ExamDetailPage() {
 
   const updateExamField = async (field: string, value: any) => {
     if (!id) return;
+    
+    // 状态变更需要确认
+    if (field === 'status') {
+      const statusMessages = {
+        'PUBLISHED': '发布考试后，学生将可以参加考试。确定要发布吗？',
+        'DRAFT': '撤回到草稿状态后，学生将无法参加考试。确定要撤回吗？',
+        'ARCHIVED': '归档考试后，考试将被标记为已结束。确定要归档吗？'
+      };
+      
+      if (!confirm(statusMessages[value as keyof typeof statusMessages] || '确定要更改状态吗？')) {
+        return;
+      }
+      
+      // 发布前检查
+      if (value === 'PUBLISHED') {
+        if (!exam.examQuestions || exam.examQuestions.length === 0) {
+          alert('考试至少需要包含一道题目才能发布');
+          return;
+        }
+      }
+    }
     
     try {
       await api.put(`/api/exams/${id}`, { [field]: value });
@@ -138,7 +166,7 @@ export default function ExamDetailPage() {
     try {
       // 为每个选中的题目添加到考试中
       for (const questionId of selectedQuestions) {
-        const nextOrder = (exam?.questions?.length || 0) + 1;
+        const nextOrder = (exam?.examQuestions?.length || 0) + 1;
         await addQuestionToExam(id!, {
           questionId,
           order: nextOrder,
@@ -234,13 +262,31 @@ export default function ExamDetailPage() {
     }
   };
 
-  const filteredQuestions = searchTerm
-    ? questions.filter((q) =>
-        q.content.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
-    : questions;
+  const filteredQuestions = questions.filter((question) => {
+    // 搜索词筛选
+    const matchesSearch = !searchTerm || 
+                         question.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         question.tags.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (question.knowledgePoint && question.knowledgePoint.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // 题型筛选
+    const matchesType = !filters.type || question.type === filters.type;
+    
+    // 难度筛选
+    const matchesDifficulty = !filters.difficulty || question.difficulty.toString() === filters.difficulty;
+    
+    // 知识点筛选
+    const matchesKnowledgePoint = !filters.knowledgePoint || 
+                                 (question.knowledgePoint && question.knowledgePoint.toLowerCase().includes(filters.knowledgePoint.toLowerCase()));
+    
+    // 标签筛选
+    const matchesTags = !filters.tags || 
+                       question.tags.toLowerCase().includes(filters.tags.toLowerCase());
+    
+    return matchesSearch && matchesType && matchesDifficulty && matchesKnowledgePoint && matchesTags;
+  });
 
-  const questionInExamIds = exam?.questions?.map((eq) => eq.question?.id || eq.questionId) || [];
+  const questionInExamIds = exam?.examQuestions?.map((eq) => eq.question?.id || eq.questionId) || [];
 
   if (loading) {
     return (
@@ -293,6 +339,57 @@ export default function ExamDetailPage() {
             </h1>
           </div>
           <div className="flex gap-2">
+            <Button
+              onClick={() => navigate(`/exams/${id}/grading`)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <CheckCircle className="h-4 w-4" />
+              评分管理
+            </Button>
+            
+            {/* 快速状态切换 */}
+            <div className="flex items-center gap-2">
+              {exam.status === 'DRAFT' && (
+                <Button
+                  onClick={() => updateExamField('status', 'PUBLISHED')}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  发布考试
+                </Button>
+              )}
+              {exam.status === 'PUBLISHED' && (
+                <>
+                  <Button
+                    onClick={() => updateExamField('status', 'DRAFT')}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Clock className="h-4 w-4" />
+                    撤回草稿
+                  </Button>
+                  <Button
+                    onClick={() => updateExamField('status', 'ARCHIVED')}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <BookOpen className="h-4 w-4" />
+                    归档考试
+                  </Button>
+                </>
+              )}
+              {exam.status === 'ARCHIVED' && (
+                <Button
+                  onClick={() => updateExamField('status', 'PUBLISHED')}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  重新发布
+                </Button>
+              )}
+            </div>
+            
             <button
               onClick={handleDeleteExam}
               className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-100"
@@ -613,15 +710,48 @@ export default function ExamDetailPage() {
                   <label className="mb-2 block text-sm font-semibold text-ink-700">
                     状态
                   </label>
-                  <span
-                    className={`rounded-lg px-3 py-1 text-sm font-semibold ${
-                      exam.status === "PUBLISHED"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {exam.status === "PUBLISHED" ? "已发布" : "草稿"}
-                  </span>
+                  {editingField === 'status' ? (
+                    <div className="flex gap-2">
+                      <select
+                        className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm"
+                        value={editValues.status || exam.status}
+                        onChange={(e) => setEditValues(prev => ({ ...prev, status: e.target.value }))}
+                        autoFocus
+                      >
+                        <option value="DRAFT">草稿</option>
+                        <option value="PUBLISHED">已发布</option>
+                        <option value="ARCHIVED">已归档</option>
+                      </select>
+                      <Button onClick={() => saveField('status')} className="px-3">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" onClick={cancelEditing} className="px-3">
+                        ✕
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`rounded-lg px-3 py-1 text-sm font-semibold ${
+                          exam.status === "PUBLISHED"
+                            ? "bg-green-100 text-green-800"
+                            : exam.status === "ARCHIVED"
+                            ? "bg-gray-100 text-gray-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {exam.status === "PUBLISHED" ? "已发布" : 
+                         exam.status === "ARCHIVED" ? "已归档" : "草稿"}
+                      </span>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => startEditing('status', exam.status)}
+                        className="px-3 py-1 text-xs"
+                      >
+                        编辑
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -698,7 +828,7 @@ export default function ExamDetailPage() {
               <div>
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-ink-900">
-                    考试题目 ({exam.questions?.length || 0} 题)
+                    考试题目 ({exam.examQuestions?.length || 0} 题)
                   </h2>
                   <Button
                     onClick={handleToggleQuestionBank}
@@ -710,9 +840,9 @@ export default function ExamDetailPage() {
                   </Button>
                 </div>
 
-            {exam.questions && exam.questions.length > 0 ? (
+            {exam.examQuestions && exam.examQuestions.length > 0 ? (
               <div className="space-y-3">
-                {exam.questions
+                {exam.examQuestions
                   .sort((a, b) => a.order - b.order)
                   .map((examQuestion) => (
                     <div
@@ -779,32 +909,119 @@ export default function ExamDetailPage() {
 
             {showQuestionBank && (
               <div className="mt-4 border-t border-border pt-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-ink-900">
-                    题库列表
-                  </h3>
-                  <div className="flex items-center gap-3">
-                    {selectedQuestions.length > 0 && (
+                <div className="mb-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-semibold text-ink-900">
+                      题库列表
+                    </h3>
+                    <div className="flex items-center gap-3">
+                      {selectedQuestions.length > 0 && (
+                        <Button
+                          onClick={handleAddSelectedQuestions}
+                          disabled={addingQuestions}
+                          className="inline-flex items-center gap-2"
+                        >
+                          <Check className="h-4 w-4" />
+                          {addingQuestions 
+                            ? "添加中..." 
+                            : `添加到考试 (${selectedQuestions.length})`
+                          }
+                        </Button>
+                      )}
                       <Button
-                        onClick={handleAddSelectedQuestions}
-                        disabled={addingQuestions}
+                        variant="outline"
+                        onClick={() => setShowFilters(!showFilters)}
                         className="inline-flex items-center gap-2"
                       >
-                        <Check className="h-4 w-4" />
-                        {addingQuestions 
-                          ? "添加中..." 
-                          : `添加到考试 (${selectedQuestions.length})`
-                        }
+                        <Filter className="h-4 w-4" />
+                        筛选
                       </Button>
-                    )}
-                    <input
-                      type="text"
-                      className="w-64 rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
-                      placeholder="搜索题目..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
+                      <input
+                        type="text"
+                        className="w-64 rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                        placeholder="搜索题目..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
                   </div>
+
+                  {/* 筛选面板 */}
+                  {showFilters && (
+                    <div className="rounded-xl border border-border bg-gray-50 p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* 题型筛选 */}
+                        <div>
+                          <label className="block text-sm font-medium text-ink-700 mb-2">题型</label>
+                          <select
+                            value={filters.type}
+                            onChange={(e) => setFilters(prev => ({ ...prev, type: e.target.value }))}
+                            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="">全部题型</option>
+                            <option value="SINGLE_CHOICE">单选题</option>
+                            <option value="MULTIPLE_CHOICE">多选题</option>
+                            <option value="FILL_BLANK">填空题</option>
+                            <option value="SHORT_ANSWER">简答题</option>
+                            <option value="ESSAY">论述题</option>
+                          </select>
+                        </div>
+
+                        {/* 难度筛选 */}
+                        <div>
+                          <label className="block text-sm font-medium text-ink-700 mb-2">难度</label>
+                          <select
+                            value={filters.difficulty}
+                            onChange={(e) => setFilters(prev => ({ ...prev, difficulty: e.target.value }))}
+                            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm"
+                          >
+                            <option value="">全部难度</option>
+                            <option value="1">简单</option>
+                            <option value="2">中等</option>
+                            <option value="3">困难</option>
+                          </select>
+                        </div>
+
+                        {/* 知识点筛选 */}
+                        <div>
+                          <label className="block text-sm font-medium text-ink-700 mb-2">知识点</label>
+                          <input
+                            type="text"
+                            value={filters.knowledgePoint}
+                            onChange={(e) => setFilters(prev => ({ ...prev, knowledgePoint: e.target.value }))}
+                            placeholder="输入知识点"
+                            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm"
+                          />
+                        </div>
+
+                        {/* 标签筛选 */}
+                        <div>
+                          <label className="block text-sm font-medium text-ink-700 mb-2">标签</label>
+                          <input
+                            type="text"
+                            value={filters.tags}
+                            onChange={(e) => setFilters(prev => ({ ...prev, tags: e.target.value }))}
+                            placeholder="输入标签"
+                            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* 清除筛选 */}
+                      <div className="mt-4 flex justify-between items-center">
+                        <span className="text-sm text-ink-600">
+                          找到 {filteredQuestions.length} 道题目
+                        </span>
+                        <Button
+                          variant="outline"
+                          onClick={() => setFilters({ type: '', difficulty: '', knowledgePoint: '', tags: '' })}
+                          className="text-sm"
+                        >
+                          清除筛选
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {questionsLoading ? (
@@ -837,17 +1054,38 @@ export default function ExamDetailPage() {
                                 {question.content}
                               </p>
                               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-700">
-                                <span className="text-ink-700">
-                                  {question.type}
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                  question.type === 'SINGLE_CHOICE' ? 'bg-blue-100 text-blue-700' :
+                                  question.type === 'MULTIPLE_CHOICE' ? 'bg-green-100 text-green-700' :
+                                  question.type === 'FILL_BLANK' ? 'bg-yellow-100 text-yellow-700' :
+                                  question.type === 'SHORT_ANSWER' ? 'bg-purple-100 text-purple-700' :
+                                  question.type === 'ESSAY' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {question.type === 'SINGLE_CHOICE' ? '单选题' :
+                                   question.type === 'MULTIPLE_CHOICE' ? '多选题' :
+                                   question.type === 'FILL_BLANK' ? '填空题' :
+                                   question.type === 'SHORT_ANSWER' ? '简答题' :
+                                   question.type === 'ESSAY' ? '论述题' : question.type}
                                 </span>
-                                {question.tags.length > 0 && (
-                                  <span className="text-ink-700">
-                                    标签: {question.tags.join(", ")}
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                  question.difficulty === 1 ? 'bg-green-100 text-green-700' :
+                                  question.difficulty === 2 ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  {question.difficulty === 1 ? '简单' :
+                                   question.difficulty === 2 ? '中等' : '困难'}
+                                </span>
+                                {question.knowledgePoint && (
+                                  <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                                    {question.knowledgePoint}
                                   </span>
                                 )}
-                                <span className="text-ink-700">
-                                  难度: {question.difficulty}
-                                </span>
+                                {question.tags && (
+                                  <span className="text-ink-700">
+                                    标签: {question.tags}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             <span className="text-xs">

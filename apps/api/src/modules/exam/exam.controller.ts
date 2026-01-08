@@ -194,4 +194,100 @@ export class ExamController {
   deleteExamStudent(@Param('id') examId: string, @Param('studentId') studentId: string) {
     return this.examService.deleteExamStudent(examId, studentId);
   }
+
+  // 考试进行相关API
+  @Get(':id/take')
+  @ApiOperation({ summary: 'Get exam questions for taking exam' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiResponse({ status: 200, description: 'Exam questions retrieved successfully' })
+  getExamForTaking(@Param('id') examId: string) {
+    return this.examService.getExamForTaking(examId);
+  }
+
+  @Post(':id/submit')
+  @ApiOperation({ summary: 'Submit exam answers' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        answers: { type: 'object', description: 'Answers object with questionId as key' },
+        examStudentId: { type: 'string', description: 'Exam student ID' },
+      },
+      required: ['answers', 'examStudentId'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Exam submitted successfully' })
+  submitExam(
+    @Param('id') examId: string,
+    @Body() body: { answers: Record<string, any>; examStudentId: string },
+  ) {
+    return this.examService.submitExam(examId, body.examStudentId, body.answers);
+  }
+
+  @Post(':id/save-answers')
+  @ApiOperation({ summary: 'Save exam answers (auto-save)' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        answers: { type: 'object', description: 'Answers object with questionId as key' },
+        examStudentId: { type: 'string', description: 'Exam student ID' },
+      },
+      required: ['answers', 'examStudentId'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Answers saved successfully' })
+  saveAnswers(
+    @Param('id') examId: string,
+    @Body() body: { answers: Record<string, any>; examStudentId: string },
+  ) {
+    return this.examService.saveAnswers(examId, body.examStudentId, body.answers);
+  }
+
+  // 评分相关API
+  @Get(':id/submissions')
+  @ApiOperation({ summary: 'Get exam submissions for grading' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiResponse({ status: 200, description: 'Submissions retrieved successfully' })
+  getExamSubmissions(@Param('id') examId: string) {
+    return this.examService.getExamSubmissions(examId);
+  }
+
+  @Post(':id/submissions/:submissionId/grade')
+  @ApiOperation({ summary: 'Grade a submission' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiParam({ name: 'submissionId', description: 'Submission ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        scores: { type: 'object', description: 'Scores for each question' },
+        totalScore: { type: 'number', description: 'Total score' },
+        feedback: { type: 'string', description: 'Overall feedback' },
+      },
+      required: ['scores', 'totalScore'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Submission graded successfully' })
+  gradeSubmission(
+    @Param('id') examId: string,
+    @Param('submissionId') submissionId: string,
+    @Body() body: { scores: Record<string, number>; totalScore: number; feedback?: string },
+  ) {
+    return this.examService.gradeSubmission(submissionId, body.scores, body.totalScore, body.feedback);
+  }
+
+  @Post(':id/submissions/:submissionId/ai-grade')
+  @ApiOperation({ summary: 'Get AI grading suggestions for subjective questions' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiParam({ name: 'submissionId', description: 'Submission ID' })
+  @ApiResponse({ status: 200, description: 'AI grading suggestions retrieved' })
+  getAIGradingSuggestions(
+    @Param('id') examId: string,
+    @Param('submissionId') submissionId: string,
+  ) {
+    return this.examService.getAIGradingSuggestions(examId, submissionId);
+  }
 }

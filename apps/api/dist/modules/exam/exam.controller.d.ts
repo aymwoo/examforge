@@ -14,17 +14,17 @@ export declare class ExamController {
         image: string;
     }): Promise<import("../ai/ai.service").GenerateExamQuestionsResponse>;
     create(dto: CreateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
+        title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
+        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     findAll(paginationDto: PaginationDto): Promise<{
         data: any[];
@@ -37,25 +37,25 @@ export declare class ExamController {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
+        title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
+        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
     }>;
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
         order: number;
-        score: number;
         examId: string;
         questionId: string;
+        score: number;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
     updateQuestionOrder(examId: string, questionId: string, body: {
@@ -64,9 +64,9 @@ export declare class ExamController {
     }): Promise<{
         id: string;
         order: number;
-        score: number;
         examId: string;
         questionId: string;
+        score: number;
     }>;
     addStudent(examId: string, dto: CreateExamStudentDto): Promise<{
         id: string;
@@ -115,4 +115,72 @@ export declare class ExamController {
         studentId: string | null;
     }>;
     deleteExamStudent(examId: string, studentId: string): Promise<void>;
+    getExamForTaking(examId: string): Promise<{
+        id: string;
+        title: string;
+        description: string;
+        duration: number;
+        totalScore: number;
+        questions: {
+            id: string;
+            content: string;
+            type: string;
+            options: any;
+            score: number;
+            order: number;
+        }[];
+    }>;
+    submitExam(examId: string, body: {
+        answers: Record<string, any>;
+        examStudentId: string;
+    }): Promise<{
+        id: string;
+        score: number;
+        isAutoGraded: boolean;
+        submittedAt: Date;
+        gradingResults: {
+            details: Record<string, any>;
+            totalScore: number;
+            maxTotalScore: any;
+            isFullyAutoGraded: boolean;
+        };
+    }>;
+    saveAnswers(examId: string, body: {
+        answers: Record<string, any>;
+        examStudentId: string;
+    }): Promise<{
+        message: string;
+        timestamp: Date;
+    }>;
+    getExamSubmissions(examId: string): Promise<{
+        id: string;
+        student: {
+            id: string;
+            username: string;
+            displayName: string;
+        };
+        answers: any;
+        score: number;
+        isAutoGraded: boolean;
+        gradingDetails: any;
+        submittedAt: Date;
+    }[]>;
+    gradeSubmission(examId: string, submissionId: string, body: {
+        scores: Record<string, number>;
+        totalScore: number;
+        feedback?: string;
+    }): Promise<{
+        id: string;
+        score: number;
+        gradedAt: Date;
+    }>;
+    getAIGradingSuggestions(examId: string, submissionId: string): Promise<{
+        submissionId: string;
+        suggestions: Record<string, any>;
+        totalMaxScore: number;
+        preGradingInfo: {
+            totalScore: any;
+            isFullyAutoGraded: any;
+        };
+    }>;
 }
