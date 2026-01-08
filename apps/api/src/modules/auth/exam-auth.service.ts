@@ -87,7 +87,8 @@ export class ExamAuthService {
       throw new BadRequestException('Exam not found');
     }
 
-    if (exam.accountMode !== 'TEMPORARY_REGISTER') {
+    const accountModes = JSON.parse(exam.accountModes);
+    if (!accountModes.includes('TEMPORARY_REGISTER')) {
       throw new BadRequestException('This exam does not support self-registration');
     }
 

@@ -49,14 +49,25 @@ export default function NewExamPage() {
     setSaving(true);
     setError(null);
     try {
-      await createExam(form);
+      // 尝试最简化的数据
+      const minimalData = {
+        title: form.title,
+        duration: form.duration,
+      };
+      console.log('Submitting minimal exam data:', JSON.stringify(minimalData, null, 2));
+      await createExam(minimalData as CreateExamDto);
       navigate("/exams");
     } catch (err: unknown) {
-      const axiosError = err as {
-        response?: { data?: { message?: string } };
-        message?: string;
-      };
-      setError(axiosError.response?.data?.message || axiosError.message || "创建失败");
+      console.error('Create exam error:', err);
+      const axiosError = err as any;
+      console.error('Error response:', axiosError.response);
+      console.error('Error data:', axiosError.response?.data);
+      setError(
+        axiosError.response?.data?.message || 
+        axiosError.response?.data?.error || 
+        axiosError.message || 
+        "创建失败"
+      );
     } finally {
       setSaving(false);
     }
@@ -77,7 +88,7 @@ export default function NewExamPage() {
           </div>
           <Button onClick={handleSubmit} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
-            {saving ? "保存中..." : "保存"}
+            {saving ? "新增中..." : "新增"}
           </Button>
         </div>
 
@@ -145,60 +156,43 @@ export default function NewExamPage() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-ink-900">
-                学生账号模式
-              </label>
-              <div className="space-y-2">
-                {[
-                  { value: ExamAccountMode.PERMANENT, label: '固定账号', desc: '使用学生学号登录' },
-                  { value: ExamAccountMode.TEMPORARY_IMPORT, label: '临时账号-导入模式', desc: '导入学生名单' },
-                  { value: ExamAccountMode.TEMPORARY_REGISTER, label: '临时账号-自主注册', desc: '学生自主注册' }
-                ].map((mode) => (
-                  <button
-                    key={mode.value}
-                    type="button"
-                    onClick={() => {
-                      const currentModes = form.accountModes || [];
-                      const isSelected = currentModes.includes(mode.value);
-                      if (isSelected) {
-                        // 取消选择，但至少保留一个
-                        if (currentModes.length > 1) {
-                          handleInputChange("accountModes", currentModes.filter(m => m !== mode.value));
+              <div className="flex items-center gap-4 flex-wrap">
+                <label className="text-sm font-semibold text-ink-900 whitespace-nowrap">
+                  学生账号模式
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {[
+                    { value: ExamAccountMode.PERMANENT, label: '固定账号' },
+                    { value: ExamAccountMode.TEMPORARY_IMPORT, label: '临时导入' },
+                    { value: ExamAccountMode.TEMPORARY_REGISTER, label: '自主注册' }
+                  ].map((mode) => (
+                    <button
+                      key={mode.value}
+                      type="button"
+                      onClick={() => {
+                        const currentModes = form.accountModes || [];
+                        const isSelected = currentModes.includes(mode.value);
+                        if (isSelected) {
+                          // 取消选择，但至少保留一个
+                          if (currentModes.length > 1) {
+                            handleInputChange("accountModes", currentModes.filter(m => m !== mode.value));
+                          }
+                        } else {
+                          // 添加选择
+                          handleInputChange("accountModes", [...currentModes, mode.value]);
                         }
-                      } else {
-                        // 添加选择
-                        handleInputChange("accountModes", [...currentModes, mode.value]);
-                      }
-                    }}
-                    className={`w-full rounded-xl border p-3 text-left transition-colors ${
-                      (form.accountModes || []).includes(mode.value)
-                        ? 'border-accent-600 bg-accent-50'
-                        : 'border-border bg-white hover:border-accent-600'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-ink-900">{mode.label}</p>
-                        <p className="text-sm text-ink-600">{mode.desc}</p>
-                      </div>
-                      <div className={`h-4 w-4 rounded border-2 ${
+                      }}
+                      className={`px-4 py-2 text-sm rounded-lg border transition-colors whitespace-nowrap ${
                         (form.accountModes || []).includes(mode.value)
-                          ? 'border-accent-600 bg-accent-600'
-                          : 'border-border'
-                      }`}>
-                        {(form.accountModes || []).includes(mode.value) && (
-                          <svg className="h-full w-full text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                      }`}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <p className="mt-2 text-xs text-ink-600">
-                可以同时启用多种模式，学生可以选择任意一种方式登录
-              </p>
             </div>
 
             <div className="rounded-2xl border border-border bg-slate-50 p-4">

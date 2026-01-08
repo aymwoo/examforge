@@ -20,6 +20,7 @@ class UpdateExamDto extends (0, swagger_1.PartialType)(create_exam_dto_1.CreateE
 exports.UpdateExamDto = UpdateExamDto;
 __decorate([
     (0, swagger_1.ApiPropertyOptional)({ enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'], description: 'Exam status' }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
     __metadata("design:type", String)
 ], UpdateExamDto.prototype, "status", void 0);
@@ -31,6 +32,7 @@ __decorate([
     }),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsIn)(Object.values(create_exam_dto_1.ExamAccountMode), { each: true }),
     __metadata("design:type", Array)
 ], UpdateExamDto.prototype, "accountModes", void 0);
 //# sourceMappingURL=update-exam.dto.js.map

@@ -9,12 +9,12 @@ export declare class ExamService {
     private readonly prisma;
     constructor(prisma: PrismaService);
     create(dto: CreateExamDto): Promise<{
-        id: string;
-        status: string;
-        createdAt: Date;
-        updatedAt: Date;
         description: string | null;
         title: string;
+        status: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
         duration: number;
         totalScore: number;
         accountModes: string;
@@ -32,12 +32,12 @@ export declare class ExamService {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        id: string;
-        status: string;
-        createdAt: Date;
-        updatedAt: Date;
         description: string | null;
         title: string;
+        status: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
         duration: number;
         totalScore: number;
         accountModes: string;

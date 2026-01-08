@@ -39,7 +39,7 @@ model Exam {
   duration    Int
   totalScore  Int      @default(100)
   status      String   @default("DRAFT")
-  accountModes String  @default("TEMPORARY_IMPORT") @map("account_modes") // JSON array of enabled modes
+  accountModes String  @default("[\"TEMPORARY_IMPORT\"]") @map("account_modes") // JSON array of enabled modes
   startTime   DateTime?
   endTime     DateTime?
   createdAt   DateTime @default(now()) @map("created_at")

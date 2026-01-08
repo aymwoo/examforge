@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit2, Trash2, Plus, Check, Users, BookOpen } from "lucide-react";
+import { ArrowLeft, Trash2, Plus, Check, Users, BookOpen } from "lucide-react";
 import Button from "@/components/ui/Button";
-import { getExamById, deleteExam, addQuestionToExam, getExamStudents, addExamStudent, generateExamStudents, deleteExamStudent, type Exam, type ExamStudent, type CreateExamStudentDto } from "@/services/exams";
+import { getExamById, deleteExam, addQuestionToExam, getExamStudents, addExamStudent, generateExamStudents, deleteExamStudent, type Exam } from "@/services/exams";
 import { listQuestions, type Question } from "@/services/questions";
 import api from "@/services/api";
 
@@ -12,6 +12,15 @@ export default function ExamDetailPage() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{
+    title?: string;
+    description?: string;
+    duration?: number;
+    totalScore?: number;
+    startTime?: string;
+    endTime?: string;
+  }>({});
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [showQuestionBank, setShowQuestionBank] = useState(false);
@@ -41,6 +50,36 @@ export default function ExamDetailPage() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateExamField = async (field: string, value: any) => {
+    if (!id) return;
+    
+    try {
+      await api.put(`/api/exams/${id}`, { [field]: value });
+      await loadExam();
+      setEditingField(null);
+      setEditValues({});
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.response?.data?.error || '更新失败');
+    }
+  };
+
+  const startEditing = (field: string, currentValue: any) => {
+    setEditingField(field);
+    setEditValues({ [field]: currentValue });
+  };
+
+  const cancelEditing = () => {
+    setEditingField(null);
+    setEditValues({});
+  };
+
+  const saveField = (field: string) => {
+    const value = editValues[field as keyof typeof editValues];
+    if (value !== undefined) {
+      updateExamField(field, value);
     }
   };
 
@@ -254,13 +293,6 @@ export default function ExamDetailPage() {
             </h1>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/exams/${id}/edit`)}
-            >
-              <Edit2 className="h-4 w-4 mr-2" />
-              编辑
-            </Button>
             <button
               onClick={handleDeleteExam}
               className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-100"
@@ -288,79 +320,141 @@ export default function ExamDetailPage() {
                 <label className="mb-2 block text-sm font-semibold text-ink-700">
                   考试标题
                 </label>
-                <p className="text-base text-ink-900">{exam.title}</p>
+                {editingField === 'title' ? (
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm"
+                      value={editValues.title || ''}
+                      onChange={(e) => setEditValues(prev => ({ ...prev, title: e.target.value }))}
+                      autoFocus
+                    />
+                    <Button onClick={() => saveField('title')} className="px-3">
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" onClick={cancelEditing} className="px-3">
+                      ✕
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="text-base text-ink-900 flex-1">{exam.title}</p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => startEditing('title', exam.title)}
+                      className="px-3 py-1 text-xs"
+                    >
+                      编辑
+                    </Button>
+                  </div>
+                )}
               </div>
-
-              {exam.description && (
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-ink-700">
-                    考试描述
-                  </label>
-                  <p className="text-base text-ink-900">{exam.description}</p>
-                </div>
-              )}
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-ink-700">
-                  学生账号模式
+                  考试描述
                 </label>
-                <div className="space-y-2">
-                  {[
-                    { value: 'PERMANENT', label: '固定账号', desc: '使用学生学号登录' },
-                    { value: 'TEMPORARY_IMPORT', label: '临时账号-导入模式', desc: '导入学生名单' },
-                    { value: 'TEMPORARY_REGISTER', label: '临时账号-自主注册', desc: '学生自主注册' }
-                  ].map((mode) => (
-                    <button
-                      key={mode.value}
-                      type="button"
-                      onClick={async () => {
-                        const currentModes = exam.accountModes || [];
-                        const isSelected = currentModes.includes(mode.value);
-                        let newModes;
-                        if (isSelected) {
-                          // 取消选择，但至少保留一个
-                          if (currentModes.length > 1) {
-                            newModes = currentModes.filter(m => m !== mode.value);
-                          } else {
-                            return; // 不允许全部取消
-                          }
-                        } else {
-                          // 添加选择
-                          newModes = [...currentModes, mode.value];
-                        }
-                        
-                        try {
-                          await api.put(`/api/exams/${id}`, { accountModes: newModes });
-                          await loadExam();
-                        } catch (err: any) {
-                          setError(err.response?.data?.message || '更新失败');
-                        }
-                      }}
-                      className={`w-full rounded-xl border p-3 text-left transition-colors ${
-                        (exam.accountModes || []).includes(mode.value)
-                          ? 'border-accent-600 bg-accent-50'
-                          : 'border-border bg-white hover:border-accent-600'
-                      }`}
+                {editingField === 'description' ? (
+                  <div className="flex gap-2">
+                    <textarea
+                      className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm"
+                      rows={3}
+                      value={editValues.description || ''}
+                      onChange={(e) => setEditValues(prev => ({ ...prev, description: e.target.value }))}
+                      autoFocus
+                    />
+                    <div className="flex flex-col gap-2">
+                      <Button onClick={() => saveField('description')} className="px-3">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" onClick={cancelEditing} className="px-3">
+                        ✕
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <p className="text-base text-ink-900 flex-1">{exam.description || '暂无描述'}</p>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => startEditing('description', exam.description || '')}
+                      className="px-3 py-1 text-xs"
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-ink-900">{mode.label}</p>
-                          <p className="text-sm text-ink-600">{mode.desc}</p>
-                        </div>
-                        <div className={`h-4 w-4 rounded border-2 ${
+                      编辑
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <label className="text-sm font-semibold text-ink-700 whitespace-nowrap">
+                    学生账号模式
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {[
+                      { value: 'PERMANENT', label: '固定账号' },
+                      { value: 'TEMPORARY_IMPORT', label: '临时导入' },
+                      { value: 'TEMPORARY_REGISTER', label: '自主注册' }
+                    ].map((mode) => (
+                      <button
+                        key={mode.value}
+                        type="button"
+                        onClick={async () => {
+                          const currentModes = exam.accountModes || [];
+                          const isSelected = currentModes.includes(mode.value);
+                          let newModes;
+                          if (isSelected) {
+                            // 取消选择，但至少保留一个
+                            if (currentModes.length > 1) {
+                              newModes = currentModes.filter(m => m !== mode.value);
+                            } else {
+                              return; // 不允许全部取消
+                            }
+                          } else {
+                            // 添加选择
+                            newModes = [...currentModes, mode.value];
+                          }
+                          
+                          try {
+                            console.log('Updating accountModes:', newModes);
+                            console.log('Current exam accountModes:', exam.accountModes);
+                            
+                            // 确保发送的是有效的枚举值
+                            const validModes = newModes.filter(mode => 
+                              ['PERMANENT', 'TEMPORARY_IMPORT', 'TEMPORARY_REGISTER'].includes(mode)
+                            );
+                            
+                            if (validModes.length === 0) {
+                              setError('至少需要选择一种账号模式');
+                              return;
+                            }
+                            
+                            console.log('Valid modes to send:', validModes);
+                            await api.put(`/api/exams/${id}`, { accountModes: validModes });
+                            await loadExam();
+                          } catch (err: any) {
+                            console.error('Update error:', err.response?.data);
+                            console.error('Error message array:', err.response?.data?.message);
+                            console.error('Full error:', err);
+                            
+                            const errorMsg = Array.isArray(err.response?.data?.message) 
+                              ? err.response.data.message.join(', ')
+                              : err.response?.data?.message || err.response?.data?.error || '更新失败';
+                            
+                            setError(errorMsg);
+                          }
+                        }}
+                        className={`px-4 py-2 text-sm rounded-lg border transition-colors whitespace-nowrap ${
                           (exam.accountModes || []).includes(mode.value)
-                            ? 'border-accent-600 bg-accent-600'
-                            : 'border-border'
-                        }`}>
-                          {(exam.accountModes || []).includes(mode.value) && (
-                            <svg className="h-full w-full text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                        }`}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <p className="mt-2 text-xs text-ink-600">
                   已启用 {exam.accountModes?.length || 0} 种登录方式，学生可以选择任意一种方式登录
@@ -372,14 +466,145 @@ export default function ExamDetailPage() {
                   <label className="mb-2 block text-sm font-semibold text-ink-700">
                     考试时长
                   </label>
-                  <p className="text-base text-ink-900">{exam.duration} 分钟</p>
+                  {editingField === 'duration' ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm"
+                        value={editValues.duration || ''}
+                        onChange={(e) => setEditValues(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
+                        autoFocus
+                      />
+                      <span className="flex items-center text-sm text-ink-600">分钟</span>
+                      <Button onClick={() => saveField('duration')} className="px-3">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" onClick={cancelEditing} className="px-3">
+                        ✕
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="text-base text-ink-900 flex-1">{exam.duration} 分钟</p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => startEditing('duration', exam.duration)}
+                        className="px-3 py-1 text-xs"
+                      >
+                        编辑
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-ink-700">
                     总分
                   </label>
-                  <p className="text-base text-ink-900">{exam.totalScore}</p>
+                  {editingField === 'totalScore' ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm"
+                        value={editValues.totalScore || ''}
+                        onChange={(e) => setEditValues(prev => ({ ...prev, totalScore: parseInt(e.target.value) }))}
+                        autoFocus
+                      />
+                      <Button onClick={() => saveField('totalScore')} className="px-3">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" onClick={cancelEditing} className="px-3">
+                        ✕
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="text-base text-ink-900 flex-1">{exam.totalScore}</p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => startEditing('totalScore', exam.totalScore)}
+                        className="px-3 py-1 text-xs"
+                      >
+                        编辑
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink-700">
+                    开始时间
+                  </label>
+                  {editingField === 'startTime' ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm"
+                        value={editValues.startTime || ''}
+                        onChange={(e) => setEditValues(prev => ({ ...prev, startTime: e.target.value }))}
+                        autoFocus
+                      />
+                      <Button onClick={() => saveField('startTime')} className="px-3">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" onClick={cancelEditing} className="px-3">
+                        ✕
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="text-base text-ink-900 flex-1">
+                        {exam.startTime ? new Date(exam.startTime).toLocaleString() : '未设置'}
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => startEditing('startTime', exam.startTime ? new Date(exam.startTime).toISOString().slice(0, 16) : '')}
+                        className="px-3 py-1 text-xs"
+                      >
+                        编辑
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink-700">
+                    结束时间
+                  </label>
+                  {editingField === 'endTime' ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm"
+                        value={editValues.endTime || ''}
+                        onChange={(e) => setEditValues(prev => ({ ...prev, endTime: e.target.value }))}
+                        autoFocus
+                      />
+                      <Button onClick={() => saveField('endTime')} className="px-3">
+                        <Check className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" onClick={cancelEditing} className="px-3">
+                        ✕
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="text-base text-ink-900 flex-1">
+                        {exam.endTime ? new Date(exam.endTime).toLocaleString() : '未设置'}
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => startEditing('endTime', exam.endTime ? new Date(exam.endTime).toISOString().slice(0, 16) : '')}
+                        className="px-3 py-1 text-xs"
+                      >
+                        编辑
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 

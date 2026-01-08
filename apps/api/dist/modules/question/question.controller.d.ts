@@ -7,16 +7,16 @@ export declare class QuestionController {
     private readonly questionService;
     constructor(questionService: QuestionService);
     create(dto: CreateQuestionDto): Promise<{
-        id: string;
-        content: string;
         type: string;
+        content: string;
         options: string | null;
         answer: string | null;
         explanation: string | null;
         tags: string;
         difficulty: number;
-        status: string;
         knowledgePoint: string | null;
+        status: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
     }>;

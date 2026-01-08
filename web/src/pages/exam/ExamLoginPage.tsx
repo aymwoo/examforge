@@ -9,7 +9,7 @@ interface ExamInfo {
   title: string;
   description?: string;
   duration: number;
-  accountMode: string;
+  accountModes: string[];
 }
 
 export default function ExamLoginPage() {
@@ -30,6 +30,9 @@ export default function ExamLoginPage() {
     studentName: '',
     password: '',
   });
+
+  const [showPasswordReminder, setShowPasswordReminder] = useState(false);
+  const [registeredPassword, setRegisteredPassword] = useState('');
 
   useEffect(() => {
     loadExamInfo();
@@ -84,6 +87,11 @@ export default function ExamLoginPage() {
       return;
     }
 
+    if (registerForm.password.length < 6) {
+      setError('密码长度至少6位');
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     
@@ -94,17 +102,23 @@ export default function ExamLoginPage() {
         password: registerForm.password,
       });
 
+      // 显示密码提醒
+      setRegisteredPassword(registerForm.password);
+      setShowPasswordReminder(true);
+      
       // 保存token
       localStorage.setItem('examToken', response.data.token);
       localStorage.setItem('examStudent', JSON.stringify(response.data.student));
       
-      // 跳转到考试页面
-      navigate(`/exam/${examId}/take`);
     } catch (err: any) {
       setError(err.response?.data?.message || '注册失败');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const proceedToExam = () => {
+    navigate(`/exam/${examId}/take`);
   };
 
   if (loading) {
@@ -150,31 +164,61 @@ export default function ExamLoginPage() {
             </div>
           )}
 
-          {/* 模式切换 */}
-          {exam?.accountMode === 'TEMPORARY_REGISTER' && (
-            <div className="mb-6 flex rounded-xl border border-border bg-slate-50 p-1">
-              <button
-                onClick={() => setMode('login')}
-                className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                  mode === 'login'
-                    ? 'bg-white text-ink-900 shadow-sm'
-                    : 'text-ink-600 hover:text-ink-900'
-                }`}
+          {/* 密码提醒界面 */}
+          {showPasswordReminder && (
+            <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-center">
+              <h3 className="text-lg font-semibold text-green-800 mb-3">注册成功！</h3>
+              <p className="text-green-700 text-sm mb-3">
+                请记住您的登录信息：
+              </p>
+              <div className="bg-white rounded-lg p-3 mb-4 border border-green-200">
+                <p className="text-sm text-ink-700 mb-1">
+                  <strong>用户名：</strong>{exam?.title.substring(0, 2)}_{registerForm.studentName}
+                </p>
+                <p className="text-sm text-ink-700">
+                  <strong>密码：</strong><span className="font-mono bg-yellow-100 px-2 py-1 rounded">{registeredPassword}</span>
+                </p>
+              </div>
+              <p className="text-xs text-green-600 mb-4">
+                请截图保存或记住上述信息，以便下次登录使用
+              </p>
+              <Button
+                onClick={proceedToExam}
+                className="w-full"
               >
-                已有账号
-              </button>
-              <button
-                onClick={() => setMode('register')}
-                className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                  mode === 'register'
-                    ? 'bg-white text-ink-900 shadow-sm'
-                    : 'text-ink-600 hover:text-ink-900'
-                }`}
-              >
-                新学生注册
-              </button>
+                我已记住，进入考试
+              </Button>
             </div>
           )}
+
+          {/* 只有在没有显示密码提醒时才显示登录表单 */}
+          {!showPasswordReminder && (
+            <>
+              {/* 模式切换 */}
+              {exam?.accountModes?.includes('TEMPORARY_REGISTER') && (
+                <div className="mb-6 flex rounded-xl border border-border bg-slate-50 p-1">
+                  <button
+                    onClick={() => setMode('login')}
+                    className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                      mode === 'login'
+                        ? 'bg-white text-ink-900 shadow-sm'
+                        : 'text-ink-600 hover:text-ink-900'
+                    }`}
+                  >
+                    已有账号
+                  </button>
+                  <button
+                    onClick={() => setMode('register')}
+                    className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                      mode === 'register'
+                        ? 'bg-white text-ink-900 shadow-sm'
+                        : 'text-ink-600 hover:text-ink-900'
+                    }`}
+                  >
+                    新学生注册
+                  </button>
+                </div>
+              )}
 
           {/* 登录表单 */}
           {mode === 'login' && (
@@ -189,7 +233,7 @@ export default function ExamLoginPage() {
                   value={loginForm.username}
                   onChange={(e) => setLoginForm(prev => ({ ...prev, username: e.target.value }))}
                   placeholder={
-                    exam?.accountMode === 'PERMANENT' ? '请输入学号' : '请输入用户名'
+                    exam?.accountModes?.includes('PERMANENT') ? '请输入学号' : '请输入用户名'
                   }
                 />
               </div>
@@ -217,7 +261,7 @@ export default function ExamLoginPage() {
           )}
 
           {/* 注册表单 */}
-          {mode === 'register' && exam?.accountMode === 'TEMPORARY_REGISTER' && (
+          {mode === 'register' && exam?.accountModes?.includes('TEMPORARY_REGISTER') && (
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-ink-900 mb-2">
@@ -245,7 +289,7 @@ export default function ExamLoginPage() {
                   className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
                   value={registerForm.password}
                   onChange={(e) => setRegisterForm(prev => ({ ...prev, password: e.target.value }))}
-                  placeholder="请设置登录密码"
+                  placeholder="请设置登录密码（至少6位）"
                 />
               </div>
               <Button
@@ -257,6 +301,8 @@ export default function ExamLoginPage() {
                 {submitting ? '注册中...' : '注册并开始考试'}
               </Button>
             </div>
+          )}
+            </>
           )}
 
           <div className="mt-6 text-center">

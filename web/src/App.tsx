@@ -10,6 +10,7 @@ import ImportPage from "./pages/import/ImportPage";
 import AuthPage from "./pages/auth/AuthPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import ExamLoginPage from "./pages/exam/ExamLoginPage";
+import ExamTakePage from "./pages/exam/ExamTakePage";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
         </Route>
         {/* 考试登录页面不使用Layout */}
         <Route path="/exam/:examId/login" element={<ExamLoginPage />} />
+        <Route path="/exam/:examId/take" element={<ExamTakePage />} />
       </Routes>
     </BrowserRouter>
   );
