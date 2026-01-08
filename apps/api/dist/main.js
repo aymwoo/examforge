@@ -11,7 +11,7 @@ async function bootstrap() {
         origin: true,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'multipart/form-data'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
     });
     app.setGlobalPrefix('api');
     app.useGlobalPipes(new common_1.ValidationPipe({
@@ -19,6 +19,12 @@ async function bootstrap() {
         forbidNonWhitelisted: true,
         transform: true,
     }));
+    app.use((req, res, next) => {
+        const dbUrl = process.env.DATABASE_URL || '';
+        const instanceHint = dbUrl.split('/').pop() || 'default';
+        res.setHeader('X-ExamForge-Instance', instanceHint);
+        next();
+    });
     const port = process.env.PORT || 3000;
     await app.listen(port);
     console.log(`🚀 ExamForge is running on http://localhost:${port}`);

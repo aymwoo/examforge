@@ -9,6 +9,7 @@ import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { QuestionType, QuestionStatus } from '@/common/enums/question.enum';
 import { PaginationDto } from '@/common/dto/pagination.dto';
+import { serializeQuestionAnswer } from '@/common/utils/question-answer';
 
 @Injectable()
 export class QuestionService {
@@ -27,7 +28,7 @@ export class QuestionService {
         content: dto.content,
         type: dto.type as any,
         options: optionsJson,
-        answer: dto.answer,
+        answer: serializeQuestionAnswer(dto.answer),
         explanation: dto.explanation,
         tags: tagsStr,
         difficulty: dto.difficulty || 1,
@@ -87,7 +88,7 @@ export class QuestionService {
     if (dto.content !== undefined) updateData.content = dto.content;
     if (dto.type !== undefined) updateData.type = dto.type;
     if (dto.options !== undefined) updateData.options = JSON.stringify(dto.options);
-    if (dto.answer !== undefined) updateData.answer = dto.answer;
+    if (dto.answer !== undefined) updateData.answer = serializeQuestionAnswer(dto.answer);
     if (dto.explanation !== undefined) updateData.explanation = dto.explanation;
     if (dto.tags !== undefined) updateData.tags = JSON.stringify(dto.tags);
     if (dto.difficulty !== undefined) updateData.difficulty = dto.difficulty;
@@ -125,6 +126,7 @@ export class QuestionService {
     return {
       ...question,
       options: question.options ? JSON.parse(question.options) : undefined,
+      answer: question.answer ?? undefined,
       tags: question.tags ? JSON.parse(question.tags) : [],
     };
   }

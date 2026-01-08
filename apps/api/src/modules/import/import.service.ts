@@ -6,6 +6,7 @@ import { QuestionStatus, QuestionType } from '@/common/enums/question.enum';
 import { AIService } from '../ai/ai.service';
 import { SettingsService } from '../settings/settings.service';
 import { extractTextFromPdf } from '@/common/utils/pdf-text';
+import { serializeQuestionAnswer } from '@/common/utils/question-answer';
 import { convertPdfToPngBuffers } from '@/common/utils/pdf-to-images';
 import { ImportProgressStore } from './import-progress.store';
 
@@ -59,7 +60,8 @@ export class ImportService {
             content: dto.content,
             type: dto.type as any,
             options: dto.options ? JSON.stringify(dto.options) : null,
-            answer: dto.answer,
+            answer: serializeQuestionAnswer(dto.answer),
+
             explanation: dto.explanation,
             tags: dto.tags ? JSON.stringify(dto.tags) : '[]',
             difficulty: dto.difficulty || 1,
@@ -105,6 +107,8 @@ export class ImportService {
   }
 
   private async importFromPdfVision(jobId: string, buffer: Buffer): Promise<void> {
+    const questionIds: string[] = [];
+
     try {
       this.progressStore.append(jobId, {
         stage: 'converting_pdf_to_images',
@@ -196,12 +200,13 @@ export class ImportService {
 
         try {
           const mappedType = this.mapQuestionType(q.type);
-          await this.prisma.question.create({
+          const createdQuestion = await this.prisma.question.create({
             data: {
               content: q.content,
               type: mappedType as any,
               options: q.options ? JSON.stringify(q.options) : null,
-              answer: q.answer,
+              answer: serializeQuestionAnswer(q.answer),
+
               explanation: q.explanation,
               tags: q.tags ? JSON.stringify(q.tags) : '[]',
               difficulty: q.difficulty || 1,
@@ -209,6 +214,7 @@ export class ImportService {
               knowledgePoint: q.knowledgePoint,
             },
           });
+          questionIds.push(createdQuestion.id);
           result.success++;
         } catch (error) {
           result.failed++;
@@ -233,6 +239,9 @@ export class ImportService {
         stage: 'done',
         message: '导入完成',
         result,
+        meta: {
+          questionIds,
+        },
       });
     } catch (error: unknown) {
       this.progressStore.append(jobId, {
@@ -255,6 +264,7 @@ export class ImportService {
   }
 
   private async importFromPdfText(jobId: string, buffer: Buffer): Promise<void> {
+    const questionIds: string[] = [];
     try {
       this.progressStore.append(jobId, {
         stage: 'extracting_text',
@@ -272,8 +282,27 @@ export class ImportService {
         throw new BadRequestException('PDF 文本为空，无法导入');
       }
 
+      const overlapChars = 300;
+      const maxChunkChars = 6000;
+      const minChunkChars = 1800;
+
       // Keep chunks smaller to reduce truncation in AI output and increase recall.
-      const chunks = this.splitTextIntoChunks(normalizedText, 6000);
+      const chunks = this.splitTextIntoChunks(normalizedText, maxChunkChars, {
+        overlapChars,
+        minChunkChars,
+      });
+
+      this.progressStore.append(jobId, {
+        stage: 'chunked_text',
+        message: `文本已分块，共 ${chunks.length} 块`,
+        meta: {
+          totalChunks: chunks.length,
+          maxChunkChars,
+          overlapChars,
+          minChunkChars,
+          totalTextLength: normalizedText.length,
+        },
+      });
 
       const result: ImportResult = { success: 0, failed: 0, errors: [] };
 
@@ -281,19 +310,31 @@ export class ImportService {
       for (let i = 0; i < chunks.length; i++) {
         const chunkPreview = chunks[i].slice(0, 80).replace(/\s+/g, ' ').trim();
 
+        const incomplete = this.looksLikeIncompleteChunk(chunks[i]);
+        const mergedNextHeadChars = incomplete && i + 1 < chunks.length ? 600 : 0;
+
         this.progressStore.append(jobId, {
           stage: 'calling_ai',
           message: `正在调用 AI 生成题目（${i + 1}/${chunks.length}）`,
           current: i + 1,
           total: chunks.length,
           meta: {
+            chunkIndex: i + 1,
             chunkLength: chunks[i].length,
             chunkPreview,
+            looksIncomplete: incomplete,
+            mergedNextHeadChars,
           },
         });
 
         try {
-          const { questions } = await this.aiService.generateQuestionsFromText(chunks[i], {
+          let inputChunk = chunks[i];
+          // If the current chunk looks cut mid-question, prepend part of the next chunk.
+          if (mergedNextHeadChars > 0) {
+            inputChunk = `${inputChunk}\n${chunks[i + 1].slice(0, mergedNextHeadChars)}`;
+          }
+
+          const { questions } = await this.aiService.generateQuestionsFromText(inputChunk, {
             chunkIndex: i + 1,
             totalChunks: chunks.length,
           });
@@ -335,12 +376,13 @@ export class ImportService {
 
         try {
           const mappedType = this.mapQuestionType(q.type);
-          await this.prisma.question.create({
+          const createdQuestion = await this.prisma.question.create({
             data: {
               content: q.content,
               type: mappedType as any,
               options: q.options ? JSON.stringify(q.options) : null,
-              answer: q.answer,
+              answer: serializeQuestionAnswer(q.answer),
+
               explanation: q.explanation,
               tags: q.tags ? JSON.stringify(q.tags) : '[]',
               difficulty: q.difficulty || 1,
@@ -348,6 +390,7 @@ export class ImportService {
               knowledgePoint: q.knowledgePoint,
             },
           });
+          questionIds.push(createdQuestion.id);
           result.success++;
         } catch (error) {
           result.failed++;
@@ -369,6 +412,9 @@ export class ImportService {
         stage: 'done',
         message: '导入完成',
         result,
+        meta: {
+          questionIds,
+        },
       });
     } catch (error: unknown) {
       this.progressStore.append(jobId, {
@@ -379,22 +425,30 @@ export class ImportService {
     }
   }
 
-  private splitTextIntoChunks(text: string, maxChunkChars: number): string[] {
+  private splitTextIntoChunks(
+    text: string,
+    maxChunkChars: number,
+    opts?: {
+      overlapChars?: number;
+      minChunkChars?: number;
+    }
+  ): string[] {
     if (text.length <= maxChunkChars) return [text];
 
-    const numbered = this.splitByQuestionNumber(text);
-    if (numbered.length <= 1) {
-      return this.splitBySeparators(text, maxChunkChars);
-    }
+    const overlapChars = Math.max(0, Math.floor(opts?.overlapChars ?? 300));
+    const minChunkChars = Math.max(1000, Math.floor(opts?.minChunkChars ?? 1800));
 
-    // Merge question-blocks into chunks looking for ~maxChunkChars.
-    const chunks: string[] = [];
+    const numbered = this.splitByQuestionNumber(text);
+    const baseChunks = numbered.length > 1 ? numbered : this.splitBySeparators(text, maxChunkChars);
+
+    // Merge blocks into chunks looking for ~maxChunkChars.
+    const merged: string[] = [];
     let current = '';
 
-    for (const block of numbered) {
+    for (const block of baseChunks) {
       const next = current ? `${current}\n${block}` : block;
       if (current && next.length > maxChunkChars) {
-        chunks.push(current.trim());
+        merged.push(current.trim());
         current = block;
         continue;
       }
@@ -402,23 +456,44 @@ export class ImportService {
     }
 
     if (current.trim()) {
-      chunks.push(current.trim());
+      merged.push(current.trim());
     }
 
-    return chunks;
+    if (overlapChars <= 0 || merged.length <= 1) return merged;
+
+    // Apply overlap to reduce boundary cut risk.
+    const withOverlap: string[] = [];
+    for (let i = 0; i < merged.length; i++) {
+      const prev = i > 0 ? merged[i - 1] : '';
+      const head = prev ? prev.slice(Math.max(0, prev.length - overlapChars)) : '';
+      const combined = head ? `${head}\n${merged[i]}` : merged[i];
+
+      // Avoid very small chunks: if overlap makes it too small, keep original.
+      if (combined.length < minChunkChars && merged[i].length >= minChunkChars) {
+        withOverlap.push(merged[i]);
+        continue;
+      }
+
+      withOverlap.push(combined);
+    }
+
+    return withOverlap;
   }
 
   private splitByQuestionNumber(text: string): string[] {
     const normalized = text.replace(/\r/g, '');
 
     // Common patterns:
-    // - 1. / 1、 / 1)
-    // - （1）
+    // - 1. / 1、 / 1) / 1．
+    // - （1） / (1)
     // - ① ② ...
+    // - 第1题 / 第 1 题
+    // - 1、后面不一定有空格
     const markers = [
-      /(^|\n)\s*\d{1,3}[\.、\)]\s+/g,
+      /(^|\n)\s*\d{1,3}[\.．、\)]\s*/g,
       /(^|\n)\s*[（(]\d{1,3}[）)]\s*/g,
       /(^|\n)\s*[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]\s*/g,
+      /(^|\n)\s*第\s*\d{1,3}\s*题\s*/g,
     ];
 
     const candidates: Array<{ index: number }> = [];
@@ -439,7 +514,7 @@ export class ImportService {
       .sort((a, b) => a - b);
 
     // Heuristic: if we found too few markers, fallback.
-    if (starts.length < 3) {
+    if (starts.length < 2) {
       return [text];
     }
 
@@ -482,6 +557,25 @@ export class ImportService {
 
     if (remaining) chunks.push(remaining);
     return chunks;
+  }
+
+  private looksLikeIncompleteChunk(text: string): boolean {
+    const t = (text || '').trim();
+    if (!t) return false;
+
+    // Often indicates we cut mid-question/options.
+    const tail = t.slice(Math.max(0, t.length - 200));
+
+    // Ends with an option label or incomplete punctuation.
+    if (/\b[A-D][\.|、:：]?\s*$/i.test(tail)) return true;
+    if (/[（(]$/.test(tail)) return true;
+    if (/[，,、:：]$/.test(tail)) return true;
+
+    // Contains an option label near the end but no later labels.
+    const optionMatches = tail.match(/\b[A-D][\.|、:：]/gi) || [];
+    if (optionMatches.length === 1) return true;
+
+    return false;
   }
 
   private mergeAndDedupeQuestions(questions: any[], result: ImportResult): any[] {
@@ -548,6 +642,7 @@ export class ImportService {
     const content = row['题干'] || row['content'] || row['Content'] || '';
     const typeStr = row['题型'] || row['type'] || row['Type'] || 'SINGLE_CHOICE';
     const answer = row['答案'] || row['answer'] || row['Answer'] || '';
+    const serializedAnswer = serializeQuestionAnswer(answer);
 
     if (!content) {
       throw new BadRequestException('题干不能为空，请确保 Excel 包含"题干"列');
@@ -578,7 +673,7 @@ export class ImportService {
     const dto: CreateQuestionDto = {
       content,
       type,
-      answer: answer || undefined,
+      answer: serializedAnswer,
     };
 
     if (row['选项'] || row['options'] || row['Options']) {
@@ -634,5 +729,41 @@ export class ImportService {
     }
 
     return [];
+  }
+
+  getProgress(jobId: string) {
+    return this.progressStore.getEventsSince(jobId);
+  }
+
+  async createExamFromImport(
+    jobId: string,
+    questionIds: string[],
+    examTitle: string,
+    duration: number = 60
+  ): Promise<string> {
+    // 创建考试
+    const exam = await this.prisma.exam.create({
+      data: {
+        title: examTitle,
+        description: `从PDF导入生成的考试 (导入任务: ${jobId})`,
+        duration,
+        totalScore: questionIds.length * 5, // 每题5分
+        status: 'DRAFT',
+      },
+    });
+
+    // 添加题目到考试
+    for (let i = 0; i < questionIds.length; i++) {
+      await this.prisma.examQuestion.create({
+        data: {
+          examId: exam.id,
+          questionId: questionIds[i],
+          order: i + 1,
+          score: 5,
+        },
+      });
+    }
+
+    return exam.id;
   }
 }

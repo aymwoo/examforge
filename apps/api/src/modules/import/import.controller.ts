@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   Res,
+  Body,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
@@ -24,6 +25,39 @@ export class ImportController {
     private readonly importService: ImportService,
     private readonly progressStore: ImportProgressStore
   ) {}
+
+  @Post('pdf/create-exam')
+  @ApiOperation({ summary: 'Create exam from imported PDF questions' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        jobId: { type: 'string', description: 'Import job ID' },
+        examTitle: { type: 'string', description: 'Exam title' },
+        duration: { type: 'number', description: 'Exam duration in minutes', default: 60 },
+      },
+      required: ['jobId', 'examTitle'],
+    },
+  })
+  async createExamFromPdf(@Body() body: { jobId: string; examTitle: string; duration?: number }) {
+    const progress = this.importService.getProgress(body.jobId);
+    const lastEvent = progress[progress.length - 1];
+
+    const questionIds = (lastEvent?.meta as any)?.questionIds as string[] | undefined;
+
+    if (!lastEvent || lastEvent.stage !== 'done' || !questionIds || questionIds.length === 0) {
+      throw new BadRequestException('Import not completed or no questions found');
+    }
+
+    const examId = await this.importService.createExamFromImport(
+      body.jobId,
+      questionIds,
+      body.examTitle,
+      body.duration || 60
+    );
+
+    return { examId, message: 'Exam created successfully' };
+  }
 
   @Post('excel')
   @ApiOperation({ summary: 'Import questions from Excel file' })

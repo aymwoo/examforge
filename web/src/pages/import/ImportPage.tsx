@@ -623,6 +623,82 @@ export default function ImportPage() {
                       </p>
                     </div>
                   )}
+                  {pdfStage === "chunked_text" && latestPdfEvent?.meta && (
+                    <div className="mt-4 rounded-2xl border border-border bg-slate-50 p-4">
+                      <p className="text-sm font-semibold text-ink-900">
+                        分块信息
+                      </p>
+                      <div className="mt-2 grid gap-2 text-xs text-ink-700 sm:grid-cols-2">
+                        <div>
+                          总块数：
+                          {String(
+                            (latestPdfEvent.meta as any).totalChunks ?? "-",
+                          )}
+                        </div>
+                        <div>
+                          原文长度：
+                          {String(
+                            (latestPdfEvent.meta as any).totalTextLength ?? "-",
+                          )}
+                        </div>
+                        <div>
+                          单块上限：
+                          {String(
+                            (latestPdfEvent.meta as any).maxChunkChars ?? "-",
+                          )}
+                        </div>
+                        <div>
+                          overlap：
+                          {String(
+                            (latestPdfEvent.meta as any).overlapChars ?? "-",
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {pdfStage === "calling_ai" && latestPdfEvent?.meta && (
+                    <div className="mt-4 rounded-2xl border border-border bg-slate-50 p-4">
+                      <p className="text-sm font-semibold text-ink-900">
+                        当前分块
+                      </p>
+                      <div className="mt-2 grid gap-2 text-xs text-ink-700 sm:grid-cols-2">
+                        <div>
+                          块序号：
+                          {String(
+                            (latestPdfEvent.meta as any).chunkIndex ?? "-",
+                          )}
+                        </div>
+                        <div>
+                          块长度：
+                          {String(
+                            (latestPdfEvent.meta as any).chunkLength ?? "-",
+                          )}
+                        </div>
+                        <div>
+                          疑似半题：
+                          {String(
+                            (latestPdfEvent.meta as any).looksIncomplete ??
+                              false,
+                          )}
+                        </div>
+                        <div>
+                          补全拼接：
+                          {String(
+                            (latestPdfEvent.meta as any).mergedNextHeadChars ??
+                              0,
+                          )}
+                        </div>
+                      </div>
+                      {(latestPdfEvent.meta as any).chunkPreview && (
+                        <p className="mt-2 text-xs text-ink-700">
+                          预览：
+                          {String((latestPdfEvent.meta as any).chunkPreview)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {pdfStage === "done" && pdfResult && (
                     <div className="mt-4 grid gap-4 sm:grid-cols-3">
                       <div className="rounded-2xl border border-border bg-slate-50 p-4">

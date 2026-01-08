@@ -9,9 +9,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ImportModule = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
-const import_controller_1 = require("./import.controller");
-const import_service_1 = require("./import.service");
 const multer_1 = require("multer");
+const ai_service_1 = require("../ai/ai.service");
+const settings_service_1 = require("../settings/settings.service");
+const import_controller_1 = require("./import.controller");
+const import_progress_store_1 = require("./import-progress.store");
+const import_service_1 = require("./import.service");
 let ImportModule = class ImportModule {
 };
 exports.ImportModule = ImportModule;
@@ -23,7 +26,7 @@ exports.ImportModule = ImportModule = __decorate([
             }),
         ],
         controllers: [import_controller_1.ImportController],
-        providers: [import_service_1.ImportService],
+        providers: [import_service_1.ImportService, import_progress_store_1.ImportProgressStore, ai_service_1.AIService, settings_service_1.SettingsService],
         exports: [import_service_1.ImportService],
     })
 ], ImportModule);

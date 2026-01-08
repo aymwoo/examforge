@@ -8,7 +8,7 @@
     "build:api": "pnpm --filter ./apps/api build",
     "build:web": "pnpm --filter ./web build",
     "dev": "pnpm --parallel --filter ./apps/api --filter ./web run dev",
-    "dev:api": "pnpm --filter ./apps/api start:dev",
+    "dev:api": "cd apps/api && pnpm start:dev",
     "dev:web": "pnpm --filter ./web dev",
     "lint": "pnpm --filter ./packages --filter ./apps --filter ./web run lint",
     "lint:fix": "pnpm --filter ./packages --filter ./apps --filter ./web run lint:fix",

@@ -2,6 +2,7 @@ export type PdfImportStage =
   | 'received'
   | 'extracting_text'
   | 'converting_pdf_to_images'
+  | 'chunked_text'
   | 'calling_ai'
   | 'ai_response_received'
   | 'parsing_ai_response'
@@ -22,6 +23,7 @@ export interface PdfImportProgressEvent {
     failed: number;
     errors: { row: number; message: string }[];
   };
+  questionIds?: string[];
 }
 
 export class ImportProgressStore {

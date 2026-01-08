@@ -20,12 +20,6 @@ exports.ExamModule = ExamModule = __decorate([
         controllers: [exam_controller_1.ExamController],
         providers: [exam_service_1.ExamService],
         exports: [exam_service_1.ExamService],
-    }),
-    (0, common_1.Module)({
-        imports: [ai_module_1.AIModule],
-        controllers: [exam_controller_1.ExamController],
-        providers: [exam_service_1.ExamService],
-        exports: [exam_service_1.ExamService],
     })
 ], ExamModule);
 //# sourceMappingURL=exam.module.js.map

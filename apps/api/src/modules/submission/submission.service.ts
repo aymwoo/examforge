@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateSubmissionDto, AnswerDto } from './dto/create-submission.dto';
 import { SubmissionPaginationDto } from './dto/submission-pagination.dto';
 import { QuestionType } from '@/common/enums/question.enum';
+import { parseQuestionAnswer } from '@/common/utils/question-answer';
 
 @Injectable()
 export class SubmissionService {
@@ -144,6 +145,7 @@ export class SubmissionService {
         score: eq.score,
         userAnswer,
         correctAnswer: question.answer,
+
         isCorrect: this.isAutoGradable(question.type) ? isCorrect : null,
         isAutoGradable: this.isAutoGradable(question.type),
       });
@@ -158,7 +160,11 @@ export class SubmissionService {
 
   private checkAnswer(question: any, userAnswer: string): boolean {
     const normalizedUser = userAnswer.trim().toUpperCase();
-    const normalizedCorrect = question.answer.trim().toUpperCase();
+
+    const correct = parseQuestionAnswer(question.answer);
+    const normalizedCorrect = Array.isArray(correct)
+      ? correct.join(',').trim().toUpperCase()
+      : (correct || '').trim().toUpperCase();
 
     switch (question.type) {
       case QuestionType.SINGLE_CHOICE:

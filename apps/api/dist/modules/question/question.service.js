@@ -13,6 +13,7 @@ exports.QuestionService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const question_enum_1 = require("../../common/enums/question.enum");
+const question_answer_1 = require("../../common/utils/question-answer");
 let QuestionService = class QuestionService {
     prisma;
     constructor(prisma) {
@@ -29,7 +30,7 @@ let QuestionService = class QuestionService {
                 content: dto.content,
                 type: dto.type,
                 options: optionsJson,
-                answer: dto.answer,
+                answer: (0, question_answer_1.serializeQuestionAnswer)(dto.answer),
                 explanation: dto.explanation,
                 tags: tagsStr,
                 difficulty: dto.difficulty || 1,
@@ -88,7 +89,7 @@ let QuestionService = class QuestionService {
         if (dto.options !== undefined)
             updateData.options = JSON.stringify(dto.options);
         if (dto.answer !== undefined)
-            updateData.answer = dto.answer;
+            updateData.answer = (0, question_answer_1.serializeQuestionAnswer)(dto.answer);
         if (dto.explanation !== undefined)
             updateData.explanation = dto.explanation;
         if (dto.tags !== undefined)
@@ -109,10 +110,22 @@ let QuestionService = class QuestionService {
         await this.findById(id);
         await this.prisma.question.delete({ where: { id } });
     }
+    async deleteMany(ids) {
+        if (!ids || ids.length === 0) {
+            throw new common_1.BadRequestException('No question IDs provided');
+        }
+        const result = await this.prisma.question.deleteMany({
+            where: {
+                id: { in: ids },
+            },
+        });
+        return { deleted: result.count };
+    }
     transformQuestion(question) {
         return {
             ...question,
             options: question.options ? JSON.parse(question.options) : undefined,
+            answer: question.answer ?? undefined,
             tags: question.tags ? JSON.parse(question.tags) : [],
         };
     }

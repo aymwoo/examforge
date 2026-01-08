@@ -39,6 +39,9 @@ let QuestionController = class QuestionController {
     delete(id) {
         return this.questionService.delete(id);
     }
+    deleteMany(body) {
+        return this.questionService.deleteMany(body.ids);
+    }
 };
 exports.QuestionController = QuestionController;
 __decorate([
@@ -92,6 +95,16 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], QuestionController.prototype, "delete", null);
+__decorate([
+    (0, common_1.Post)('batch-delete'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete multiple questions' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Questions deleted successfully' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], QuestionController.prototype, "deleteMany", null);
 exports.QuestionController = QuestionController = __decorate([
     (0, swagger_1.ApiTags)('questions'),
     (0, common_1.Controller)('questions'),

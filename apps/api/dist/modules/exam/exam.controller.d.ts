@@ -12,16 +12,16 @@ export declare class ExamController {
         image: string;
     }): Promise<import("../ai/ai.service").GenerateExamQuestionsResponse>;
     create(dto: CreateExamDto): Promise<{
-        id: string;
-        title: string;
         description: string | null;
-        duration: number;
-        totalScore: number;
+        title: string;
         status: string;
-        startTime: Date | null;
-        endTime: Date | null;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        duration: number;
+        totalScore: number;
+        startTime: Date | null;
+        endTime: Date | null;
     }>;
     findAll(paginationDto: PaginationDto): Promise<{
         data: any[];
@@ -34,24 +34,24 @@ export declare class ExamController {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        id: string;
-        title: string;
         description: string | null;
-        duration: number;
-        totalScore: number;
+        title: string;
         status: string;
-        startTime: Date | null;
-        endTime: Date | null;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
+        duration: number;
+        totalScore: number;
+        startTime: Date | null;
+        endTime: Date | null;
     }>;
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
         order: number;
+        score: number;
         examId: string;
         questionId: string;
-        score: number;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
     updateQuestionOrder(examId: string, questionId: string, body: {
@@ -60,8 +60,8 @@ export declare class ExamController {
     }): Promise<{
         id: string;
         order: number;
+        score: number;
         examId: string;
         questionId: string;
-        score: number;
     }>;
 }

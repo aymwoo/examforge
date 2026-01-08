@@ -15,6 +15,8 @@ const import_module_1 = require("./modules/import/import.module");
 const exam_module_1 = require("./modules/exam/exam.module");
 const settings_module_1 = require("./modules/settings/settings.module");
 const ai_module_1 = require("./modules/ai/ai.module");
+const submission_module_1 = require("./modules/submission/submission.module");
+const debug_module_1 = require("./modules/debug/debug.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -30,6 +32,8 @@ exports.AppModule = AppModule = __decorate([
             exam_module_1.ExamModule,
             settings_module_1.SettingsModule,
             ai_module_1.AIModule,
+            submission_module_1.SubmissionModule,
+            debug_module_1.DebugModule,
         ],
     })
 ], AppModule);
