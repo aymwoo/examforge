@@ -39,6 +39,7 @@ model Exam {
   duration    Int
   totalScore  Int      @default(100)
   status      String   @default("DRAFT")
+  accountModes String  @default("TEMPORARY_IMPORT") @map("account_modes") // JSON array of enabled modes
   startTime   DateTime?
   endTime     DateTime?
   createdAt   DateTime @default(now()) @map("created_at")
@@ -46,6 +47,7 @@ model Exam {
 
   examQuestions ExamQuestion[]
   submissions   Submission[]
+  examStudents  ExamStudent[]
 
   @@map("exams")
 }
@@ -67,17 +69,65 @@ model ExamQuestion {
 }
 
 model Submission {
-  id          String   @id @default(cuid())
-  examId      String
-  answers     String
-  score       Float?
-  isAutoGraded Boolean  @default(false)
-  submittedAt DateTime @default(now()) @map("submitted_at")
+  id            String   @id @default(cuid())
+  examId        String
+  examStudentId String?  @map("exam_student_id")
+  answers       String
+  score         Float?
+  isAutoGraded  Boolean  @default(false)
+  submittedAt   DateTime @default(now()) @map("submitted_at")
 
-  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  exam        Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  examStudent ExamStudent? @relation(fields: [examStudentId], references: [id], onDelete: Cascade)
 
   @@index([examId])
   @@map("submissions")
+}
+
+model ExamStudent {
+  id          String   @id @default(cuid())
+  examId      String   @map("exam_id")
+  username    String
+  password    String
+  displayName String?  @map("display_name")
+  accountType String   @default("TEMPORARY") @map("account_type") // PERMANENT | TEMPORARY
+  studentId   String?  @map("student_id") // 关联固定学生的学号
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  exam        Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     Student?     @relation(fields: [studentId], references: [studentId])
+  submissions Submission[]
+
+  @@unique([examId, username])
+  @@map("exam_students")
+}
+
+model Student {
+  id          String   @id @default(cuid())
+  studentId   String   @unique @map("student_id") // 学号
+  name        String
+  classId     String?  @map("class_id")
+  password    String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  class       Class?       @relation(fields: [classId], references: [id])
+  examStudents ExamStudent[]
+
+  @@map("students")
+}
+
+model Class {
+  id        String   @id @default(cuid())
+  name      String   // 班级名称
+  code      String   @unique // 班级代码
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  students  Student[]
+
+  @@map("classes")
 }
 
 model SystemSetting {

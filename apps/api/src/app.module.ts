@@ -8,6 +8,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { AIModule } from './modules/ai/ai.module';
 import { SubmissionModule } from './modules/submission/submission.module';
 import { DebugModule } from './modules/debug/debug.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { DebugModule } from './modules/debug/debug.module';
     AIModule,
     SubmissionModule,
     DebugModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

@@ -1,5 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsDateString } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsDateString, IsArray } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+
+export enum ExamAccountMode {
+  PERMANENT = 'PERMANENT',
+  TEMPORARY_IMPORT = 'TEMPORARY_IMPORT',
+  TEMPORARY_REGISTER = 'TEMPORARY_REGISTER'
+}
 
 export class CreateExamDto {
   @ApiProperty({ description: 'Exam title' })
@@ -22,6 +28,17 @@ export class CreateExamDto {
   @Min(1)
   @IsOptional()
   totalScore?: number;
+
+  @ApiProperty({ 
+    required: false, 
+    description: 'Account modes for exam (array)',
+    type: [String],
+    enum: ExamAccountMode,
+    default: [ExamAccountMode.TEMPORARY_IMPORT]
+  })
+  @IsArray()
+  @IsOptional()
+  accountModes?: ExamAccountMode[];
 
   @ApiProperty({ required: false, description: 'Start time (ISO 8601)' })
   @IsDateString()

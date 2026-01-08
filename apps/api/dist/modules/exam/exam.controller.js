@@ -19,6 +19,8 @@ const exam_service_1 = require("./exam.service");
 const create_exam_dto_1 = require("./dto/create-exam.dto");
 const update_exam_dto_1 = require("./dto/update-exam.dto");
 const add_question_dto_1 = require("./dto/add-question.dto");
+const create_exam_student_dto_1 = require("./dto/create-exam-student.dto");
+const batch_create_exam_students_dto_1 = require("./dto/batch-create-exam-students.dto");
 const pagination_dto_1 = require("../../common/dto/pagination.dto");
 const ai_service_1 = require("../ai/ai.service");
 let ExamController = class ExamController {
@@ -54,6 +56,24 @@ let ExamController = class ExamController {
     }
     updateQuestionOrder(examId, questionId, body) {
         return this.examService.updateQuestionOrder(examId, questionId, body.order, body.score);
+    }
+    addStudent(examId, dto) {
+        return this.examService.addStudent(examId, dto);
+    }
+    batchAddStudents(examId, dto) {
+        return this.examService.batchAddStudents(examId, dto);
+    }
+    generateStudentAccounts(examId, body) {
+        return this.examService.generateStudentAccounts(examId, body.count, body.prefix);
+    }
+    getExamStudents(examId) {
+        return this.examService.getExamStudents(examId);
+    }
+    updateExamStudent(examId, studentId, dto) {
+        return this.examService.updateExamStudent(examId, studentId, dto);
+    }
+    deleteExamStudent(examId, studentId) {
+        return this.examService.deleteExamStudent(examId, studentId);
     }
 };
 exports.ExamController = ExamController;
@@ -165,6 +185,87 @@ __decorate([
     __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", void 0)
 ], ExamController.prototype, "updateQuestionOrder", null);
+__decorate([
+    (0, common_1.Post)(':id/students'),
+    (0, swagger_1.ApiOperation)({ summary: 'Add a student to exam' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiBody)({ type: create_exam_student_dto_1.CreateExamStudentDto }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Student added successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, create_exam_student_dto_1.CreateExamStudentDto]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "addStudent", null);
+__decorate([
+    (0, common_1.Post)(':id/students/batch'),
+    (0, swagger_1.ApiOperation)({ summary: 'Batch add students to exam' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiBody)({ type: batch_create_exam_students_dto_1.BatchCreateExamStudentsDto }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Students added successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, batch_create_exam_students_dto_1.BatchCreateExamStudentsDto]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "batchAddStudents", null);
+__decorate([
+    (0, common_1.Post)(':id/students/generate'),
+    (0, swagger_1.ApiOperation)({ summary: 'Generate student accounts for exam' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                count: { type: 'number', description: 'Number of accounts to generate' },
+                prefix: { type: 'string', description: 'Username prefix', default: 'student' },
+            },
+            required: ['count'],
+        },
+    }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Student accounts generated successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "generateStudentAccounts", null);
+__decorate([
+    (0, common_1.Get)(':id/students'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get exam students' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Students retrieved successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "getExamStudents", null);
+__decorate([
+    (0, common_1.Put)(':id/students/:studentId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update exam student' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiParam)({ name: 'studentId', description: 'Student ID' }),
+    (0, swagger_1.ApiBody)({ type: create_exam_student_dto_1.CreateExamStudentDto }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Student updated successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('studentId')),
+    __param(2, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "updateExamStudent", null);
+__decorate([
+    (0, common_1.Delete)(':id/students/:studentId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete exam student' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Exam ID' }),
+    (0, swagger_1.ApiParam)({ name: 'studentId', description: 'Student ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Student deleted successfully' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('studentId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "deleteExamStudent", null);
 exports.ExamController = ExamController = __decorate([
     (0, swagger_1.ApiTags)('exams'),
     (0, common_1.Controller)('exams'),

@@ -18,6 +18,7 @@ const swagger_1 = require("@nestjs/swagger");
 const question_service_1 = require("./question.service");
 const create_question_dto_1 = require("./dto/create-question.dto");
 const update_question_dto_1 = require("./dto/update-question.dto");
+const clear_questions_dto_1 = require("./dto/clear-questions.dto");
 const pagination_dto_1 = require("../../common/dto/pagination.dto");
 let QuestionController = class QuestionController {
     questionService;
@@ -41,6 +42,15 @@ let QuestionController = class QuestionController {
     }
     deleteMany(body) {
         return this.questionService.deleteMany(body.ids);
+    }
+    clearAll(dto) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new common_1.BadRequestException('This operation is not allowed in production');
+        }
+        if (dto.confirm !== 'CLEAR_ALL') {
+            throw new common_1.BadRequestException('Confirmation string invalid');
+        }
+        return this.questionService.clearAll();
     }
 };
 exports.QuestionController = QuestionController;
@@ -105,6 +115,16 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], QuestionController.prototype, "deleteMany", null);
+__decorate([
+    (0, common_1.Post)('clear'),
+    (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, swagger_1.ApiOperation)({ summary: '[DEV] Clear all questions (testing only)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'All questions cleared successfully' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [clear_questions_dto_1.ClearQuestionsDto]),
+    __metadata("design:returntype", void 0)
+], QuestionController.prototype, "clearAll", null);
 exports.QuestionController = QuestionController = __decorate([
     (0, swagger_1.ApiTags)('questions'),
     (0, common_1.Controller)('questions'),

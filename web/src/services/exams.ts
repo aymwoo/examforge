@@ -7,11 +7,13 @@ export interface Exam {
   duration: number;
   totalScore: number;
   status: string;
+  accountModes: string[];
   startTime?: string;
   endTime?: string;
   createdAt: string;
   updatedAt: string;
   questions?: ExamQuestion[];
+  submissionCount?: number;
 }
 
 export interface ExamQuestion {
@@ -47,6 +49,7 @@ export interface CreateExamDto {
   description?: string;
   duration: number;
   totalScore?: number;
+  accountModes?: string[];
 }
 
 export interface UpdateExamDto {
@@ -104,6 +107,55 @@ export const removeQuestionFromExam = async (
   questionId: string,
 ): Promise<void> => {
   await api.delete(`/api/exams/${examId}/questions/${questionId}`);
+};
+
+// 学生管理API
+export interface ExamStudent {
+  id: string;
+  username: string;
+  displayName?: string;
+  createdAt: string;
+  _count: {
+    submissions: number;
+  };
+}
+
+export interface CreateExamStudentDto {
+  username: string;
+  password: string;
+  displayName?: string;
+}
+
+export const getExamStudents = async (examId: string): Promise<ExamStudent[]> => {
+  const response = await api.get<ExamStudent[]>(`/api/exams/${examId}/students`);
+  return response.data;
+};
+
+export const addExamStudent = async (
+  examId: string,
+  data: CreateExamStudentDto,
+): Promise<ExamStudent> => {
+  const response = await api.post<ExamStudent>(`/api/exams/${examId}/students`, data);
+  return response.data;
+};
+
+export const generateExamStudents = async (
+  examId: string,
+  count: number,
+  prefix?: string,
+): Promise<{ success: number; failed: number; results: any[] }> => {
+  const response = await api.post(`/api/exams/${examId}/students/generate`, {
+    count,
+    prefix,
+  });
+  return response.data;
+};
+
+export const deleteExamStudent = async (
+  examId: string,
+  studentId: string,
+): Promise<void> => {
+  await api.delete(`/api/exams/${examId}/students/${studentId}`);
 };
 
 export const updateQuestionInExam = async (

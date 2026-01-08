@@ -9,14 +9,21 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CreateExamDto = void 0;
+exports.CreateExamDto = exports.ExamAccountMode = void 0;
 const class_validator_1 = require("class-validator");
 const swagger_1 = require("@nestjs/swagger");
+var ExamAccountMode;
+(function (ExamAccountMode) {
+    ExamAccountMode["PERMANENT"] = "PERMANENT";
+    ExamAccountMode["TEMPORARY_IMPORT"] = "TEMPORARY_IMPORT";
+    ExamAccountMode["TEMPORARY_REGISTER"] = "TEMPORARY_REGISTER";
+})(ExamAccountMode || (exports.ExamAccountMode = ExamAccountMode = {}));
 class CreateExamDto {
     title;
     description;
     duration;
     totalScore;
+    accountModes;
     startTime;
     endTime;
 }
@@ -46,6 +53,18 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Number)
 ], CreateExamDto.prototype, "totalScore", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        required: false,
+        description: 'Account modes for exam (array)',
+        type: [String],
+        enum: ExamAccountMode,
+        default: [ExamAccountMode.TEMPORARY_IMPORT]
+    }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateExamDto.prototype, "accountModes", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ required: false, description: 'Start time (ISO 8601)' }),
     (0, class_validator_1.IsDateString)(),

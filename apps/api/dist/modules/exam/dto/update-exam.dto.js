@@ -15,6 +15,7 @@ const create_exam_dto_1 = require("./create-exam.dto");
 const class_validator_1 = require("class-validator");
 class UpdateExamDto extends (0, swagger_1.PartialType)(create_exam_dto_1.CreateExamDto) {
     status;
+    accountModes;
 }
 exports.UpdateExamDto = UpdateExamDto;
 __decorate([
@@ -22,4 +23,14 @@ __decorate([
     (0, class_validator_1.IsEnum)(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
     __metadata("design:type", String)
 ], UpdateExamDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({
+        type: [String],
+        enum: create_exam_dto_1.ExamAccountMode,
+        description: 'Account modes for exam (array)'
+    }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], UpdateExamDto.prototype, "accountModes", void 0);
 //# sourceMappingURL=update-exam.dto.js.map

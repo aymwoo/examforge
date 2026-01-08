@@ -4,6 +4,12 @@ import { ArrowLeft, Save } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { createExam, type CreateExamDto } from "@/services/exams";
 
+export enum ExamAccountMode {
+  PERMANENT = 'PERMANENT',
+  TEMPORARY_IMPORT = 'TEMPORARY_IMPORT', 
+  TEMPORARY_REGISTER = 'TEMPORARY_REGISTER'
+}
+
 export default function NewExamPage() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
@@ -14,6 +20,7 @@ export default function NewExamPage() {
     description: "",
     duration: 60,
     totalScore: 100,
+    accountModes: [ExamAccountMode.TEMPORARY_IMPORT],
   });
 
   const handleInputChange = (field: string, value: any) => {
@@ -135,6 +142,63 @@ export default function NewExamPage() {
                   placeholder="100"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-ink-900">
+                学生账号模式
+              </label>
+              <div className="space-y-2">
+                {[
+                  { value: ExamAccountMode.PERMANENT, label: '固定账号', desc: '使用学生学号登录' },
+                  { value: ExamAccountMode.TEMPORARY_IMPORT, label: '临时账号-导入模式', desc: '导入学生名单' },
+                  { value: ExamAccountMode.TEMPORARY_REGISTER, label: '临时账号-自主注册', desc: '学生自主注册' }
+                ].map((mode) => (
+                  <button
+                    key={mode.value}
+                    type="button"
+                    onClick={() => {
+                      const currentModes = form.accountModes || [];
+                      const isSelected = currentModes.includes(mode.value);
+                      if (isSelected) {
+                        // 取消选择，但至少保留一个
+                        if (currentModes.length > 1) {
+                          handleInputChange("accountModes", currentModes.filter(m => m !== mode.value));
+                        }
+                      } else {
+                        // 添加选择
+                        handleInputChange("accountModes", [...currentModes, mode.value]);
+                      }
+                    }}
+                    className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                      (form.accountModes || []).includes(mode.value)
+                        ? 'border-accent-600 bg-accent-50'
+                        : 'border-border bg-white hover:border-accent-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-ink-900">{mode.label}</p>
+                        <p className="text-sm text-ink-600">{mode.desc}</p>
+                      </div>
+                      <div className={`h-4 w-4 rounded border-2 ${
+                        (form.accountModes || []).includes(mode.value)
+                          ? 'border-accent-600 bg-accent-600'
+                          : 'border-border'
+                      }`}>
+                        {(form.accountModes || []).includes(mode.value) && (
+                          <svg className="h-full w-full text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-ink-600">
+                可以同时启用多种模式，学生可以选择任意一种方式登录
+              </p>
             </div>
 
             <div className="rounded-2xl border border-border bg-slate-50 p-4">

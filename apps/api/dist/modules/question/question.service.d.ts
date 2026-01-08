@@ -7,16 +7,16 @@ export declare class QuestionService {
     constructor(prisma: PrismaService);
     private get question();
     create(dto: CreateQuestionDto): Promise<{
-        type: string;
+        id: string;
         content: string;
+        type: string;
         options: string | null;
         answer: string | null;
         explanation: string | null;
         tags: string;
         difficulty: number;
-        knowledgePoint: string | null;
         status: string;
-        id: string;
+        knowledgePoint: string | null;
         createdAt: Date;
         updatedAt: Date;
     }>;
@@ -33,6 +33,9 @@ export declare class QuestionService {
     update(id: string, dto: UpdateQuestionDto): Promise<any>;
     delete(id: string): Promise<void>;
     deleteMany(ids: string[]): Promise<{
+        deleted: number;
+    }>;
+    clearAll(): Promise<{
         deleted: number;
     }>;
     private transformQuestion;

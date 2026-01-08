@@ -9,11 +9,13 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { QuestionService } from './question.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
+import { ClearQuestionsDto } from './dto/clear-questions.dto';
 import { PaginationDto } from '@/common/dto/pagination.dto';
 
 @ApiTags('questions')
@@ -67,5 +69,21 @@ export class QuestionController {
   @ApiResponse({ status: 200, description: 'Questions deleted successfully' })
   deleteMany(@Body() body: { ids: string[] }) {
     return this.questionService.deleteMany(body.ids);
+  }
+
+  @Post('clear')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: '[DEV] Clear all questions (testing only)' })
+  @ApiResponse({ status: 200, description: 'All questions cleared successfully' })
+  clearAll(@Body() dto: ClearQuestionsDto) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new BadRequestException('This operation is not allowed in production');
+    }
+
+    if (dto.confirm !== 'CLEAR_ALL') {
+      throw new BadRequestException('Confirmation string invalid');
+    }
+
+    return this.questionService.clearAll();
   }
 }

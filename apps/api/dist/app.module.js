@@ -17,6 +17,7 @@ const settings_module_1 = require("./modules/settings/settings.module");
 const ai_module_1 = require("./modules/ai/ai.module");
 const submission_module_1 = require("./modules/submission/submission.module");
 const debug_module_1 = require("./modules/debug/debug.module");
+const auth_module_1 = require("./modules/auth/auth.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -34,6 +35,7 @@ exports.AppModule = AppModule = __decorate([
             ai_module_1.AIModule,
             submission_module_1.SubmissionModule,
             debug_module_1.DebugModule,
+            auth_module_1.AuthModule,
         ],
     })
 ], AppModule);

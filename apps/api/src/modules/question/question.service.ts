@@ -122,6 +122,11 @@ export class QuestionService {
     return { deleted: result.count };
   }
 
+  async clearAll(): Promise<{ deleted: number }> {
+    const result = await this.prisma.question.deleteMany({});
+    return { deleted: result.count };
+  }
+
   private transformQuestion(question: any) {
     return {
       ...question,
