@@ -19,6 +19,7 @@ export default function SettingsPage() {
     aiBaseUrl: "",
     aiModel: "",
     promptTemplate: "",
+    gradingPromptTemplate: "",
   });
   const [providers, setProviders] = useState<AIModelConfig[]>([]);
   const [loading, setLoading] = useState(false);
@@ -73,6 +74,7 @@ export default function SettingsPage() {
       await updateSetting("AI_BASE_URL", settings.aiBaseUrl);
       await updateSetting("AI_MODEL", settings.aiModel);
       await updateSetting("PROMPT_TEMPLATE", settings.promptTemplate);
+      await updateSetting("GRADING_PROMPT_TEMPLATE", settings.gradingPromptTemplate);
       setError("设置保存成功");
     } catch (err: unknown) {
       const axiosError = err as {
@@ -310,6 +312,29 @@ export default function SettingsPage() {
                   />
                   <p className="mt-1 text-xs text-ink-700">
                     提示词模板用于指导AI如何根据试卷图像生成题目。支持变量占位符。
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+                <h2 className="mb-6 text-lg font-semibold text-ink-900">
+                  AI评分提示词配置
+                </h2>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink-900">
+                    评分提示词模板
+                  </label>
+                  <textarea
+                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[300px] font-mono"
+                    value={settings.gradingPromptTemplate}
+                    onChange={(e) =>
+                      handleInputChange("gradingPromptTemplate", e.target.value)
+                    }
+                    placeholder="输入AI评分提示词模板..."
+                  />
+                  <p className="mt-1 text-xs text-ink-700">
+                    评分提示词模板用于指导AI如何评分学生答案。支持变量：{"{questionContent}"}, {"{questionType}"}, {"{referenceAnswer}"}, {"{studentAnswer}"}, {"{maxScore}"}
                   </p>
                 </div>
               </div>

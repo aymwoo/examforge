@@ -45,6 +45,14 @@ export default function ExamLoginPage() {
     try {
       const response = await api.get(`/api/exams/${examId}`);
       setExam(response.data);
+      
+      // 根据账号模式设置默认模式
+      const accountModes = response.data.accountModes || [];
+      if (accountModes.includes('TEMPORARY_REGISTER')) {
+        setMode('register'); // 如果支持注册，默认显示注册
+      } else {
+        setMode('login'); // 否则显示登录
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || '加载考试信息失败');
     } finally {
@@ -195,7 +203,7 @@ export default function ExamLoginPage() {
           {!showPasswordReminder && (
             <>
               {/* 模式切换 */}
-              {exam?.accountModes?.includes('TEMPORARY_REGISTER') && (
+              {(exam?.accountModes?.includes('TEMPORARY_REGISTER') || exam?.accountModes?.includes('TEMPORARY_IMPORT')) && (
                 <div className="mb-6 flex rounded-xl border border-border bg-slate-50 p-1">
                   <button
                     onClick={() => setMode('login')}
@@ -207,16 +215,18 @@ export default function ExamLoginPage() {
                   >
                     已有账号
                   </button>
-                  <button
-                    onClick={() => setMode('register')}
-                    className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
-                      mode === 'register'
-                        ? 'bg-white text-ink-900 shadow-sm'
-                        : 'text-ink-600 hover:text-ink-900'
-                    }`}
-                  >
-                    新学生注册
-                  </button>
+                  {exam?.accountModes?.includes('TEMPORARY_REGISTER') && (
+                    <button
+                      onClick={() => setMode('register')}
+                      className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${
+                        mode === 'register'
+                          ? 'bg-white text-ink-900 shadow-sm'
+                          : 'text-ink-600 hover:text-ink-900'
+                      }`}
+                    >
+                      新学生注册
+                    </button>
+                  )}
                 </div>
               )}
 

@@ -20,6 +20,7 @@ export default function ExamDetailPage() {
     totalScore?: number;
     startTime?: string;
     endTime?: string;
+    status?: string;
   }>({});
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
@@ -77,7 +78,7 @@ export default function ExamDetailPage() {
       
       // 发布前检查
       if (value === 'PUBLISHED') {
-        if (!exam.examQuestions || exam.examQuestions.length === 0) {
+        if (!exam?.questions || exam.questions.length === 0) {
           alert('考试至少需要包含一道题目才能发布');
           return;
         }
@@ -166,7 +167,7 @@ export default function ExamDetailPage() {
     try {
       // 为每个选中的题目添加到考试中
       for (const questionId of selectedQuestions) {
-        const nextOrder = (exam?.examQuestions?.length || 0) + 1;
+        const nextOrder = (exam?.questions?.length || 0) + 1;
         await addQuestionToExam(id!, {
           questionId,
           order: nextOrder,
@@ -266,7 +267,7 @@ export default function ExamDetailPage() {
     // 搜索词筛选
     const matchesSearch = !searchTerm || 
                          question.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         question.tags.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         question.tags.join(' ').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (question.knowledgePoint && question.knowledgePoint.toLowerCase().includes(searchTerm.toLowerCase()));
     
     // 题型筛选
@@ -281,12 +282,12 @@ export default function ExamDetailPage() {
     
     // 标签筛选
     const matchesTags = !filters.tags || 
-                       question.tags.toLowerCase().includes(filters.tags.toLowerCase());
+                       question.tags.join(' ').toLowerCase().includes(filters.tags.toLowerCase());
     
     return matchesSearch && matchesType && matchesDifficulty && matchesKnowledgePoint && matchesTags;
   });
 
-  const questionInExamIds = exam?.examQuestions?.map((eq) => eq.question?.id || eq.questionId) || [];
+  const questionInExamIds = exam?.questions?.map((eq: any) => eq.question?.id || eq.questionId) || [];
 
   if (loading) {
     return (
@@ -714,7 +715,7 @@ export default function ExamDetailPage() {
                     <div className="flex gap-2">
                       <select
                         className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm"
-                        value={editValues.status || exam.status}
+                        value={editValues.status || (exam as any).status}
                         onChange={(e) => setEditValues(prev => ({ ...prev, status: e.target.value }))}
                         autoFocus
                       >
@@ -774,12 +775,12 @@ export default function ExamDetailPage() {
                     type="text"
                     readOnly
                     className="flex-1 rounded-xl border border-border bg-slate-50 px-3 py-2 text-sm text-ink-700"
-                    value={`${window.location.origin}/exam/${exam.id}/login`}
+                    value={`${window.location.origin}/exam/${exam.id}`}
                   />
                   <Button
                     variant="outline"
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/exam/${exam.id}/login`);
+                      navigator.clipboard.writeText(`${window.location.origin}/exam/${exam.id}`);
                       alert('链接已复制到剪贴板');
                     }}
                   >
@@ -828,7 +829,7 @@ export default function ExamDetailPage() {
               <div>
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-ink-900">
-                    考试题目 ({exam.examQuestions?.length || 0} 题)
+                    考试题目 ({exam.questions?.length || 0} 题)
                   </h2>
                   <Button
                     onClick={handleToggleQuestionBank}
@@ -840,11 +841,11 @@ export default function ExamDetailPage() {
                   </Button>
                 </div>
 
-            {exam.examQuestions && exam.examQuestions.length > 0 ? (
+            {exam.questions && exam.questions.length > 0 ? (
               <div className="space-y-3">
-                {exam.examQuestions
-                  .sort((a, b) => a.order - b.order)
-                  .map((examQuestion) => (
+                {exam.questions
+                  .sort((a: any, b: any) => a.order - b.order)
+                  .map((examQuestion: any) => (
                     <div
                       key={examQuestion.id}
                       className="rounded-2xl border border-border bg-slate-50 p-4"

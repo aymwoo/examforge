@@ -6,6 +6,7 @@ export interface SystemSettings {
   aiBaseUrl: string;
   aiModel: string;
   promptTemplate: string;
+  gradingPromptTemplate: string;
 }
 
 export interface AIModelConfig {

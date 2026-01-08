@@ -44,6 +44,7 @@ export default function ExamTakePage() {
   const [autoSaving, setAutoSaving] = useState(false);
   const [showGradingResults, setShowGradingResults] = useState(false);
   const [gradingResults, setGradingResults] = useState<any>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   useEffect(() => {
     // 检查是否已登录
@@ -75,6 +76,9 @@ export default function ExamTakePage() {
       });
       setExam(response.data);
       setTimeLeft(response.data.duration * 60); // 转换为秒
+      
+      // 检查是否已提交
+      await checkSubmissionStatus();
     } catch (err: any) {
       if (err.response?.status === 401) {
         localStorage.removeItem('examToken');
@@ -85,6 +89,25 @@ export default function ExamTakePage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkSubmissionStatus = async () => {
+    try {
+      const response = await api.get(`/api/exams/${examId}/submissions`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('examToken')}`
+        }
+      });
+      
+      const studentData = JSON.parse(localStorage.getItem('examStudent') || '{}');
+      const submission = response.data.find((s: any) => s.examStudentId === studentData.id);
+      
+      if (submission) {
+        setIsSubmitted(true);
+      }
+    } catch (error) {
+      console.error('检查提交状态失败:', error);
     }
   };
 
@@ -248,6 +271,26 @@ export default function ExamTakePage() {
           </div>
         </div>
       </div>
+
+      {/* 已提交提示 */}
+      {isSubmitted && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  <strong>注意：</strong>您已经提交过此次考试，无法再次作答。如需查看结果，请联系老师。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -425,12 +468,20 @@ export default function ExamTakePage() {
           <div className="bg-white rounded-lg p-6 max-w-4xl max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">考试评分结果</h2>
-              <Button
-                variant="outline"
-                onClick={() => navigate(`/exam/${examId}/result`)}
-              >
-                查看详细结果
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/exam/${examId}/result`)}
+                >
+                  查看详细结果
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowGradingResults(false)}
+                >
+                  关闭
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-4">

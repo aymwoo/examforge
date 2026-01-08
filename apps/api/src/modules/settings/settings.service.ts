@@ -13,6 +13,7 @@ export enum SettingKey {
   AI_BASE_URL = 'AI_BASE_URL',
   AI_MODEL = 'AI_MODEL',
   PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
+  GRADING_PROMPT_TEMPLATE = 'GRADING_PROMPT_TEMPLATE',
 }
 
 export interface AIModelConfig {
@@ -67,6 +68,7 @@ export interface SystemSettings {
   aiBaseUrl: string;
   aiModel: string;
   promptTemplate: string;
+  gradingPromptTemplate: string;
 }
 
 @Injectable()
@@ -87,6 +89,8 @@ export class SettingsService {
       aiModel: settingsMap.get(SettingKey.AI_MODEL) || modelConfig?.defaultModel || '',
       promptTemplate:
         settingsMap.get(SettingKey.PROMPT_TEMPLATE) || this.getDefaultPromptTemplate(),
+      gradingPromptTemplate:
+        settingsMap.get(SettingKey.GRADING_PROMPT_TEMPLATE) || this.getDefaultGradingPromptTemplate(),
     };
   }
 
@@ -143,5 +147,31 @@ export class SettingsService {
 }
 
 请只返回JSON格式的题目数据，不要包含其他说明文字。`;
+  }
+
+  private getDefaultGradingPromptTemplate(): string {
+    return `你是一个专业的考试评分AI助手。请根据以下信息对学生答案进行评分：
+
+题目内容：{questionContent}
+题目类型：{questionType}
+参考答案：{referenceAnswer}
+学生答案：{studentAnswer}
+满分：{maxScore}
+
+评分标准：
+1. 内容准确性（40%）：答案是否准确回答了题目要求
+2. 完整性（30%）：答案是否涵盖了关键要点
+3. 逻辑性（20%）：答案是否条理清晰、逻辑合理
+4. 表达质量（10%）：语言表达是否规范、清晰
+
+请返回JSON格式的评分结果：
+{
+  "score": 实际得分,
+  "reasoning": "评分理由",
+  "suggestions": "改进建议",
+  "confidence": 评分置信度(0-1)
+}
+
+请只返回JSON格式的评分结果，不要包含其他说明文字。`;
   }
 }

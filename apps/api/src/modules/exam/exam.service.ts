@@ -519,7 +519,7 @@ export class ExamService {
     }
 
     // 构建AI评分提示词
-    const prompt = this.buildGradingPrompt(questionContent, referenceAnswer, studentAnswer, maxScore);
+    const prompt = await this.buildGradingPrompt(questionContent, referenceAnswer, studentAnswer, maxScore);
     
     try {
       // TODO: 这里应该调用真实的AI服务
@@ -529,12 +529,20 @@ export class ExamService {
       const wordCount = studentAnswer.length;
       const hasKeywords = referenceAnswer ? this.checkKeywords(studentAnswer, referenceAnswer) : 0.5;
       
-      // 简单的评分算法作为AI的模拟
-      let scoreRatio = 0.6; // 基础分60%
+      // 检查答案质量
+      const isValidAnswer = this.isValidAnswer(studentAnswer);
       
-      if (wordCount > 50) scoreRatio += 0.1; // 答案长度加分
-      if (hasKeywords > 0.3) scoreRatio += 0.2; // 关键词匹配加分
-      if (wordCount > 100 && hasKeywords > 0.5) scoreRatio += 0.1; // 综合质量加分
+      // 改进的评分算法
+      let scoreRatio = 0; // 基础分0%，需要通过质量检查才能得分
+      
+      if (isValidAnswer) {
+        scoreRatio = 0.3; // 有效答案基础分30%
+        
+        if (wordCount > 20) scoreRatio += 0.1; // 答案长度适中加分
+        if (wordCount > 50) scoreRatio += 0.1; // 答案详细加分
+        if (hasKeywords > 0.3) scoreRatio += 0.3; // 关键词匹配加分
+        if (wordCount > 100 && hasKeywords > 0.5) scoreRatio += 0.2; // 综合质量加分
+      }
       
       scoreRatio = Math.min(scoreRatio, 1.0);
       const suggestedScore = Math.round(maxScore * scoreRatio);
@@ -557,7 +565,21 @@ export class ExamService {
   }
 
   // 构建AI评分提示词
-  private buildGradingPrompt(questionContent: string, referenceAnswer: string, studentAnswer: string, maxScore: number): string {
+  private async buildGradingPrompt(questionContent: string, referenceAnswer: string, studentAnswer: string, maxScore: number): Promise<string> {
+    // 从系统设置获取评分提示词模板
+    const gradingTemplate = await this.getSystemSetting('GRADING_PROMPT_TEMPLATE');
+    
+    if (gradingTemplate) {
+      // 使用系统配置的模板，替换变量
+      return gradingTemplate
+        .replace('{questionContent}', questionContent)
+        .replace('{questionType}', '主观题')
+        .replace('{referenceAnswer}', referenceAnswer || '无标准答案，请根据题目要求和答案质量评分')
+        .replace('{studentAnswer}', studentAnswer)
+        .replace('{maxScore}', maxScore.toString());
+    }
+    
+    // 如果没有配置，使用默认模板
     return `你是一位专业的教师，请对以下学生答案进行评分。
 
 **题目内容：**
@@ -586,6 +608,44 @@ ${studentAnswer}
 }
 
 请确保评分公正、客观，并提供建设性的反馈。`;
+  }
+
+  // 获取系统设置
+  private async getSystemSetting(key: string): Promise<string | null> {
+    try {
+      const setting = await this.prisma.systemSetting.findUnique({
+        where: { key }
+      });
+      return setting?.value || null;
+    } catch (error) {
+      console.error(`获取系统设置失败: ${key}`, error);
+      return null;
+    }
+  }
+
+  // 检查答案有效性
+  private isValidAnswer(studentAnswer: string): boolean {
+    if (!studentAnswer || studentAnswer.trim().length < 3) {
+      return false;
+    }
+    
+    const answer = studentAnswer.trim().toLowerCase();
+    
+    // 检查是否只是数字或无意义字符
+    if (/^[0-9\s]+$/.test(answer)) {
+      return false;
+    }
+    
+    // 检查是否只是重复字符
+    if (/^(.)\1{4,}$/.test(answer)) {
+      return false;
+    }
+    
+    // 检查是否包含有意义的中文或英文词汇
+    const hasChineseWords = /[\u4e00-\u9fa5]{2,}/.test(answer);
+    const hasEnglishWords = /[a-z]{3,}/.test(answer);
+    
+    return hasChineseWords || hasEnglishWords;
   }
 
   // 检查关键词匹配度
