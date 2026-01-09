@@ -78,7 +78,7 @@ export default function ExamDetailPage() {
       
       // 发布前检查
       if (value === 'PUBLISHED') {
-        if (!exam?.questions || exam.questions.length === 0) {
+        if (!exam?.examQuestions || exam.examQuestions.length === 0) {
           alert('考试至少需要包含一道题目才能发布');
           return;
         }
@@ -167,7 +167,7 @@ export default function ExamDetailPage() {
     try {
       // 为每个选中的题目添加到考试中
       for (const questionId of selectedQuestions) {
-        const nextOrder = (exam?.questions?.length || 0) + 1;
+        const nextOrder = (exam?.examQuestions?.length || 0) + 1;
         await addQuestionToExam(id!, {
           questionId,
           order: nextOrder,
@@ -287,7 +287,7 @@ export default function ExamDetailPage() {
     return matchesSearch && matchesType && matchesDifficulty && matchesKnowledgePoint && matchesTags;
   });
 
-  const questionInExamIds = exam?.questions?.map((eq: any) => eq.question?.id || eq.questionId) || [];
+  const questionInExamIds = exam?.examQuestions?.map((eq: any) => eq.question?.id || eq.questionId) || [];
 
   if (loading) {
     return (
@@ -806,7 +806,7 @@ export default function ExamDetailPage() {
                 }`}
               >
                 <BookOpen className="h-4 w-4" />
-                考试题目 ({exam.questions?.length || 0})
+                考试题目 ({exam.examQuestions?.length || 0})
               </button>
               <button
                 onClick={() => {
@@ -829,7 +829,7 @@ export default function ExamDetailPage() {
               <div>
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-ink-900">
-                    考试题目 ({exam.questions?.length || 0} 题)
+                    考试题目 ({exam.examQuestions?.length || 0} 题)
                   </h2>
                   <Button
                     onClick={handleToggleQuestionBank}
@@ -841,9 +841,9 @@ export default function ExamDetailPage() {
                   </Button>
                 </div>
 
-            {exam.questions && exam.questions.length > 0 ? (
+            {exam.examQuestions && exam.examQuestions.length > 0 ? (
               <div className="space-y-3">
-                {exam.questions
+                {exam.examQuestions
                   .sort((a: any, b: any) => a.order - b.order)
                   .map((examQuestion: any) => (
                     <div

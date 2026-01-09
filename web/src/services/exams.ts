@@ -12,7 +12,7 @@ export interface Exam {
   endTime?: string;
   createdAt: string;
   updatedAt: string;
-  questions?: ExamQuestion[];
+  examQuestions?: ExamQuestion[];
   submissionCount?: number;
 }
 

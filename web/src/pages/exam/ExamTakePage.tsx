@@ -292,7 +292,7 @@ export default function ExamTakePage() {
     );
   }
 
-  const currentQuestion = exam.questions[currentQuestionIndex];
+  const currentQuestion = exam.examQuestions[currentQuestionIndex]?.question;
 
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen">
@@ -357,14 +357,14 @@ export default function ExamTakePage() {
             <div className="rounded-2xl border border-border bg-white p-4 sticky top-24">
               <h3 className="font-semibold text-ink-900 mb-4">题目导航</h3>
               <div className="grid grid-cols-5 gap-2">
-                {exam.questions.map((question, index) => (
+                {exam.examQuestions.map((examQuestion, index) => (
                   <button
-                    key={question.id}
+                    key={examQuestion.question.id}
                     onClick={() => setCurrentQuestionIndex(index)}
                     className={`w-8 h-8 rounded text-xs font-semibold transition-colors ${
                       index === currentQuestionIndex
                         ? 'bg-blue-500 text-white'
-                        : answers[question.id] !== undefined
+                        : answers[examQuestion.question.id] !== undefined
                         ? 'bg-green-100 text-green-700 border border-green-300'
                         : 'bg-gray-100 text-gray-600 border border-gray-300'
                     }`}
@@ -497,7 +497,7 @@ export default function ExamTakePage() {
                     {autoSaving ? '保存中...' : '保存答案'}
                   </Button>
 
-                  {currentQuestionIndex === exam.questions.length - 1 ? (
+                  {currentQuestionIndex === exam.examQuestions.length - 1 ? (
                     <Button
                       onClick={handleSubmitExam}
                       disabled={isSubmitting}
@@ -508,7 +508,7 @@ export default function ExamTakePage() {
                     </Button>
                   ) : (
                     <Button
-                      onClick={() => setCurrentQuestionIndex(prev => Math.min(exam.questions.length - 1, prev + 1))}
+                      onClick={() => setCurrentQuestionIndex(prev => Math.min(exam.examQuestions.length - 1, prev + 1))}
                     >
                       下一题
                     </Button>
