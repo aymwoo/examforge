@@ -2,12 +2,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
 import { AddQuestionDto } from './dto/add-question.dto';
+import { AIService } from '../ai/ai.service';
 import { CreateExamStudentDto } from './dto/create-exam-student.dto';
 import { BatchCreateExamStudentsDto } from './dto/batch-create-exam-students.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 export declare class ExamService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly aiService;
+    constructor(prisma: PrismaService, aiService: AIService);
     create(dto: CreateExamDto): Promise<{
         id: string;
         title: string;
@@ -126,9 +128,24 @@ export declare class ExamService {
             isFullyAutoGraded: boolean;
         };
     }>;
+    private progressStreams;
+    submitExamAsync(examId: string, examStudentId: string, answers: Record<string, any>): Promise<void>;
+    private sendProgress;
+    streamSubmissionProgress(examId: string, examStudentId: string, res: any): Promise<void>;
+    checkSubmissionStatus(examId: string, examStudentId: string): Promise<{
+        hasSubmitted: boolean;
+        submission: {
+            id: string;
+            score: number;
+            isAutoGraded: boolean;
+            submittedAt: Date;
+        };
+    }>;
     private autoGradeSubmission;
     private getAIGradingForSubjective;
     private buildGradingPrompt;
+    private getSystemSetting;
+    private isValidAnswer;
     private checkKeywords;
     private generateReasoning;
     private generateSuggestions;

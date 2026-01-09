@@ -16,6 +16,13 @@ export interface GenerateExamQuestionsResponse {
   questions: AIQuestion[];
 }
 
+export interface AIGradingResult {
+  score: number;
+  reasoning: string;
+  suggestions: string;
+  confidence: number;
+}
+
 @Injectable()
 export class AIService {
   constructor(private readonly settingsService: SettingsService) {}
@@ -450,5 +457,89 @@ export class AIService {
         `AI returned invalid format. Expected: { "questions": [...] }. Got: ${content.slice(0, 200)}`
       );
     }
+  }
+
+  async gradeSubjectiveAnswer(prompt: string): Promise<AIGradingResult> {
+    const settings = await this.settingsService.getSettings();
+
+    if (!settings.aiApiKey) {
+      throw new BadRequestException('AI API Key not configured');
+    }
+
+    console.log('=== 发送AI评分请求 ===');
+    console.log('提示词:', prompt);
+
+    try {
+      const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${settings.aiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: settings.aiModel || 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 1000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI API错误:', response.status, errorText);
+        throw new Error(`AI API request failed: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('AI原始响应:', JSON.stringify(data, null, 2));
+
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) {
+        throw new Error('AI返回内容为空');
+      }
+
+      console.log('AI返回内容:', content);
+
+      // 尝试解析JSON响应
+      try {
+        const result = JSON.parse(content);
+        console.log('解析后的AI评分结果:', JSON.stringify(result, null, 2));
+        
+        return {
+          score: result.score || 0,
+          reasoning: result.reasoning || '无评分理由',
+          suggestions: result.suggestions || '无改进建议',
+          confidence: result.confidence || 0.5,
+        };
+      } catch (parseError) {
+        console.error('解析AI响应JSON失败:', parseError);
+        console.log('尝试从文本中提取信息...');
+        
+        // 如果JSON解析失败，尝试从文本中提取信息
+        return this.parseGradingFromText(content);
+      }
+    } catch (error) {
+      console.error('AI评分请求失败:', error);
+      throw new Error(`AI评分失败: ${error.message}`);
+    }
+  }
+
+  private parseGradingFromText(content: string): AIGradingResult {
+    // 简单的文本解析逻辑
+    const scoreMatch = content.match(/分数[：:]\s*(\d+)/);
+    const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
+    
+    return {
+      score,
+      reasoning: content.includes('理由') ? content : 'AI评分完成',
+      suggestions: content.includes('建议') ? content : '请继续努力',
+      confidence: 0.7,
+    };
   }
 }

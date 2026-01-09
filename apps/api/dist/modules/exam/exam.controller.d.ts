@@ -1,3 +1,4 @@
+import { Response } from 'express';
 import { ExamService } from './exam.service';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
@@ -134,15 +135,17 @@ export declare class ExamController {
         answers: Record<string, any>;
         examStudentId: string;
     }): Promise<{
-        id: string;
-        score: number;
-        isAutoGraded: boolean;
-        submittedAt: Date;
-        gradingResults: {
-            details: Record<string, any>;
-            totalScore: number;
-            maxTotalScore: any;
-            isFullyAutoGraded: boolean;
+        message: string;
+        submissionId: string;
+    }>;
+    getSubmitProgress(examId: string, examStudentId: string, res: Response): Promise<void>;
+    checkSubmissionStatus(examId: string, examStudentId: string): Promise<{
+        hasSubmitted: boolean;
+        submission: {
+            id: string;
+            score: number;
+            isAutoGraded: boolean;
+            submittedAt: Date;
         };
     }>;
     saveAnswers(examId: string, body: {

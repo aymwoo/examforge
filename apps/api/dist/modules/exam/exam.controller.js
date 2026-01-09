@@ -78,8 +78,19 @@ let ExamController = class ExamController {
     getExamForTaking(examId) {
         return this.examService.getExamForTaking(examId);
     }
-    submitExam(examId, body) {
-        return this.examService.submitExam(examId, body.examStudentId, body.answers);
+    async submitExam(examId, body) {
+        this.examService.submitExamAsync(examId, body.examStudentId, body.answers);
+        return { message: '考试提交中，请等待评分完成', submissionId: `${examId}-${body.examStudentId}` };
+    }
+    async getSubmitProgress(examId, examStudentId, res) {
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return this.examService.streamSubmissionProgress(examId, examStudentId, res);
+    }
+    checkSubmissionStatus(examId, examStudentId) {
+        return this.examService.checkSubmissionStatus(examId, examStudentId);
     }
     saveAnswers(examId, body) {
         return this.examService.saveAnswers(examId, body.examStudentId, body.answers);
@@ -313,8 +324,27 @@ __decorate([
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [String, Object]),
-    __metadata("design:returntype", void 0)
+    __metadata("design:returntype", Promise)
 ], ExamController.prototype, "submitExam", null);
+__decorate([
+    (0, common_1.Get)(':id/submit-progress/:examStudentId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get submission progress via SSE' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('examStudentId')),
+    __param(2, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], ExamController.prototype, "getSubmitProgress", null);
+__decorate([
+    (0, common_1.Get)(':id/submission-status/:examStudentId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Check if student has submitted' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('examStudentId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String]),
+    __metadata("design:returntype", void 0)
+], ExamController.prototype, "checkSubmissionStatus", null);
 __decorate([
     (0, common_1.Post)(':id/save-answers'),
     (0, swagger_1.ApiOperation)({ summary: 'Save exam answers (auto-save)' }),

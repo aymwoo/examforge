@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Clock, FileText, Save, Send, AlertCircle } from "lucide-react";
+import { Clock, FileText, Save, Send, AlertCircle, CheckCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
 import MDEditor from '@uiw/react-md-editor';
@@ -45,6 +45,9 @@ export default function ExamTakePage() {
   const [showGradingResults, setShowGradingResults] = useState(false);
   const [gradingResults, setGradingResults] = useState<any>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0, message: '' });
+  const [submissionResult, setSubmissionResult] = useState<any>(null);
 
   useEffect(() => {
     // 检查是否已登录
@@ -94,17 +97,17 @@ export default function ExamTakePage() {
 
   const checkSubmissionStatus = async () => {
     try {
-      const response = await api.get(`/api/exams/${examId}/submissions`, {
+      // 检查提交状态
+      const studentData = JSON.parse(localStorage.getItem('examStudent') || '{}');
+      const statusResponse = await api.get(`/api/exams/${examId}/submission-status/${studentData.id}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('examToken')}`
         }
       });
       
-      const studentData = JSON.parse(localStorage.getItem('examStudent') || '{}');
-      const submission = response.data.find((s: any) => s.examStudentId === studentData.id);
-      
-      if (submission) {
+      if (statusResponse.data.hasSubmitted) {
         setIsSubmitted(true);
+        setSubmissionResult(statusResponse.data.submission);
       }
     } catch (error) {
       console.error('检查提交状态失败:', error);
@@ -130,17 +133,17 @@ export default function ExamTakePage() {
 
   // 自动保存
   useEffect(() => {
-    if (!exam || Object.keys(answers).length === 0) return;
+    if (!exam || Object.keys(answers).length === 0 || isSubmitted) return;
 
     const autoSaveTimer = setInterval(() => {
       handleAutoSave();
     }, 30000); // 每30秒自动保存
 
     return () => clearInterval(autoSaveTimer);
-  }, [answers, exam]);
+  }, [answers, exam, isSubmitted]);
 
   const handleAutoSave = async () => {
-    if (!student || !examId) return;
+    if (!student || !examId || isSubmitted) return;
     
     setAutoSaving(true);
     try {
@@ -174,8 +177,12 @@ export default function ExamTakePage() {
     }
 
     setIsSubmitting(true);
+    setShowProgressModal(true);
+    setProgress({ current: 0, total: 0, message: '正在提交...' });
+
     try {
-      const response = await api.post(`/api/exams/${examId}/submit`, {
+      // 提交考试
+      await api.post(`/api/exams/${examId}/submit`, {
         answers,
         examStudentId: student.id,
       }, {
@@ -184,12 +191,39 @@ export default function ExamTakePage() {
         }
       });
 
-      // 显示评分结果
-      setGradingResults(response.data.gradingResults);
-      setShowGradingResults(true);
+      // 监听进度
+      const eventSource = new EventSource(`/api/exams/${examId}/submit-progress/${student.id}`);
       
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'progress') {
+          setProgress({
+            current: data.current,
+            total: data.total,
+            message: data.message
+          });
+        } else if (data.type === 'complete') {
+          setSubmissionResult(data.submission);
+          setIsSubmitted(true);
+          setShowProgressModal(false);
+          eventSource.close();
+        } else if (data.type === 'error') {
+          setError(data.message);
+          setShowProgressModal(false);
+          eventSource.close();
+        }
+      };
+
+      eventSource.onerror = () => {
+        setError('连接中断，请刷新页面查看结果');
+        setShowProgressModal(false);
+        eventSource.close();
+      };
+
     } catch (err: any) {
       setError(err.response?.data?.message || '提交失败');
+      setShowProgressModal(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -233,6 +267,30 @@ export default function ExamTakePage() {
   }
 
   if (!exam) return null;
+
+  // 已提交状态的醒目提示
+  if (isSubmitted) {
+    return (
+      <div className="bg-slatebg text-ink-900 antialiased min-h-screen">
+        <div className="flex items-center justify-center min-h-screen p-4">
+          <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center max-w-md">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-green-800 mb-4">考试已提交</h2>
+            <p className="text-green-700 mb-4">您已成功提交考试，无需重复操作。</p>
+            {submissionResult && (
+              <div className="bg-white rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-600">提交时间: {new Date(submissionResult.submittedAt).toLocaleString()}</p>
+                <p className="text-lg font-semibold text-green-600">得分: {submissionResult.score}分</p>
+              </div>
+            )}
+            <Button onClick={() => navigate('/')} className="bg-green-600 hover:bg-green-700">
+              返回首页
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const currentQuestion = exam.questions[currentQuestionIndex];
 
@@ -522,6 +580,31 @@ export default function ExamTakePage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 提交进度Modal */}
+      {showProgressModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="mb-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-600 mx-auto"></div>
+              </div>
+              <h3 className="text-lg font-semibold mb-4">正在评分中...</h3>
+              <div className="mb-4">
+                <div className="bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-accent-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: progress.total > 0 ? `${(progress.current / progress.total) * 100}%` : '0%' }}
+                  ></div>
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  {progress.total > 0 ? `${progress.current}/${progress.total}` : '0/0'} - {progress.message}
+                </p>
               </div>
             </div>
           </div>

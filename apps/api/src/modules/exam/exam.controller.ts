@@ -8,8 +8,10 @@ import {
   Param,
   Query,
   HttpCode,
+  Res,
   HttpStatus,
 } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -218,11 +220,37 @@ export class ExamController {
     },
   })
   @ApiResponse({ status: 201, description: 'Exam submitted successfully' })
-  submitExam(
+  async submitExam(
     @Param('id') examId: string,
     @Body() body: { answers: Record<string, any>; examStudentId: string },
   ) {
-    return this.examService.submitExam(examId, body.examStudentId, body.answers);
+    // 异步处理提交，立即返回
+    this.examService.submitExamAsync(examId, body.examStudentId, body.answers);
+    return { message: '考试提交中，请等待评分完成', submissionId: `${examId}-${body.examStudentId}` };
+  }
+
+  @Get(':id/submit-progress/:examStudentId')
+  @ApiOperation({ summary: 'Get submission progress via SSE' })
+  async getSubmitProgress(
+    @Param('id') examId: string,
+    @Param('examStudentId') examStudentId: string,
+    @Res() res: Response,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    return this.examService.streamSubmissionProgress(examId, examStudentId, res);
+  }
+
+  @Get(':id/submission-status/:examStudentId')
+  @ApiOperation({ summary: 'Check if student has submitted' })
+  checkSubmissionStatus(
+    @Param('id') examId: string,
+    @Param('examStudentId') examStudentId: string,
+  ) {
+    return this.examService.checkSubmissionStatus(examId, examStudentId);
   }
 
   @Post(':id/save-answers')

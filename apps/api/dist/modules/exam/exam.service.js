@@ -45,12 +45,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ExamService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../../prisma/prisma.service");
+const ai_service_1 = require("../ai/ai.service");
 const account_generator_1 = require("../../common/utils/account-generator");
 const bcrypt = __importStar(require("bcrypt"));
 let ExamService = class ExamService {
     prisma;
-    constructor(prisma) {
+    aiService;
+    constructor(prisma, aiService) {
         this.prisma = prisma;
+        this.aiService = aiService;
     }
     async create(dto) {
         return this.prisma.exam.create({
@@ -373,6 +376,8 @@ let ExamService = class ExamService {
         };
     }
     async submitExam(examId, examStudentId, answers) {
+        console.log(`开始提交考试: examId=${examId}, examStudentId=${examStudentId}`);
+        console.log(`提交的答案:`, JSON.stringify(answers, null, 2));
         const existingSubmission = await this.prisma.submission.findFirst({
             where: { examId, examStudentId },
         });
@@ -393,7 +398,9 @@ let ExamService = class ExamService {
         if (!exam) {
             throw new common_1.NotFoundException('考试不存在');
         }
-        const gradingResults = await this.autoGradeSubmission(exam, answers);
+        const gradingResults = await this.autoGradeSubmission(exam, answers, (progress) => {
+            console.log(`评分进度: ${progress.current}/${progress.total} - ${progress.message}`);
+        });
         const submission = await this.prisma.submission.create({
             data: {
                 examId,
@@ -401,7 +408,12 @@ let ExamService = class ExamService {
                 answers: JSON.stringify(answers),
                 score: gradingResults.totalScore,
                 isAutoGraded: gradingResults.isFullyAutoGraded,
-                gradingDetails: JSON.stringify(gradingResults),
+                gradingDetails: JSON.stringify({
+                    details: gradingResults.details,
+                    totalScore: gradingResults.totalScore,
+                    maxTotalScore: gradingResults.maxTotalScore,
+                    isFullyAutoGraded: gradingResults.isFullyAutoGraded,
+                }),
             },
         });
         return {
@@ -412,14 +424,131 @@ let ExamService = class ExamService {
             gradingResults: gradingResults,
         };
     }
-    async autoGradeSubmission(exam, answers) {
+    progressStreams = new Map();
+    async submitExamAsync(examId, examStudentId, answers) {
+        const streamKey = `${examId}-${examStudentId}`;
+        try {
+            const existingSubmission = await this.prisma.submission.findFirst({
+                where: { examId, examStudentId },
+            });
+            if (existingSubmission) {
+                this.sendProgress(streamKey, { type: 'error', message: '考试已提交，不能重复提交' });
+                return;
+            }
+            const exam = await this.prisma.exam.findUnique({
+                where: { id: examId },
+                include: {
+                    examQuestions: {
+                        include: { question: true },
+                        orderBy: { order: 'asc' },
+                    },
+                },
+            });
+            if (!exam) {
+                this.sendProgress(streamKey, { type: 'error', message: '考试不存在' });
+                return;
+            }
+            this.sendProgress(streamKey, { type: 'progress', current: 0, total: exam.examQuestions.length, message: '开始评分' });
+            const gradingResults = await this.autoGradeSubmission(exam, answers, (progress) => {
+                this.sendProgress(streamKey, { type: 'progress', ...progress });
+            });
+            const submission = await this.prisma.submission.create({
+                data: {
+                    examId,
+                    examStudentId,
+                    answers: JSON.stringify(answers),
+                    score: gradingResults.totalScore,
+                    isAutoGraded: gradingResults.isFullyAutoGraded,
+                    gradingDetails: JSON.stringify({
+                        details: gradingResults.details,
+                        totalScore: gradingResults.totalScore,
+                        maxTotalScore: gradingResults.maxTotalScore,
+                        isFullyAutoGraded: gradingResults.isFullyAutoGraded,
+                    }),
+                },
+            });
+            this.sendProgress(streamKey, {
+                type: 'complete',
+                submission: {
+                    id: submission.id,
+                    score: submission.score,
+                    isAutoGraded: submission.isAutoGraded,
+                    submittedAt: submission.submittedAt,
+                }
+            });
+        }
+        catch (error) {
+            console.error('异步提交失败:', error);
+            this.sendProgress(streamKey, { type: 'error', message: error.message });
+        }
+    }
+    sendProgress(streamKey, data) {
+        const stream = this.progressStreams.get(streamKey);
+        if (stream) {
+            stream.write(`data: ${JSON.stringify(data)}\n\n`);
+        }
+    }
+    async streamSubmissionProgress(examId, examStudentId, res) {
+        const streamKey = `${examId}-${examStudentId}`;
+        this.progressStreams.set(streamKey, res);
+        const existingSubmission = await this.prisma.submission.findFirst({
+            where: { examId, examStudentId },
+        });
+        if (existingSubmission) {
+            res.write(`data: ${JSON.stringify({
+                type: 'complete',
+                submission: {
+                    id: existingSubmission.id,
+                    score: existingSubmission.score,
+                    isAutoGraded: existingSubmission.isAutoGraded,
+                    submittedAt: existingSubmission.submittedAt,
+                }
+            })}\n\n`);
+            res.end();
+            return;
+        }
+        const keepAlive = setInterval(() => {
+            res.write(`data: ${JSON.stringify({ type: 'ping' })}\n\n`);
+        }, 30000);
+        res.on('close', () => {
+            clearInterval(keepAlive);
+            this.progressStreams.delete(streamKey);
+        });
+    }
+    async checkSubmissionStatus(examId, examStudentId) {
+        const submission = await this.prisma.submission.findFirst({
+            where: { examId, examStudentId },
+            select: {
+                id: true,
+                score: true,
+                isAutoGraded: true,
+                submittedAt: true,
+            },
+        });
+        return {
+            hasSubmitted: !!submission,
+            submission: submission || null,
+        };
+    }
+    async autoGradeSubmission(exam, answers, onProgress) {
+        console.log(`开始自动评分: 考试ID=${exam.id}, 题目数量=${exam.examQuestions.length}`);
+        console.log(`考试题目类型分布:`, exam.examQuestions.map(eq => ({ id: eq.question.id, type: eq.question.type })));
         const details = {};
         let totalScore = 0;
         let isFullyAutoGraded = true;
+        const totalQuestions = exam.examQuestions.length;
+        let currentQuestion = 0;
         for (const examQuestion of exam.examQuestions) {
+            currentQuestion++;
             const question = examQuestion.question;
             const studentAnswer = answers[question.id];
             const maxScore = examQuestion.score;
+            onProgress?.({
+                current: currentQuestion,
+                total: totalQuestions,
+                message: `正在评分第${currentQuestion}题 (${question.type})`
+            });
+            console.log(`处理题目 ${currentQuestion}: 类型=${question.type}, ID=${question.id}`);
             if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
                 const isCorrect = this.compareAnswers(studentAnswer, question.answer, question.type);
                 const score = isCorrect ? maxScore : 0;
@@ -434,7 +563,14 @@ let ExamService = class ExamService {
                 };
                 totalScore += score;
             }
-            else if (question.type === 'SHORT_ANSWER' || question.type === 'ESSAY' || question.type === 'FILL_BLANK') {
+            else if (question.type === 'ESSAY' || question.type === 'FILL_BLANK') {
+                onProgress?.({
+                    current: currentQuestion,
+                    total: totalQuestions,
+                    message: `正在AI评分第${currentQuestion}题 (主观题)`
+                });
+                console.log(`=== 开始真实AI评分 ===`);
+                console.log(`题目ID: ${question.id}, 类型: ${question.type}`);
                 const aiResult = await this.getAIGradingForSubjective(question.content, question.answer || '', studentAnswer || '', maxScore);
                 details[question.id] = {
                     type: 'subjective',
@@ -451,6 +587,11 @@ let ExamService = class ExamService {
                 }
             }
         }
+        onProgress?.({
+            current: totalQuestions,
+            total: totalQuestions,
+            message: '评分完成'
+        });
         return {
             details,
             totalScore: Math.round(totalScore * 100) / 100,
@@ -459,7 +600,13 @@ let ExamService = class ExamService {
         };
     }
     async getAIGradingForSubjective(questionContent, referenceAnswer, studentAnswer, maxScore) {
+        console.log(`=== 开始AI评分主观题 ===`);
+        console.log(`题目内容: ${questionContent}`);
+        console.log(`参考答案: ${referenceAnswer}`);
+        console.log(`学生答案: ${studentAnswer}`);
+        console.log(`满分: ${maxScore}`);
         if (!studentAnswer || studentAnswer.trim() === '') {
+            console.log(`学生未作答，返回0分`);
             return {
                 suggestedScore: 0,
                 reasoning: '学生未作答',
@@ -467,37 +614,54 @@ let ExamService = class ExamService {
                 confidence: 1.0,
             };
         }
-        const prompt = this.buildGradingPrompt(questionContent, referenceAnswer, studentAnswer, maxScore);
+        const prompt = await this.buildGradingPrompt(questionContent, referenceAnswer, studentAnswer, maxScore);
         try {
-            const wordCount = studentAnswer.length;
-            const hasKeywords = referenceAnswer ? this.checkKeywords(studentAnswer, referenceAnswer) : 0.5;
-            let scoreRatio = 0.6;
-            if (wordCount > 50)
-                scoreRatio += 0.1;
-            if (hasKeywords > 0.3)
-                scoreRatio += 0.2;
-            if (wordCount > 100 && hasKeywords > 0.5)
-                scoreRatio += 0.1;
-            scoreRatio = Math.min(scoreRatio, 1.0);
-            const suggestedScore = Math.round(maxScore * scoreRatio);
+            const aiResult = await this.aiService.gradeSubjectiveAnswer(prompt);
+            console.log('AI评分结果:', JSON.stringify(aiResult, null, 2));
             return {
-                suggestedScore,
-                reasoning: this.generateReasoning(scoreRatio, wordCount, hasKeywords),
-                suggestions: this.generateSuggestions(scoreRatio),
-                confidence: 0.75 + (hasKeywords * 0.2),
+                suggestedScore: aiResult.score,
+                reasoning: aiResult.reasoning,
+                suggestions: aiResult.suggestions,
+                confidence: aiResult.confidence,
             };
         }
         catch (error) {
             console.error('AI评分失败:', error);
+            const wordCount = studentAnswer.length;
+            const hasKeywords = referenceAnswer ? this.checkKeywords(studentAnswer, referenceAnswer) : 0.5;
+            const isValidAnswer = this.isValidAnswer(studentAnswer);
+            let scoreRatio = 0;
+            if (isValidAnswer) {
+                scoreRatio = 0.3;
+                if (wordCount > 20)
+                    scoreRatio += 0.1;
+                if (wordCount > 50)
+                    scoreRatio += 0.1;
+                if (hasKeywords > 0.3)
+                    scoreRatio += 0.3;
+                if (wordCount > 100 && hasKeywords > 0.5)
+                    scoreRatio += 0.2;
+            }
+            scoreRatio = Math.min(scoreRatio, 1.0);
+            const suggestedScore = Math.round(maxScore * scoreRatio);
             return {
-                suggestedScore: Math.round(maxScore * 0.5),
-                reasoning: 'AI评分服务暂时不可用，建议人工评分',
-                suggestions: '请教师手动评分此题',
+                suggestedScore,
+                reasoning: `AI评分服务暂时不可用，使用备用评分算法。${this.generateReasoning(scoreRatio, wordCount, hasKeywords)}`,
+                suggestions: '请教师手动复核此题评分',
                 confidence: 0.3,
             };
         }
     }
-    buildGradingPrompt(questionContent, referenceAnswer, studentAnswer, maxScore) {
+    async buildGradingPrompt(questionContent, referenceAnswer, studentAnswer, maxScore) {
+        const gradingTemplate = await this.getSystemSetting('GRADING_PROMPT_TEMPLATE');
+        if (gradingTemplate) {
+            return gradingTemplate
+                .replace('{questionContent}', questionContent)
+                .replace('{questionType}', '主观题')
+                .replace('{referenceAnswer}', referenceAnswer || '无标准答案，请根据题目要求和答案质量评分')
+                .replace('{studentAnswer}', studentAnswer)
+                .replace('{maxScore}', maxScore.toString());
+        }
         return `你是一位专业的教师，请对以下学生答案进行评分。
 
 **题目内容：**
@@ -526,6 +690,33 @@ ${studentAnswer}
 }
 
 请确保评分公正、客观，并提供建设性的反馈。`;
+    }
+    async getSystemSetting(key) {
+        try {
+            const setting = await this.prisma.systemSetting.findUnique({
+                where: { key }
+            });
+            return setting?.value || null;
+        }
+        catch (error) {
+            console.error(`获取系统设置失败: ${key}`, error);
+            return null;
+        }
+    }
+    isValidAnswer(studentAnswer) {
+        if (!studentAnswer || studentAnswer.trim().length < 3) {
+            return false;
+        }
+        const answer = studentAnswer.trim().toLowerCase();
+        if (/^[0-9\s]+$/.test(answer)) {
+            return false;
+        }
+        if (/^(.)\1{4,}$/.test(answer)) {
+            return false;
+        }
+        const hasChineseWords = /[\u4e00-\u9fa5]{2,}/.test(answer);
+        const hasEnglishWords = /[a-z]{3,}/.test(answer);
+        return hasChineseWords || hasEnglishWords;
     }
     checkKeywords(studentAnswer, referenceAnswer) {
         if (!referenceAnswer)
@@ -583,11 +774,21 @@ ${studentAnswer}
         }
     }
     async saveAnswers(examId, examStudentId, answers) {
+        const exam = await this.prisma.exam.findUnique({
+            where: { id: examId },
+        });
+        if (!exam) {
+            throw new common_1.NotFoundException('考试不存在');
+        }
         const existingSubmission = await this.prisma.submission.findFirst({
             where: { examId, examStudentId },
         });
         if (existingSubmission) {
             throw new common_1.ConflictException('考试已提交，不能再保存答案');
+        }
+        const now = new Date();
+        if (now > exam.endTime) {
+            throw new common_1.ConflictException('考试已结束，不能保存答案');
         }
         return { message: '答案保存成功', timestamp: new Date() };
     }
@@ -844,6 +1045,7 @@ ${studentAnswer}
 exports.ExamService = ExamService;
 exports.ExamService = ExamService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        ai_service_1.AIService])
 ], ExamService);
 //# sourceMappingURL=exam.service.js.map
