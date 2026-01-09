@@ -286,13 +286,6 @@ export default function NewQuestionPage() {
                   </label>
                 </div>
               </div>
-                  value={form.knowledgePoint || ""}
-                  onChange={(e) =>
-                    handleInputChange("knowledgePoint", e.target.value)
-                  }
-                  placeholder="请输入知识点（可选）"
-                />
-              </div>
             </div>
           </div>
         </div>
