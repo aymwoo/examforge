@@ -8,6 +8,7 @@ import ExamDetailPage from "./pages/exams/ExamDetailPage";
 import NewExamPage from "./pages/exams/NewExamPage";
 import ImportPage from "./pages/import/ImportPage";
 import AuthPage from "./pages/auth/AuthPage";
+import RegisterPage from "./pages/auth/RegisterPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import ExamEntryPage from "./pages/exam/ExamEntryPage";
 import ExamLoginPage from "./pages/exam/ExamLoginPage";
@@ -34,6 +35,9 @@ function App() {
           <Route path="import" element={<ImportPage />} />
           <Route path="auth" element={<AuthPage />} />
         </Route>
+        {/* 独立的认证页面 */}
+        <Route path="/login" element={<AuthPage />} />
+        <Route path="/register" element={<RegisterPage />} />
         {/* 考试相关页面不使用Layout */}
         <Route path="/exam/:examId" element={<ExamEntryPage />} />
         <Route path="/exam/:examId/login" element={<ExamLoginPage />} />

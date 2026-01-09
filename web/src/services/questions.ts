@@ -11,6 +11,13 @@ export interface Question {
   explanation?: string;
   status: string;
   knowledgePoint?: string;
+  isPublic?: boolean;
+  createdBy?: string;
+  creator?: {
+    id: string;
+    name: string;
+    username: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

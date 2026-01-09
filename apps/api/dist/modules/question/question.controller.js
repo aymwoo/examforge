@@ -20,25 +20,28 @@ const create_question_dto_1 = require("./dto/create-question.dto");
 const update_question_dto_1 = require("./dto/update-question.dto");
 const clear_questions_dto_1 = require("./dto/clear-questions.dto");
 const pagination_dto_1 = require("../../common/dto/pagination.dto");
+const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
+const roles_guard_1 = require("../auth/guards/roles.guard");
+const roles_decorator_1 = require("../auth/decorators/roles.decorator");
 let QuestionController = class QuestionController {
     questionService;
     constructor(questionService) {
         this.questionService = questionService;
     }
-    create(dto) {
-        return this.questionService.create(dto);
+    create(dto, req) {
+        return this.questionService.create(dto, req.user.id);
     }
-    findAll(paginationDto) {
-        return this.questionService.findAll(paginationDto);
+    findAll(paginationDto, req) {
+        return this.questionService.findAll(paginationDto, req.user.id, req.user.role);
     }
-    findById(id) {
-        return this.questionService.findById(id);
+    findById(id, req) {
+        return this.questionService.findById(id, req.user.id, req.user.role);
     }
-    update(id, dto) {
-        return this.questionService.update(id, dto);
+    update(id, dto, req) {
+        return this.questionService.update(id, dto, req.user.id, req.user.role);
     }
-    delete(id) {
-        return this.questionService.delete(id);
+    delete(id, req) {
+        return this.questionService.delete(id, req.user.id, req.user.role);
     }
     deleteMany(body) {
         return this.questionService.deleteMany(body.ids);
@@ -59,8 +62,9 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Create a new question' }),
     (0, swagger_1.ApiResponse)({ status: 201, description: 'Question created successfully' }),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [create_question_dto_1.CreateQuestionDto]),
+    __metadata("design:paramtypes", [create_question_dto_1.CreateQuestionDto, Object]),
     __metadata("design:returntype", void 0)
 ], QuestionController.prototype, "create", null);
 __decorate([
@@ -68,8 +72,9 @@ __decorate([
     (0, swagger_1.ApiOperation)({ summary: 'Get all questions with pagination' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Questions retrieved successfully' }),
     __param(0, (0, common_1.Query)()),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [pagination_dto_1.PaginationDto]),
+    __metadata("design:paramtypes", [pagination_dto_1.PaginationDto, Object]),
     __metadata("design:returntype", void 0)
 ], QuestionController.prototype, "findAll", null);
 __decorate([
@@ -79,8 +84,9 @@ __decorate([
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Question found' }),
     (0, swagger_1.ApiResponse)({ status: 404, description: 'Question not found' }),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], QuestionController.prototype, "findById", null);
 __decorate([
@@ -90,8 +96,9 @@ __decorate([
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Question updated successfully' }),
     __param(0, (0, common_1.Param)('id')),
     __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, update_question_dto_1.UpdateQuestionDto]),
+    __metadata("design:paramtypes", [String, update_question_dto_1.UpdateQuestionDto, Object]),
     __metadata("design:returntype", void 0)
 ], QuestionController.prototype, "update", null);
 __decorate([
@@ -101,8 +108,9 @@ __decorate([
     (0, swagger_1.ApiParam)({ name: 'id', description: 'Question ID' }),
     (0, swagger_1.ApiResponse)({ status: 204, description: 'Question deleted successfully' }),
     __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Request)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", void 0)
 ], QuestionController.prototype, "delete", null);
 __decorate([
@@ -118,6 +126,8 @@ __decorate([
 __decorate([
     (0, common_1.Post)('clear'),
     (0, common_1.HttpCode)(common_1.HttpStatus.OK),
+    (0, common_1.UseGuards)(roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('ADMIN'),
     (0, swagger_1.ApiOperation)({ summary: '[DEV] Clear all questions (testing only)' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'All questions cleared successfully' }),
     __param(0, (0, common_1.Body)()),
@@ -128,6 +138,8 @@ __decorate([
 exports.QuestionController = QuestionController = __decorate([
     (0, swagger_1.ApiTags)('questions'),
     (0, common_1.Controller)('questions'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
     __metadata("design:paramtypes", [question_service_1.QuestionService])
 ], QuestionController);
 //# sourceMappingURL=question.controller.js.map

@@ -16,17 +16,17 @@ export declare class ExamController {
     }): Promise<import("../ai/ai.service").GenerateExamQuestionsResponse>;
     create(dto: CreateExamDto): Promise<{
         id: string;
-        title: string;
-        description: string | null;
-        duration: number;
-        totalScore: number;
         status: string;
-        accountModes: string;
-        startTime: Date | null;
-        endTime: Date | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
+        description: string | null;
+        title: string;
+        duration: number;
+        totalScore: number;
+        accountModes: string;
+        startTime: Date | null;
+        endTime: Date | null;
     }>;
     findAll(paginationDto: PaginationDto): Promise<{
         data: any[];
@@ -40,25 +40,25 @@ export declare class ExamController {
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
         id: string;
-        title: string;
-        description: string | null;
-        duration: number;
-        totalScore: number;
         status: string;
-        accountModes: string;
-        startTime: Date | null;
-        endTime: Date | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
+        description: string | null;
+        title: string;
+        duration: number;
+        totalScore: number;
+        accountModes: string;
+        startTime: Date | null;
+        endTime: Date | null;
     }>;
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
+        score: number;
         order: number;
         examId: string;
         questionId: string;
-        score: number;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
     updateQuestionOrder(examId: string, questionId: string, body: {
@@ -66,10 +66,10 @@ export declare class ExamController {
         score?: number;
     }): Promise<{
         id: string;
+        score: number;
         order: number;
         examId: string;
         questionId: string;
-        score: number;
     }>;
     addStudent(examId: string, dto: CreateExamStudentDto): Promise<{
         id: string;

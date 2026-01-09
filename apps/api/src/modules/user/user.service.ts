@@ -143,4 +143,8 @@ export class UserService {
       where: { username },
     });
   }
+
+  async count() {
+    return this.prisma.user.count();
+  }
 }

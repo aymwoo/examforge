@@ -40,6 +40,7 @@ class CreateQuestionDto {
     tags;
     difficulty;
     knowledgePoint;
+    isPublic;
 }
 exports.CreateQuestionDto = CreateQuestionDto;
 __decorate([
@@ -95,4 +96,10 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateQuestionDto.prototype, "knowledgePoint", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: 'Whether the question is public', default: true }),
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateQuestionDto.prototype, "isPublic", void 0);
 //# sourceMappingURL=create-question.dto.js.map

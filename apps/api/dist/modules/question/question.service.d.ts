@@ -6,7 +6,7 @@ export declare class QuestionService {
     private readonly prisma;
     constructor(prisma: PrismaService);
     private get question();
-    create(dto: CreateQuestionDto): Promise<{
+    create(dto: CreateQuestionDto, userId?: string): Promise<{
         id: string;
         content: string;
         type: string;
@@ -17,11 +17,12 @@ export declare class QuestionService {
         difficulty: number;
         status: string;
         knowledgePoint: string | null;
+        isPublic: boolean;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
     }>;
-    findAll(paginationDto: PaginationDto): Promise<{
+    findAll(paginationDto: PaginationDto, userId?: string, userRole?: string): Promise<{
         data: any[];
         meta: {
             total: number;
@@ -30,9 +31,9 @@ export declare class QuestionService {
             totalPages: number;
         };
     }>;
-    findById(id: string): Promise<any>;
-    update(id: string, dto: UpdateQuestionDto): Promise<any>;
-    delete(id: string): Promise<void>;
+    findById(id: string, userId?: string, userRole?: string): Promise<any>;
+    update(id: string, dto: UpdateQuestionDto, userId?: string, userRole?: string): Promise<any>;
+    delete(id: string, userId?: string, userRole?: string): Promise<void>;
     deleteMany(ids: string[]): Promise<{
         deleted: number;
     }>;

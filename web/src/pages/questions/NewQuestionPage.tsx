@@ -24,6 +24,7 @@ export default function NewQuestionPage() {
       { label: "D", content: "" },
     ],
     knowledgePoint: "",
+    isPublic: true,
   });
 
   const handleInputChange = (field: string, value: any) => {
@@ -248,6 +249,43 @@ export default function NewQuestionPage() {
                 <input
                   type="text"
                   className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                  value={form.knowledgePoint || ""}
+                  onChange={(e) =>
+                    handleInputChange("knowledgePoint", e.target.value)
+                  }
+                  placeholder="请输入知识点（可选）"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-ink-900">
+                  可见性
+                </label>
+                <div className="mt-2 space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="isPublic"
+                      value="true"
+                      checked={form.isPublic !== false}
+                      onChange={() => handleInputChange("isPublic", true)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-ink-900">公开 - 所有用户可见</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="isPublic"
+                      value="false"
+                      checked={form.isPublic === false}
+                      onChange={() => handleInputChange("isPublic", false)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-ink-900">私有 - 仅自己和管理员可见</span>
+                  </label>
+                </div>
+              </div>
                   value={form.knowledgePoint || ""}
                   onChange={(e) =>
                     handleInputChange("knowledgePoint", e.target.value)

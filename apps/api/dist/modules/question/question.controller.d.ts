@@ -6,7 +6,7 @@ import { PaginationDto } from '@/common/dto/pagination.dto';
 export declare class QuestionController {
     private readonly questionService;
     constructor(questionService: QuestionService);
-    create(dto: CreateQuestionDto): Promise<{
+    create(dto: CreateQuestionDto, req: any): Promise<{
         id: string;
         content: string;
         type: string;
@@ -17,11 +17,12 @@ export declare class QuestionController {
         difficulty: number;
         status: string;
         knowledgePoint: string | null;
+        isPublic: boolean;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
     }>;
-    findAll(paginationDto: PaginationDto): Promise<{
+    findAll(paginationDto: PaginationDto, req: any): Promise<{
         data: any[];
         meta: {
             total: number;
@@ -30,9 +31,9 @@ export declare class QuestionController {
             totalPages: number;
         };
     }>;
-    findById(id: string): Promise<any>;
-    update(id: string, dto: UpdateQuestionDto): Promise<any>;
-    delete(id: string): Promise<void>;
+    findById(id: string, req: any): Promise<any>;
+    update(id: string, dto: UpdateQuestionDto, req: any): Promise<any>;
+    delete(id: string, req: any): Promise<void>;
     deleteMany(body: {
         ids: string[];
     }): Promise<{

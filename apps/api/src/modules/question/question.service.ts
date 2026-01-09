@@ -19,7 +19,7 @@ export class QuestionService {
     return this.prisma.question;
   }
 
-  async create(dto: CreateQuestionDto) {
+  async create(dto: CreateQuestionDto, userId?: string) {
     const optionsJson = dto.options ? JSON.stringify(dto.options) : null;
     const tagsStr = dto.tags ? JSON.stringify(dto.tags) : '[]';
 
@@ -34,11 +34,13 @@ export class QuestionService {
         difficulty: dto.difficulty || 1,
         status: QuestionStatus.DRAFT,
         knowledgePoint: dto.knowledgePoint,
+        isPublic: dto.isPublic ?? true,
+        createdBy: userId,
       },
     });
   }
 
-  async findAll(paginationDto: PaginationDto) {
+  async findAll(paginationDto: PaginationDto, userId?: string, userRole?: string) {
     const { page = 1, limit = 20, type, difficulty, tags } = paginationDto;
     const skip = (page - 1) * limit;
 
@@ -52,12 +54,29 @@ export class QuestionService {
       };
     }
 
+    // 权限过滤：只显示公开题目或自己创建的题目（管理员可以看到所有题目）
+    if (userRole !== 'ADMIN') {
+      where.OR = [
+        { isPublic: true },
+        { createdBy: userId },
+      ];
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.question.findMany({
         where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: {
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+            },
+          },
+        },
       }),
       this.prisma.question.count({ where }),
     ]);
@@ -73,16 +92,39 @@ export class QuestionService {
     };
   }
 
-  async findById(id: string) {
-    const question = await this.prisma.question.findUnique({ where: { id } });
+  async findById(id: string, userId?: string, userRole?: string) {
+    const question = await this.prisma.question.findUnique({ 
+      where: { id },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+          },
+        },
+      },
+    });
+    
     if (!question) {
       throw new NotFoundException(`Question #${id} not found`);
     }
+
+    // 权限检查：只有公开题目、自己创建的题目或管理员可以查看
+    if (userRole !== 'ADMIN' && !question.isPublic && question.createdBy !== userId) {
+      throw new NotFoundException(`Question #${id} not found`);
+    }
+
     return this.transformQuestion(question);
   }
 
-  async update(id: string, dto: UpdateQuestionDto) {
-    await this.findById(id);
+  async update(id: string, dto: UpdateQuestionDto, userId?: string, userRole?: string) {
+    const question = await this.findById(id, userId, userRole);
+
+    // 权限检查：只有创建者或管理员可以修改
+    if (userRole !== 'ADMIN' && question.createdBy !== userId) {
+      throw new UnprocessableEntityException('You can only update your own questions');
+    }
 
     const updateData: any = {};
     if (dto.content !== undefined) updateData.content = dto.content;
@@ -94,6 +136,7 @@ export class QuestionService {
     if (dto.difficulty !== undefined) updateData.difficulty = dto.difficulty;
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.knowledgePoint !== undefined) updateData.knowledgePoint = dto.knowledgePoint;
+    if (dto.isPublic !== undefined) updateData.isPublic = dto.isPublic;
 
     const updated = await this.prisma.question.update({
       where: { id },
@@ -103,8 +146,14 @@ export class QuestionService {
     return this.transformQuestion(updated);
   }
 
-  async delete(id: string) {
-    await this.findById(id);
+  async delete(id: string, userId?: string, userRole?: string) {
+    const question = await this.findById(id, userId, userRole);
+
+    // 权限检查：只有创建者或管理员可以删除
+    if (userRole !== 'ADMIN' && question.createdBy !== userId) {
+      throw new UnprocessableEntityException('You can only delete your own questions');
+    }
+
     await this.prisma.question.delete({ where: { id } });
   }
 

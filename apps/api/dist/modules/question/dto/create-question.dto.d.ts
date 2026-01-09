@@ -12,4 +12,5 @@ export declare class CreateQuestionDto {
     tags?: string[];
     difficulty?: number;
     knowledgePoint?: string;
+    isPublic?: boolean;
 }

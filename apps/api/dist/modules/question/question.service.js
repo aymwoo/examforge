@@ -22,7 +22,7 @@ let QuestionService = class QuestionService {
     get question() {
         return this.prisma.question;
     }
-    async create(dto) {
+    async create(dto, userId) {
         const optionsJson = dto.options ? JSON.stringify(dto.options) : null;
         const tagsStr = dto.tags ? JSON.stringify(dto.tags) : '[]';
         return this.prisma.question.create({
@@ -36,10 +36,12 @@ let QuestionService = class QuestionService {
                 difficulty: dto.difficulty || 1,
                 status: question_enum_1.QuestionStatus.DRAFT,
                 knowledgePoint: dto.knowledgePoint,
+                isPublic: dto.isPublic ?? true,
+                createdBy: userId,
             },
         });
     }
-    async findAll(paginationDto) {
+    async findAll(paginationDto, userId, userRole) {
         const { page = 1, limit = 20, type, difficulty, tags } = paginationDto;
         const skip = (page - 1) * limit;
         const where = {};
@@ -53,12 +55,27 @@ let QuestionService = class QuestionService {
                 contains: tagArray[0],
             };
         }
+        if (userRole !== 'ADMIN') {
+            where.OR = [
+                { isPublic: true },
+                { createdBy: userId },
+            ];
+        }
         const [data, total] = await Promise.all([
             this.prisma.question.findMany({
                 where,
                 skip,
                 take: limit,
                 orderBy: { createdAt: 'desc' },
+                include: {
+                    creator: {
+                        select: {
+                            id: true,
+                            name: true,
+                            username: true,
+                        },
+                    },
+                },
             }),
             this.prisma.question.count({ where }),
         ]);
@@ -72,15 +89,32 @@ let QuestionService = class QuestionService {
             },
         };
     }
-    async findById(id) {
-        const question = await this.prisma.question.findUnique({ where: { id } });
+    async findById(id, userId, userRole) {
+        const question = await this.prisma.question.findUnique({
+            where: { id },
+            include: {
+                creator: {
+                    select: {
+                        id: true,
+                        name: true,
+                        username: true,
+                    },
+                },
+            },
+        });
         if (!question) {
+            throw new common_1.NotFoundException(`Question #${id} not found`);
+        }
+        if (userRole !== 'ADMIN' && !question.isPublic && question.createdBy !== userId) {
             throw new common_1.NotFoundException(`Question #${id} not found`);
         }
         return this.transformQuestion(question);
     }
-    async update(id, dto) {
-        await this.findById(id);
+    async update(id, dto, userId, userRole) {
+        const question = await this.findById(id, userId, userRole);
+        if (userRole !== 'ADMIN' && question.createdBy !== userId) {
+            throw new common_1.UnprocessableEntityException('You can only update your own questions');
+        }
         const updateData = {};
         if (dto.content !== undefined)
             updateData.content = dto.content;
@@ -100,14 +134,19 @@ let QuestionService = class QuestionService {
             updateData.status = dto.status;
         if (dto.knowledgePoint !== undefined)
             updateData.knowledgePoint = dto.knowledgePoint;
+        if (dto.isPublic !== undefined)
+            updateData.isPublic = dto.isPublic;
         const updated = await this.prisma.question.update({
             where: { id },
             data: updateData,
         });
         return this.transformQuestion(updated);
     }
-    async delete(id) {
-        await this.findById(id);
+    async delete(id, userId, userRole) {
+        const question = await this.findById(id, userId, userRole);
+        if (userRole !== 'ADMIN' && question.createdBy !== userId) {
+            throw new common_1.UnprocessableEntityException('You can only delete your own questions');
+        }
         await this.prisma.question.delete({ where: { id } });
     }
     async deleteMany(ids) {

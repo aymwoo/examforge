@@ -379,6 +379,18 @@ export default function QuestionsPage() {
                         <span>{q.knowledgePoint}</span>
                       </span>
                     )}
+                    <span className="flex items-center gap-1">
+                      <span className="font-semibold text-ink-900">可见性:</span>
+                      <span className={q.isPublic ? "text-green-600" : "text-orange-600"}>
+                        {q.isPublic ? "公开" : "私有"}
+                      </span>
+                    </span>
+                    {q.creator && (
+                      <span className="flex items-center gap-1">
+                        <span className="font-semibold text-ink-900">创建者:</span>
+                        <span>{q.creator.name}</span>
+                      </span>
+                    )}
                     <span className="flex items-center gap-1 text-ink-700">
                       <span>创建于:</span>
                       <span>

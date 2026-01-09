@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsEnum, IsArray, IsOptional, IsInt, Min, Max, MaxLength, ValidateNested } from 'class-validator';
+import { IsString, IsNotEmpty, IsEnum, IsArray, IsOptional, IsInt, Min, Max, MaxLength, ValidateNested, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { QuestionType } from '@/common/enums/question.enum';
@@ -60,4 +60,9 @@ export class CreateQuestionDto {
   @IsString()
   @IsOptional()
   knowledgePoint?: string;
+
+  @ApiProperty({ required: false, description: 'Whether the question is public', default: true })
+  @IsBoolean()
+  @IsOptional()
+  isPublic?: boolean;
 }

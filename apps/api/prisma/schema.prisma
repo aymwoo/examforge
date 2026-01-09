@@ -61,6 +61,7 @@ model Question {
   difficulty     Int      @default(1)
   status         String   @default("DRAFT")
   knowledgePoint String?
+  isPublic       Boolean  @default(true) @map("is_public") // 是否公开
   createdBy      String?  @map("created_by")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
