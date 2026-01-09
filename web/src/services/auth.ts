@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:3000';
+import api from './api';
 
 export interface LoginRequest {
   username: string;
@@ -26,12 +24,12 @@ export interface AuthResponse {
 
 export const authService = {
   async login(data: LoginRequest): Promise<AuthResponse> {
-    const response = await axios.post(`${API_BASE_URL}/auth/login`, data);
+    const response = await api.post('/api/auth/login', data);
     return response.data;
   },
 
   async register(data: RegisterRequest): Promise<AuthResponse> {
-    const response = await axios.post(`${API_BASE_URL}/auth/register`, data);
+    const response = await api.post('/api/auth/register', data);
     return response.data;
   },
 };

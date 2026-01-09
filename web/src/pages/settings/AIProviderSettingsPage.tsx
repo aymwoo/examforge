@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Settings, Plus, Edit, Trash2, Globe, User } from "lucide-react";
+import { Settings, Plus, Edit, Trash2, Globe, User, Lock } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import api from "@/services/api";
+import { getCurrentUser } from "@/utils/auth";
 
 interface AIProvider {
   id: string;
@@ -35,8 +36,8 @@ export default function SettingsPage() {
     isActive: true,
   });
 
-  // 模拟用户角色，实际应该从认证状态获取
-  const [userRole] = useState('ADMIN'); // 或 'TEACHER'
+  const currentUser = getCurrentUser();
+  const userRole = currentUser?.role || 'TEACHER';
 
   const loadProviders = async () => {
     try {
@@ -53,11 +54,29 @@ export default function SettingsPage() {
     loadProviders();
   }, []);
 
+  // 检查是否可以编辑Provider
+  const canEditProvider = (provider: AIProvider): boolean => {
+    if (userRole === 'ADMIN') return true;
+    if (provider.isGlobal) return false; // 教师不能编辑全局Provider
+    return provider.createdBy === currentUser?.id; // 只能编辑自己创建的
+  };
+
+  // 检查是否可以删除Provider
+  const canDeleteProvider = (provider: AIProvider): boolean => {
+    if (userRole === 'ADMIN') return true;
+    if (provider.isGlobal) return false; // 教师不能删除全局Provider
+    return provider.createdBy === currentUser?.id; // 只能删除自己创建的
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       if (editingProvider) {
+        if (!canEditProvider(editingProvider)) {
+          alert('您没有权限编辑此Provider');
+          return;
+        }
         await api.patch(`/api/ai-providers/${editingProvider.id}`, formData);
       } else {
         await api.post('/api/ai-providers', formData);
@@ -84,6 +103,11 @@ export default function SettingsPage() {
   };
 
   const handleEdit = (provider: AIProvider) => {
+    if (!canEditProvider(provider)) {
+      alert('您没有权限编辑此Provider');
+      return;
+    }
+    
     setEditingProvider(provider);
     setFormData({
       name: provider.name,
@@ -97,6 +121,11 @@ export default function SettingsPage() {
   };
 
   const handleDelete = async (provider: AIProvider) => {
+    if (!canDeleteProvider(provider)) {
+      alert('您没有权限删除此Provider');
+      return;
+    }
+    
     if (!confirm(`确定要删除AI Provider "${provider.name}" 吗？`)) return;
     
     try {
@@ -165,7 +194,11 @@ export default function SettingsPage() {
                 {providers.map((provider) => (
                   <div 
                     key={provider.id} 
-                    className="rounded-2xl border-2 border-gray-200 bg-gradient-to-br from-gray-50 to-white p-6 shadow-lg"
+                    className={`rounded-2xl border-2 bg-gradient-to-br p-6 shadow-lg ${
+                      provider.isGlobal && !canEditProvider(provider)
+                        ? 'border-gray-300 bg-gray-50 to-gray-100'
+                        : 'border-gray-200 from-gray-50 to-white'
+                    }`}
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -179,7 +212,12 @@ export default function SettingsPage() {
                           )}
                         </div>
                         <div>
-                          <h3 className="text-lg font-bold text-gray-900">{provider.name}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-gray-900">{provider.name}</h3>
+                            {provider.isGlobal && !canEditProvider(provider) && (
+                              <Lock className="h-4 w-4 text-gray-500" title="系统默认，不可修改" />
+                            )}
+                          </div>
                           <p className="text-sm text-gray-600">
                             {provider.isGlobal ? '全局配置' : '个人配置'}
                             {provider.creator && ` · 创建者: ${provider.creator.name}`}
@@ -219,6 +257,7 @@ export default function SettingsPage() {
                         onClick={() => handleEdit(provider)}
                         variant="outline"
                         className="flex-1 flex items-center gap-2"
+                        disabled={!canEditProvider(provider)}
                       >
                         <Edit className="h-4 w-4" />
                         编辑
@@ -227,6 +266,7 @@ export default function SettingsPage() {
                         onClick={() => handleDelete(provider)}
                         variant="outline"
                         className="flex items-center gap-2 text-red-600 hover:text-red-700"
+                        disabled={!canDeleteProvider(provider)}
                       >
                         <Trash2 className="h-4 w-4" />
                         删除
@@ -257,6 +297,7 @@ export default function SettingsPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 placeholder="例如: OpenAI GPT-4"
+                disabled={editingProvider?.isGlobal && userRole !== 'ADMIN'}
               />
             </div>
 
@@ -284,6 +325,7 @@ export default function SettingsPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, baseUrl: e.target.value }))}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 placeholder="https://api.openai.com/v1"
+                disabled={editingProvider?.isGlobal && userRole !== 'ADMIN'}
               />
             </div>
 
@@ -298,6 +340,7 @@ export default function SettingsPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 placeholder="gpt-4, claude-3, qwen-turbo 等"
+                disabled={editingProvider?.isGlobal && userRole !== 'ADMIN'}
               />
             </div>
 

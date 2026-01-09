@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/common/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 import QuestionsPage from "./pages/questions/QuestionsPage";
 import QuestionDetailPage from "./pages/questions/QuestionDetailPage";
 import NewQuestionPage from "./pages/questions/NewQuestionPage";
@@ -23,16 +24,56 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
-          <Route path="questions" element={<QuestionsPage />} />
-          <Route path="questions/new" element={<NewQuestionPage />} />
-          <Route path="questions/:id" element={<QuestionDetailPage />} />
-          <Route path="exams" element={<ExamsPage />} />
-          <Route path="exams/new" element={<NewExamPage />} />
-          <Route path="exams/:id" element={<ExamDetailPage />} />
-          <Route path="exams/:id/grading" element={<ExamGradingPageSimple />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="users" element={<UsersPage />} />
-          <Route path="import" element={<ImportPage />} />
+          <Route path="questions" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <QuestionsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="questions/new" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <NewQuestionPage />
+            </ProtectedRoute>
+          } />
+          <Route path="questions/:id" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <QuestionDetailPage />
+            </ProtectedRoute>
+          } />
+          <Route path="exams" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <ExamsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="exams/new" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <NewExamPage />
+            </ProtectedRoute>
+          } />
+          <Route path="exams/:id" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <ExamDetailPage />
+            </ProtectedRoute>
+          } />
+          <Route path="exams/:id/grading" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <ExamGradingPageSimple />
+            </ProtectedRoute>
+          } />
+          <Route path="settings" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <SettingsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="users" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <UsersPage />
+            </ProtectedRoute>
+          } />
+          <Route path="import" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <ImportPage />
+            </ProtectedRoute>
+          } />
           <Route path="auth" element={<AuthPage />} />
         </Route>
         {/* 独立的认证页面 */}
