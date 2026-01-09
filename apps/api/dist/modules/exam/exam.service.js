@@ -90,7 +90,10 @@ let ExamService = class ExamService {
                         orderBy: { order: 'asc' },
                     },
                     _count: {
-                        select: { submissions: true },
+                        select: {
+                            submissions: true,
+                            examStudents: true,
+                        },
                     },
                 },
             }),
@@ -117,7 +120,10 @@ let ExamService = class ExamService {
                     orderBy: { order: 'asc' },
                 },
                 _count: {
-                    select: { submissions: true },
+                    select: {
+                        submissions: true,
+                        examStudents: true,
+                    },
                 },
             },
         });
@@ -228,6 +234,7 @@ let ExamService = class ExamService {
                 question: eq.question,
             })),
             submissionCount: exam._count.submissions,
+            totalStudents: exam._count.examStudents,
             _count: undefined,
         };
     }

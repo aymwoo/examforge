@@ -60,7 +60,10 @@ export class ExamService {
             orderBy: { order: 'asc' },
           },
           _count: {
-            select: { submissions: true },
+            select: { 
+              submissions: true,
+              examStudents: true,
+            },
           },
         },
       }),
@@ -89,7 +92,10 @@ export class ExamService {
           orderBy: { order: 'asc' },
         },
         _count: {
-          select: { submissions: true },
+          select: { 
+            submissions: true,
+            examStudents: true,
+          },
         },
       },
     });
@@ -214,6 +220,7 @@ export class ExamService {
         question: eq.question,
       })),
       submissionCount: exam._count.submissions,
+      totalStudents: exam._count.examStudents,
       _count: undefined,
     };
   }

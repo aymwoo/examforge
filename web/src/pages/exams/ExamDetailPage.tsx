@@ -25,6 +25,19 @@ export default function ExamDetailPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [showQuestionBank, setShowQuestionBank] = useState(false);
+
+  // 题型映射函数
+  const getQuestionTypeName = (type: string) => {
+    const typeMap: Record<string, string> = {
+      'SINGLE_CHOICE': '单选题',
+      'MULTIPLE_CHOICE': '多选题',
+      'TRUE_FALSE': '判断题',
+      'FILL_BLANK': '填空题',
+      'SHORT_ANSWER': '简答题',
+      'ESSAY': '论述题'
+    };
+    return typeMap[type] || type;
+  };
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState({
@@ -407,11 +420,19 @@ export default function ExamDetailPage() {
           </div>
         )}
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-            <h2 className="mb-4 text-lg font-semibold text-ink-900">
-              考试信息
-            </h2>
+        <div className="grid gap-8 lg:grid-cols-2">
+          {/* 基本信息区域 */}
+          <div className="rounded-3xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white p-8 shadow-lg">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="rounded-full bg-blue-500 p-2">
+                <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-blue-900">
+                考试信息
+              </h2>
+            </div>
 
             <div className="space-y-4">
               <div>
@@ -711,48 +732,20 @@ export default function ExamDetailPage() {
                   <label className="mb-2 block text-sm font-semibold text-ink-700">
                     状态
                   </label>
-                  {editingField === 'status' ? (
-                    <div className="flex gap-2">
-                      <select
-                        className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-sm"
-                        value={editValues.status || (exam as any).status}
-                        onChange={(e) => setEditValues(prev => ({ ...prev, status: e.target.value }))}
-                        autoFocus
-                      >
-                        <option value="DRAFT">草稿</option>
-                        <option value="PUBLISHED">已发布</option>
-                        <option value="ARCHIVED">已归档</option>
-                      </select>
-                      <Button onClick={() => saveField('status')} className="px-3">
-                        <Check className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" onClick={cancelEditing} className="px-3">
-                        ✕
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`rounded-lg px-3 py-1 text-sm font-semibold ${
-                          exam.status === "PUBLISHED"
-                            ? "bg-green-100 text-green-800"
-                            : exam.status === "ARCHIVED"
-                            ? "bg-gray-100 text-gray-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
-                      >
-                        {exam.status === "PUBLISHED" ? "已发布" : 
-                         exam.status === "ARCHIVED" ? "已归档" : "草稿"}
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-lg px-3 py-1 text-sm font-semibold ${
+                        exam.status === "PUBLISHED"
+                          ? "bg-green-100 text-green-800"
+                          : exam.status === "ARCHIVED"
+                          ? "bg-gray-100 text-gray-800"
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
+                      {exam.status === "PUBLISHED" ? "已发布" : 
+                       exam.status === "ARCHIVED" ? "已归档" : "草稿"}
                       </span>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => startEditing('status', exam.status)}
-                        className="px-3 py-1 text-xs"
-                      >
-                        编辑
-                      </Button>
                     </div>
-                  )}
                 </div>
 
                 <div>
@@ -794,15 +787,27 @@ export default function ExamDetailPage() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+          {/* 题目管理区域 */}
+          <div className="rounded-3xl border-2 border-green-100 bg-gradient-to-br from-green-50 to-white p-8 shadow-lg">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="rounded-full bg-green-500 p-2">
+                <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-green-900">
+                题目管理
+              </h2>
+            </div>
+            
             {/* 标签页切换 */}
-            <div className="mb-4 flex border-b border-border">
+            <div className="mb-6 flex border-b-2 border-green-200">
               <button
                 onClick={() => setActiveTab('questions')}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors ${
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
                   activeTab === 'questions'
-                    ? 'border-b-2 border-accent-600 text-accent-600'
-                    : 'text-ink-700 hover:text-ink-900'
+                    ? 'border-b-2 border-green-500 text-green-700 bg-green-100'
+                    : 'text-gray-600 hover:text-green-700 hover:bg-green-50'
                 }`}
               >
                 <BookOpen className="h-4 w-4" />
@@ -813,10 +818,10 @@ export default function ExamDetailPage() {
                   setActiveTab('students');
                   if (students.length === 0) loadStudents();
                 }}
-                className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold transition-colors ${
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
                   activeTab === 'students'
-                    ? 'border-b-2 border-accent-600 text-accent-600'
-                    : 'text-ink-700 hover:text-ink-900'
+                    ? 'border-b-2 border-green-500 text-green-700 bg-green-100'
+                    : 'text-gray-600 hover:text-green-700 hover:bg-green-50'
                 }`}
               >
                 <Users className="h-4 w-4" />
@@ -1063,11 +1068,7 @@ export default function ExamDetailPage() {
                                   question.type === 'ESSAY' ? 'bg-red-100 text-red-700' :
                                   'bg-gray-100 text-gray-700'
                                 }`}>
-                                  {question.type === 'SINGLE_CHOICE' ? '单选题' :
-                                   question.type === 'MULTIPLE_CHOICE' ? '多选题' :
-                                   question.type === 'FILL_BLANK' ? '填空题' :
-                                   question.type === 'SHORT_ANSWER' ? '简答题' :
-                                   question.type === 'ESSAY' ? '论述题' : question.type}
+                                  {getQuestionTypeName(question.type)}
                                 </span>
                                 <span className={`px-2 py-1 rounded text-xs font-medium ${
                                   question.difficulty === 1 ? 'bg-green-100 text-green-700' :
@@ -1256,6 +1257,60 @@ export default function ExamDetailPage() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* 分隔线 */}
+        <div className="my-8 flex items-center">
+          <div className="flex-1 border-t-2 border-gray-200"></div>
+          <div className="mx-4 rounded-full bg-gray-100 px-4 py-2">
+            <span className="text-sm font-medium text-gray-600">快速操作</span>
+          </div>
+          <div className="flex-1 border-t-2 border-gray-200"></div>
+        </div>
+
+        {/* 快速操作区域 */}
+        <div className="rounded-3xl border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-white p-8 shadow-lg">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Button 
+              onClick={() => navigate(`/exams/${id}/grading`)}
+              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-xl"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              评分管理
+            </Button>
+            
+            <Button 
+              onClick={() => window.open(`/exam/${id}/login`, '_blank')}
+              className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white p-4 rounded-xl"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              预览考试
+            </Button>
+            
+            <Button 
+              variant="outline"
+              className="flex items-center gap-2 border-2 border-orange-300 text-orange-600 hover:bg-orange-50 p-4 rounded-xl"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              导出数据
+            </Button>
+            
+            <Button 
+              variant="outline"
+              className="flex items-center gap-2 border-2 border-gray-300 text-gray-600 hover:bg-gray-50 p-4 rounded-xl"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+              </svg>
+              分享考试
+            </Button>
           </div>
         </div>
       </div>

@@ -13,13 +13,14 @@ import ExamEntryPage from "./pages/exam/ExamEntryPage";
 import ExamLoginPage from "./pages/exam/ExamLoginPage";
 import ExamTakePage from "./pages/exam/ExamTakePage";
 import ExamGradingPageSimple from "./pages/exams/ExamGradingPageSimple";
+import HomePage from "./pages/HomePage";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Layout />}>
-          <Route index element={<QuestionsPage />} />
+          <Route index element={<HomePage />} />
           <Route path="questions" element={<QuestionsPage />} />
           <Route path="questions/new" element={<NewQuestionPage />} />
           <Route path="questions/:id" element={<QuestionDetailPage />} />
