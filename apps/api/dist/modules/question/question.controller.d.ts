@@ -7,17 +7,17 @@ export declare class QuestionController {
     private readonly questionService;
     constructor(questionService: QuestionService);
     create(dto: CreateQuestionDto, req: any): Promise<{
-        id: string;
-        content: string;
         type: string;
+        content: string;
         options: string | null;
         answer: string | null;
         explanation: string | null;
         tags: string;
         difficulty: number;
-        status: string;
         knowledgePoint: string | null;
         isPublic: boolean;
+        status: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;

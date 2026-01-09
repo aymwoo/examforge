@@ -15,6 +15,9 @@ export interface AIModelConfig {
   provider: string;
   defaultBaseUrl?: string;
   defaultModel?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  model?: string;
 }
 
 export interface AIQuestion {

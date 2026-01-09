@@ -15,13 +15,13 @@ export declare class ExamController {
         image: string;
     }): Promise<import("../ai/ai.service").GenerateExamQuestionsResponse>;
     create(dto: CreateExamDto): Promise<{
-        id: string;
+        description: string | null;
+        title: string;
         status: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
-        description: string | null;
-        title: string;
         duration: number;
         totalScore: number;
         accountModes: string;
@@ -39,13 +39,13 @@ export declare class ExamController {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        id: string;
+        description: string | null;
+        title: string;
         status: string;
+        id: string;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
-        description: string | null;
-        title: string;
         duration: number;
         totalScore: number;
         accountModes: string;
@@ -75,9 +75,9 @@ export declare class ExamController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        examId: string;
         username: string;
         password: string;
+        examId: string;
         displayName: string | null;
         accountType: string;
         studentId: string | null;
@@ -110,9 +110,9 @@ export declare class ExamController {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        examId: string;
         username: string;
         password: string;
+        examId: string;
         displayName: string | null;
         accountType: string;
         studentId: string | null;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, Save } from "lucide-react";
+import { Settings, Save, Plus, Check } from "lucide-react";
 import Button from "@/components/ui/Button";
 import {
   getSettings,
@@ -22,6 +22,9 @@ export default function SettingsPage() {
     gradingPromptTemplate: "",
   });
   const [providers, setProviders] = useState<AIModelConfig[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>("");
+  const [editingProvider, setEditingProvider] = useState<AIModelConfig | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -37,6 +40,18 @@ export default function SettingsPage() {
       ]);
       setSettings(settingsData);
       setProviders(providersData);
+      setSelectedProvider(settingsData.aiProvider);
+      
+      // 设置当前编辑的provider
+      const currentProvider = providersData.find(p => p.id === settingsData.aiProvider);
+      if (currentProvider) {
+        setEditingProvider({
+          ...currentProvider,
+          apiKey: settingsData.aiApiKey,
+          baseUrl: settingsData.aiBaseUrl,
+          model: settingsData.aiModel,
+        });
+      }
     } catch (err: unknown) {
       const axiosError = err as {
         response?: { data?: { message?: string } };
@@ -56,26 +71,71 @@ export default function SettingsPage() {
     loadSettings();
   }, []);
 
-  const handleProviderChange = (value: string) => {
-    const provider = providers.find((p) => p.id === value);
-    if (provider && provider.defaultBaseUrl && provider.defaultModel) {
-      handleInputChange("aiBaseUrl", provider.defaultBaseUrl);
-      handleInputChange("aiModel", provider.defaultModel);
+  const handleProviderSelect = (providerId: string) => {
+    setSelectedProvider(providerId);
+    const provider = providers.find(p => p.id === providerId);
+    if (provider) {
+      setEditingProvider({
+        ...provider,
+        apiKey: providerId === settings.aiProvider ? settings.aiApiKey : "",
+        baseUrl: providerId === settings.aiProvider ? settings.aiBaseUrl : provider.defaultBaseUrl || "",
+        model: providerId === settings.aiProvider ? settings.aiModel : provider.defaultModel || "",
+      });
     }
-    handleInputChange("aiProvider", value);
+    setHasChanges(false);
   };
 
-  const handleSave = async () => {
+  const handleProviderFieldChange = (field: string, value: string) => {
+    if (editingProvider) {
+      setEditingProvider(prev => prev ? { ...prev, [field]: value } : null);
+      setHasChanges(true);
+    }
+  };
+
+  const handleSaveProvider = async () => {
+    if (!editingProvider) return;
+    
     setSaving(true);
     setError(null);
     try {
-      await updateSetting("AI_PROVIDER", settings.aiProvider);
-      await updateSetting("AI_API_KEY", settings.aiApiKey);
-      await updateSetting("AI_BASE_URL", settings.aiBaseUrl);
-      await updateSetting("AI_MODEL", settings.aiModel);
+      await updateSetting("AI_PROVIDER", selectedProvider);
+      await updateSetting("AI_API_KEY", editingProvider.apiKey || "");
+      await updateSetting("AI_BASE_URL", editingProvider.baseUrl || "");
+      await updateSetting("AI_MODEL", editingProvider.model || "");
+      
+      // 更新本地状态
+      setSettings(prev => ({
+        ...prev,
+        aiProvider: selectedProvider,
+        aiApiKey: editingProvider.apiKey || "",
+        aiBaseUrl: editingProvider.baseUrl || "",
+        aiModel: editingProvider.model || "",
+      }));
+      
+      setHasChanges(false);
+      setError("AI Provider 设置保存成功");
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      setError(
+        axiosError.response?.data?.message ||
+          axiosError.message ||
+          "保存设置失败",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSavePrompts = async () => {
+    setSaving(true);
+    setError(null);
+    try {
       await updateSetting("PROMPT_TEMPLATE", settings.promptTemplate);
       await updateSetting("GRADING_PROMPT_TEMPLATE", settings.gradingPromptTemplate);
-      setError("设置保存成功");
+      setError("提示词设置保存成功");
     } catch (err: unknown) {
       const axiosError = err as {
         response?: { data?: { message?: string } };
@@ -129,7 +189,7 @@ export default function SettingsPage() {
   };
 
   const handleTestAIConnection = async () => {
-    if (!settings.aiApiKey) {
+    if (!editingProvider?.apiKey) {
       setError("请先配置 API Key");
       return;
     }
@@ -167,10 +227,6 @@ export default function SettingsPage() {
               系统设置
             </h1>
           </div>
-          <Button onClick={handleSave} disabled={saving || loading}>
-            <Save className="h-4 w-4 mr-2" />
-            {saving ? "保存中..." : "保存设置"}
-          </Button>
         </div>
 
         {loading && (
@@ -195,88 +251,124 @@ export default function SettingsPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="space-y-6">
               <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-                <h2 className="mb-6 text-lg font-semibold text-ink-900">
-                  AI 配置
-                </h2>
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-ink-900">AI Provider 配置</h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/settings/ai-providers")}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    管理 Providers
+                  </Button>
+                </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-ink-900">
-                      AI Provider
-                    </label>
-                    <select
-                      className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
-                      value={settings.aiProvider}
-                      onChange={(e) => handleProviderChange(e.target.value)}
-                    >
-                      {providers.map((provider) => (
-                        <option key={provider.id} value={provider.id}>
-                          {provider.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-ink-900">
-                      API Key
-                    </label>
-                    <input
-                      type="password"
-                      className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
-                      placeholder="sk-..."
-                      value={settings.aiApiKey}
-                      onChange={(e) =>
-                        handleInputChange("aiApiKey", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-ink-900">
-                      Base URL
-                    </label>
-                    <input
-                      type="url"
-                      className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
-                      placeholder="https://api.openai.com/v1/chat/completions"
-                      value={settings.aiBaseUrl}
-                      onChange={(e) =>
-                        handleInputChange("aiBaseUrl", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-ink-900">
-                      Model
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
-                      placeholder="gpt-4o"
-                      value={settings.aiModel}
-                      onChange={(e) =>
-                        handleInputChange("aiModel", e.target.value)
-                      }
-                    />
+                {/* AI Provider 按钮列表 */}
+                <div className="mb-6">
+                  <label className="mb-3 block text-sm font-semibold text-ink-900">
+                    选择 AI Provider
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {providers.map((provider) => (
+                      <button
+                        key={provider.id}
+                        onClick={() => handleProviderSelect(provider.id)}
+                        className={`relative flex items-center justify-between rounded-xl border p-3 text-left transition-all ${
+                          selectedProvider === provider.id
+                            ? "border-blue-500 bg-blue-50 text-blue-900"
+                            : "border-border bg-white text-ink-900 hover:border-blue-300 hover:bg-blue-50"
+                        }`}
+                      >
+                        <div>
+                          <div className="font-medium">{provider.name}</div>
+                          <div className="text-xs text-ink-600">{provider.id}</div>
+                        </div>
+                        {selectedProvider === provider.id && settings.aiProvider === provider.id && (
+                          <Check className="h-4 w-4 text-blue-600" />
+                        )}
+                      </button>
+                    ))}
                   </div>
                 </div>
+
+                {/* 编辑选中的 Provider */}
+                {editingProvider && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                        API Key
+                      </label>
+                      <input
+                        type="password"
+                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                        placeholder="sk-..."
+                        value={editingProvider.apiKey || ""}
+                        onChange={(e) =>
+                          handleProviderFieldChange("apiKey", e.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                        Base URL
+                      </label>
+                      <input
+                        type="url"
+                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                        placeholder="https://api.openai.com/v1/chat/completions"
+                        value={editingProvider.baseUrl || ""}
+                        onChange={(e) =>
+                          handleProviderFieldChange("baseUrl", e.target.value)
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                        Model
+                      </label>
+                      <input
+                        type="text"
+                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                        placeholder="gpt-4o"
+                        value={editingProvider.model || ""}
+                        onChange={(e) =>
+                          handleProviderFieldChange("model", e.target.value)
+                        }
+                      />
+                    </div>
+
+                    {hasChanges && (
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleSaveProvider}
+                          disabled={saving}
+                          className="flex-1"
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          {saving ? "保存中..." : "保存设置"}
+                        </Button>
+                        <Button
+                          onClick={() => handleProviderSelect(selectedProvider)}
+                          variant="outline"
+                          className="flex-1 text-gray-600 border-gray-300 hover:bg-gray-50"
+                        >
+                          取消更改
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="mt-4 flex gap-2">
                   <Button
                     onClick={handleTestAIConnection}
                     className="flex-1"
                     variant="outline"
+                    disabled={!editingProvider?.apiKey}
                   >
                     测试 AI 连接
-                  </Button>
-                  <Button
-                    onClick={handleResetToDefault}
-                    className="flex-1"
-                    variant="outline"
-                  >
-                    重置提示词
                   </Button>
                 </div>
 
@@ -294,9 +386,18 @@ export default function SettingsPage() {
               </div>
 
               <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-                <h2 className="mb-6 text-lg font-semibold text-ink-900">
-                  试卷生成提示词配置
-                </h2>
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-ink-900">
+                    试卷生成提示词配置
+                  </h2>
+                  <Button
+                    onClick={handleResetToDefault}
+                    variant="outline"
+                    size="sm"
+                  >
+                    重置默认
+                  </Button>
+                </div>
 
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-ink-900">
@@ -314,6 +415,15 @@ export default function SettingsPage() {
                     提示词模板用于指导AI如何根据试卷图像生成题目。支持变量占位符。
                   </p>
                 </div>
+
+                <Button
+                  onClick={handleSavePrompts}
+                  disabled={saving}
+                  className="mt-4 w-full"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? "保存中..." : "保存提示词设置"}
+                </Button>
               </div>
 
               <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
