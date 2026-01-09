@@ -269,25 +269,39 @@ export default function SettingsPage() {
                     选择 AI Provider
                   </label>
                   <div className="grid grid-cols-2 gap-2">
-                    {providers.map((provider) => (
-                      <button
-                        key={provider.id}
-                        onClick={() => handleProviderSelect(provider.id)}
-                        className={`relative flex items-center justify-between rounded-xl border p-3 text-left transition-all ${
-                          selectedProvider === provider.id
-                            ? "border-blue-500 bg-blue-50 text-blue-900"
-                            : "border-border bg-white text-ink-900 hover:border-blue-300 hover:bg-blue-50"
-                        }`}
-                      >
-                        <div>
-                          <div className="font-medium">{provider.name}</div>
-                          <div className="text-xs text-ink-600">{provider.id}</div>
-                        </div>
-                        {selectedProvider === provider.id && settings.aiProvider === provider.id && (
-                          <Check className="h-4 w-4 text-blue-600" />
-                        )}
-                      </button>
-                    ))}
+                    {providers.map((provider, index) => {
+                      const colors = [
+                        'bg-blue-50 border-blue-200 hover:bg-blue-100',
+                        'bg-green-50 border-green-200 hover:bg-green-100', 
+                        'bg-purple-50 border-purple-200 hover:bg-purple-100',
+                        'bg-orange-50 border-orange-200 hover:bg-orange-100',
+                        'bg-pink-50 border-pink-200 hover:bg-pink-100',
+                        'bg-indigo-50 border-indigo-200 hover:bg-indigo-100',
+                        'bg-teal-50 border-teal-200 hover:bg-teal-100',
+                        'bg-red-50 border-red-200 hover:bg-red-100',
+                      ];
+                      const colorClass = colors[index % colors.length];
+                      
+                      return (
+                        <button
+                          key={provider.id}
+                          onClick={() => handleProviderSelect(provider.id)}
+                          className={`relative flex items-center justify-between rounded-xl border p-3 text-left transition-all ${
+                            selectedProvider === provider.id
+                              ? "border-blue-500 bg-blue-50 text-blue-900 ring-2 ring-blue-200"
+                              : `${colorClass} text-ink-900`
+                          }`}
+                        >
+                          <div>
+                            <div className="font-medium">{provider.name}</div>
+                            <div className="text-xs text-ink-600">{provider.id}</div>
+                          </div>
+                          {selectedProvider === provider.id && settings.aiProvider === provider.id && (
+                            <Check className="h-4 w-4 text-blue-600" />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
