@@ -22,6 +22,7 @@ export declare class ExamService {
         endTime: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        createdBy: string | null;
     }>;
     findAll(paginationDto: PaginationDto): Promise<{
         data: any[];
@@ -45,6 +46,7 @@ export declare class ExamService {
         endTime: Date | null;
         createdAt: Date;
         updatedAt: Date;
+        createdBy: string | null;
     }>;
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{

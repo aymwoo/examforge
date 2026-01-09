@@ -14,6 +14,7 @@ import ExamLoginPage from "./pages/exam/ExamLoginPage";
 import ExamTakePage from "./pages/exam/ExamTakePage";
 import ExamGradingPageSimple from "./pages/exams/ExamGradingPageSimple";
 import HomePage from "./pages/HomePage";
+import UsersPage from "./pages/UsersPage";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="exams/:id" element={<ExamDetailPage />} />
           <Route path="exams/:id/grading" element={<ExamGradingPageSimple />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="users" element={<UsersPage />} />
           <Route path="import" element={<ImportPage />} />
           <Route path="auth" element={<AuthPage />} />
         </Route>

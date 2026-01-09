@@ -13,6 +13,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  email     String?  @unique
+  password  String
+  name      String
+  role      String   @default("STUDENT") // ADMIN, TEACHER, STUDENT
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // 关联关系
+  createdQuestions Question[] @relation("CreatedBy")
+  createdExams     Exam[]     @relation("CreatedBy")
+  aiProviders      AIProvider[] @relation("CreatedAIProviders")
+
+  @@map("users")
+}
+
+model AIProvider {
+  id          String   @id @default(cuid())
+  name        String
+  apiKey      String
+  baseUrl     String?
+  model       String
+  isGlobal    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // 关联关系
+  creator User? @relation("CreatedAIProviders", fields: [createdBy], references: [id])
+
+  @@map("ai_providers")
+}
+
 model Question {
   id             String   @id @default(cuid())
   content        String
@@ -24,9 +61,12 @@ model Question {
   difficulty     Int      @default(1)
   status         String   @default("DRAFT")
   knowledgePoint String?
+  createdBy      String?  @map("created_by")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  // 关联关系
+  creator       User?          @relation("CreatedBy", fields: [createdBy], references: [id])
   examQuestions ExamQuestion[]
 
   @@map("questions")
@@ -42,9 +82,12 @@ model Exam {
   accountModes String  @default("[\"TEMPORARY_IMPORT\"]") @map("account_modes") // JSON array of enabled modes
   startTime   DateTime?
   endTime     DateTime?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?   @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  // 关联关系
+  creator       User?          @relation("CreatedBy", fields: [createdBy], references: [id])
   examQuestions ExamQuestion[]
   submissions   Submission[]
   examStudents  ExamStudent[]

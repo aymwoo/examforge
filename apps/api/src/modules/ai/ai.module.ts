@@ -4,6 +4,7 @@ import { AIController } from './ai.controller';
 import { AIService } from './ai.service';
 import { memoryStorage } from 'multer';
 import { SettingsModule } from '../settings/settings.module';
+import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { SettingsModule } from '../settings/settings.module';
       storage: memoryStorage(),
     }),
     SettingsModule,
+    PrismaModule,
   ],
   controllers: [AIController],
   providers: [AIService],

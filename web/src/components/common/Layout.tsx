@@ -4,6 +4,7 @@ import {
   FileText,
   Upload,
   Settings as SettingsIcon,
+  Users,
 } from "lucide-react";
 
 export default function Layout() {
@@ -44,6 +45,13 @@ export default function Layout() {
               >
                 <SettingsIcon className="h-4 w-4" />
                 设置
+              </Link>
+              <Link
+                to="/users"
+                className="flex items-center gap-2 hover:text-primary"
+              >
+                <Users className="h-4 w-4" />
+                用户管理
               </Link>
             </div>
           </div>

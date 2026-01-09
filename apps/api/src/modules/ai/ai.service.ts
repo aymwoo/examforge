@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export interface AIQuestion {
   content: string;
@@ -25,7 +26,10 @@ export interface AIGradingResult {
 
 @Injectable()
 export class AIService {
-  constructor(private readonly settingsService: SettingsService) {}
+  constructor(
+    private readonly settingsService: SettingsService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   private buildApiUrl(baseUrl: string): string {
     const defaultUrl = 'https://api.openai.com/v1/chat/completions';
@@ -459,26 +463,49 @@ export class AIService {
     }
   }
 
-  async gradeSubjectiveAnswer(prompt: string): Promise<AIGradingResult> {
-    const settings = await this.settingsService.getSettings();
+  async gradeSubjectiveAnswer(prompt: string, providerId?: string): Promise<AIGradingResult> {
+    let provider;
+    
+    if (providerId) {
+      // 使用指定的Provider
+      provider = await this.prisma.aIProvider.findUnique({
+        where: { id: providerId, isActive: true },
+      });
+    } else {
+      // 使用全局Provider
+      provider = await this.prisma.aIProvider.findFirst({
+        where: { isGlobal: true, isActive: true },
+      });
+    }
 
-    if (!settings.aiApiKey) {
-      throw new BadRequestException('AI API Key not configured');
+    if (!provider) {
+      // 降级到系统设置
+      const settings = await this.settingsService.getSettings();
+      if (!settings.aiApiKey) {
+        throw new BadRequestException('AI Provider未配置');
+      }
+      
+      provider = {
+        apiKey: settings.aiApiKey,
+        baseUrl: settings.aiBaseUrl,
+        model: settings.aiModel || 'gpt-3.5-turbo',
+      };
     }
 
     console.log('=== 发送AI评分请求 ===');
+    console.log('使用Provider:', provider.name || 'System Settings');
     console.log('提示词:', prompt);
 
     try {
-      const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
+      const apiUrl = this.buildApiUrl(provider.baseUrl);
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${settings.aiApiKey}`,
+          'Authorization': `Bearer ${provider.apiKey}`,
         },
         body: JSON.stringify({
-          model: settings.aiModel || 'gpt-3.5-turbo',
+          model: provider.model,
           messages: [
             {
               role: 'user',
