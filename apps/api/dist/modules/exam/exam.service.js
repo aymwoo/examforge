@@ -810,21 +810,30 @@ ${studentAnswer}
             answers: JSON.parse(submission.answers),
             score: submission.score,
             isAutoGraded: submission.isAutoGraded,
+            isReviewed: submission.isReviewed,
+            reviewedBy: submission.reviewedBy,
+            reviewedAt: submission.reviewedAt,
             gradingDetails: submission.gradingDetails ? JSON.parse(submission.gradingDetails) : null,
             submittedAt: submission.submittedAt,
         }));
     }
-    async gradeSubmission(submissionId, scores, totalScore, feedback) {
+    async gradeSubmission(submissionId, scores, totalScore, reviewerId, feedback) {
         const submission = await this.prisma.submission.update({
             where: { id: submissionId },
             data: {
                 score: totalScore,
                 isAutoGraded: false,
+                isReviewed: true,
+                reviewedBy: reviewerId,
+                reviewedAt: new Date(),
             },
         });
         return {
             id: submission.id,
             score: submission.score,
+            isReviewed: submission.isReviewed,
+            reviewedBy: submission.reviewedBy,
+            reviewedAt: submission.reviewedAt,
             gradedAt: new Date(),
         };
     }

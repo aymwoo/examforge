@@ -293,6 +293,7 @@ export class ExamController {
       properties: {
         scores: { type: 'object', description: 'Scores for each question' },
         totalScore: { type: 'number', description: 'Total score' },
+        reviewerId: { type: 'string', description: 'Reviewer ID' },
         feedback: { type: 'string', description: 'Overall feedback' },
       },
       required: ['scores', 'totalScore'],
@@ -302,9 +303,9 @@ export class ExamController {
   gradeSubmission(
     @Param('id') examId: string,
     @Param('submissionId') submissionId: string,
-    @Body() body: { scores: Record<string, number>; totalScore: number; feedback?: string },
+    @Body() body: { scores: Record<string, number>; totalScore: number; reviewerId?: string; feedback?: string },
   ) {
-    return this.examService.gradeSubmission(submissionId, body.scores, body.totalScore, body.feedback);
+    return this.examService.gradeSubmission(submissionId, body.scores, body.totalScore, body.reviewerId, body.feedback);
   }
 
   @Post(':id/submissions/:submissionId/ai-grade')

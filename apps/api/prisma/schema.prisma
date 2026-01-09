@@ -75,6 +75,9 @@ model Submission {
   answers       String
   score         Float?
   isAutoGraded  Boolean  @default(false)
+  isReviewed    Boolean  @default(false) // 教师是否已复核
+  reviewedBy    String?  @map("reviewed_by") // 复核教师ID
+  reviewedAt    DateTime? @map("reviewed_at") // 复核时间
   gradingDetails String? @map("grading_details") // JSON格式存储详细评分信息
   submittedAt   DateTime @default(now()) @map("submitted_at")
 

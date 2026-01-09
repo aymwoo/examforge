@@ -940,17 +940,23 @@ ${studentAnswer}
       answers: JSON.parse(submission.answers),
       score: submission.score,
       isAutoGraded: submission.isAutoGraded,
+      isReviewed: submission.isReviewed,
+      reviewedBy: submission.reviewedBy,
+      reviewedAt: submission.reviewedAt,
       gradingDetails: submission.gradingDetails ? JSON.parse(submission.gradingDetails) : null,
       submittedAt: submission.submittedAt,
     }));
   }
 
-  async gradeSubmission(submissionId: string, scores: Record<string, number>, totalScore: number, feedback?: string) {
+  async gradeSubmission(submissionId: string, scores: Record<string, number>, totalScore: number, reviewerId?: string, feedback?: string) {
     const submission = await this.prisma.submission.update({
       where: { id: submissionId },
       data: {
         score: totalScore,
         isAutoGraded: false, // 手动评分
+        isReviewed: true, // 标记为已复核
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
         // 可以添加详细评分信息字段
       },
     });
@@ -958,6 +964,9 @@ ${studentAnswer}
     return {
       id: submission.id,
       score: submission.score,
+      isReviewed: submission.isReviewed,
+      reviewedBy: submission.reviewedBy,
+      reviewedAt: submission.reviewedAt,
       gradedAt: new Date(),
     };
   }

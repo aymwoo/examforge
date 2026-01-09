@@ -17,6 +17,9 @@ interface Submission {
   answers: Record<string, any>;
   score?: number;
   isAutoGraded: boolean;
+  isReviewed: boolean;
+  reviewedBy?: string;
+  reviewedAt?: string;
   gradingDetails?: any; // AI预评分详情
   submittedAt: string;
 }
@@ -166,9 +169,10 @@ export default function ExamGradingPage() {
       await api.post(`/api/exams/${examId}/submissions/${selectedSubmission.id}/grade`, {
         scores: manualScores,
         totalScore,
+        reviewerId: 'teacher', // 临时使用固定值，实际应该从用户上下文获取
       });
       
-      alert('评分保存成功！');
+      alert('评分复核完成！');
       await loadExamAndSubmissions();
       setSelectedSubmission(null);
     } catch (err: any) {
@@ -205,6 +209,14 @@ export default function ExamGradingPage() {
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* 调试信息 */}
+        {console.log('Rendering main content, exam:', exam, 'submissions:', submissions)}
+        
+        {/* 测试可见性 */}
+        <div className="bg-red-500 text-white p-4 mb-4">
+          调试: 页面正在渲染 - 考试: {exam?.title} - 提交数: {submissions.length}
+        </div>
+        
         {/* 头部 */}
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -215,6 +227,8 @@ export default function ExamGradingPage() {
             <div>
               <h1 className="text-2xl font-bold text-ink-900">{exam?.title} - 评分</h1>
               <p className="text-ink-600">共 {submissions.length} 份提交</p>
+              {/* 调试信息 */}
+              <p className="text-red-500 text-sm">调试: 提交数量 = {submissions.length}</p>
             </div>
           </div>
         </div>
@@ -225,16 +239,22 @@ export default function ExamGradingPage() {
             <div className="rounded-2xl border border-border bg-white p-4">
               <h3 className="font-semibold text-ink-900 mb-4">学生提交</h3>
               <div className="space-y-2">
-                {submissions.map((submission) => (
-                  <button
-                    key={submission.id}
-                    onClick={() => handleSubmissionSelect(submission)}
-                    className={`w-full text-left p-3 rounded-xl border transition-colors ${
-                      selectedSubmission?.id === submission.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-border bg-white hover:border-blue-300'
-                    }`}
-                  >
+                {console.log('About to render submissions:', submissions)}
+                {submissions.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">暂无提交记录</p>
+                ) : (
+                  submissions.map((submission) => {
+                    console.log('Rendering submission:', submission);
+                    return (
+                      <button
+                        key={submission.id}
+                        onClick={() => handleSubmissionSelect(submission)}
+                        className={`w-full text-left p-3 rounded-xl border transition-colors ${
+                          selectedSubmission?.id === submission.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-border bg-white hover:border-blue-300'
+                        }`}
+                      >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-ink-600" />
@@ -268,15 +288,31 @@ export default function ExamGradingPage() {
                             需复审
                           </span>
                         )}
+                        {submission.isReviewed ? (
+                          <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                            已复核
+                          </span>
+                        ) : submission.isAutoGraded && (
+                          <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
+                            待复核
+                          </span>
+                        )}
                       </div>
                     )}
                     {submission.score !== null && (
                       <div className="mt-1 text-sm font-semibold text-green-600">
                         最终得分: {submission.score}/{exam?.totalScore}
+                        {submission.isReviewed && submission.reviewedAt && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            复核时间: {new Date(submission.reviewedAt).toLocaleString()}
+                          </div>
+                        )}
                       </div>
                     )}
                   </button>
-                ))}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
@@ -307,7 +343,7 @@ export default function ExamGradingPage() {
                   </div>
                 </div>
 
-                {Object.keys(aiSuggestions).length > 0 && (
+                {Object.keys(aiSuggestions).length > 0 ? (
                   <div className="space-y-6">
                     {/* 考试概览 */}
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
@@ -535,14 +571,44 @@ export default function ExamGradingPage() {
                             <div className="text-lg font-semibold text-yellow-800">
                               教师最终评分: {Object.values(manualScores).reduce((sum, score) => sum + score, 0)} / {exam?.totalScore}
                             </div>
-                            <Button onClick={handleSaveGrading} className="flex items-center gap-2">
-                              <Save className="h-4 w-4" />
-                              {selectedSubmission.score !== null ? '更新评分' : '确认评分'}
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              {selectedSubmission.isReviewed && (
+                                <span className="text-sm text-green-600 bg-green-100 px-2 py-1 rounded">
+                                  已复核
+                                </span>
+                              )}
+                              <Button onClick={handleSaveGrading} className="flex items-center gap-2">
+                                <Save className="h-4 w-4" />
+                                {selectedSubmission.isReviewed ? '重新复核' : 
+                                 selectedSubmission.score !== null ? '复核评分' : '确认评分'}
+                              </Button>
+                            </div>
                           </div>
+                          {selectedSubmission.isAutoGraded && !selectedSubmission.isReviewed && (
+                            <div className="mt-2 text-sm text-orange-600 bg-orange-50 p-2 rounded">
+                              ⚠️ 此提交包含AI评分，需要教师复核确认
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <div className="text-gray-500 mb-4">
+                      <Bot className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                      <p>暂无评分数据</p>
+                      <p className="text-sm">请等待系统加载评分信息，或检查提交是否包含有效答案</p>
+                    </div>
+                    {!gradingLoading && (
+                      <Button 
+                        onClick={() => loadAISuggestions(selectedSubmission)}
+                        className="flex items-center gap-2 mx-auto"
+                      >
+                        <Bot className="h-4 w-4" />
+                        重新加载评分
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>

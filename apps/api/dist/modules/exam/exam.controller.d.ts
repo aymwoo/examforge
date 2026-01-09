@@ -15,17 +15,17 @@ export declare class ExamController {
         image: string;
     }): Promise<import("../ai/ai.service").GenerateExamQuestionsResponse>;
     create(dto: CreateExamDto): Promise<{
-        id: string;
-        title: string;
         description: string | null;
+        title: string;
+        status: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
         duration: number;
         totalScore: number;
-        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     findAll(paginationDto: PaginationDto): Promise<{
         data: any[];
@@ -38,25 +38,25 @@ export declare class ExamController {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        id: string;
-        title: string;
         description: string | null;
+        title: string;
+        status: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
         duration: number;
         totalScore: number;
-        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
+        score: number;
         order: number;
         examId: string;
         questionId: string;
-        score: number;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
     updateQuestionOrder(examId: string, questionId: string, body: {
@@ -64,10 +64,10 @@ export declare class ExamController {
         score?: number;
     }): Promise<{
         id: string;
+        score: number;
         order: number;
         examId: string;
         questionId: string;
-        score: number;
     }>;
     addStudent(examId: string, dto: CreateExamStudentDto): Promise<{
         id: string;
@@ -165,16 +165,23 @@ export declare class ExamController {
         answers: any;
         score: number;
         isAutoGraded: boolean;
+        isReviewed: boolean;
+        reviewedBy: string;
+        reviewedAt: Date;
         gradingDetails: any;
         submittedAt: Date;
     }[]>;
     gradeSubmission(examId: string, submissionId: string, body: {
         scores: Record<string, number>;
         totalScore: number;
+        reviewerId?: string;
         feedback?: string;
     }): Promise<{
         id: string;
         score: number;
+        isReviewed: boolean;
+        reviewedBy: string;
+        reviewedAt: Date;
         gradedAt: Date;
     }>;
     getAIGradingSuggestions(examId: string, submissionId: string): Promise<{

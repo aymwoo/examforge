@@ -99,7 +99,7 @@ let ExamController = class ExamController {
         return this.examService.getExamSubmissions(examId);
     }
     gradeSubmission(examId, submissionId, body) {
-        return this.examService.gradeSubmission(submissionId, body.scores, body.totalScore, body.feedback);
+        return this.examService.gradeSubmission(submissionId, body.scores, body.totalScore, body.reviewerId, body.feedback);
     }
     getAIGradingSuggestions(examId, submissionId) {
         return this.examService.getAIGradingSuggestions(examId, submissionId);
@@ -387,6 +387,7 @@ __decorate([
             properties: {
                 scores: { type: 'object', description: 'Scores for each question' },
                 totalScore: { type: 'number', description: 'Total score' },
+                reviewerId: { type: 'string', description: 'Reviewer ID' },
                 feedback: { type: 'string', description: 'Overall feedback' },
             },
             required: ['scores', 'totalScore'],

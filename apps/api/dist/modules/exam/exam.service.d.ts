@@ -11,17 +11,17 @@ export declare class ExamService {
     private readonly aiService;
     constructor(prisma: PrismaService, aiService: AIService);
     create(dto: CreateExamDto): Promise<{
-        id: string;
-        title: string;
         description: string | null;
+        title: string;
+        status: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
         duration: number;
         totalScore: number;
-        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     findAll(paginationDto: PaginationDto): Promise<{
         data: any[];
@@ -34,33 +34,33 @@ export declare class ExamService {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        id: string;
-        title: string;
         description: string | null;
+        title: string;
+        status: string;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
         duration: number;
         totalScore: number;
-        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
-        createdAt: Date;
-        updatedAt: Date;
     }>;
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
+        score: number;
         order: number;
         examId: string;
         questionId: string;
-        score: number;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
     updateQuestionOrder(examId: string, questionId: string, order: number, score?: number): Promise<{
         id: string;
+        score: number;
         order: number;
         examId: string;
         questionId: string;
-        score: number;
     }>;
     private transformExam;
     addStudent(examId: string, dto: CreateExamStudentDto): Promise<{
@@ -163,12 +163,18 @@ export declare class ExamService {
         answers: any;
         score: number;
         isAutoGraded: boolean;
+        isReviewed: boolean;
+        reviewedBy: string;
+        reviewedAt: Date;
         gradingDetails: any;
         submittedAt: Date;
     }[]>;
-    gradeSubmission(submissionId: string, scores: Record<string, number>, totalScore: number, feedback?: string): Promise<{
+    gradeSubmission(submissionId: string, scores: Record<string, number>, totalScore: number, reviewerId?: string, feedback?: string): Promise<{
         id: string;
         score: number;
+        isReviewed: boolean;
+        reviewedBy: string;
+        reviewedAt: Date;
         gradedAt: Date;
     }>;
     getAIGradingSuggestions(examId: string, submissionId: string): Promise<{
