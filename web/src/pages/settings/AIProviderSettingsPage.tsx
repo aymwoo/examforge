@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Settings, Plus, Edit, Trash2, Globe, User, Lock } from "lucide-react";
+import { Settings, Plus, Edit, Trash2, Globe, User, Lock, Zap } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import api from "@/services/api";
 import { getCurrentUser } from "@/utils/auth";
+import { testAIConnection } from "@/services/settings";
 
 interface AIProvider {
   id: string;
@@ -27,6 +28,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingProvider, setEditingProvider] = useState<AIProvider | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     apiKey: '',
@@ -100,6 +103,42 @@ export default function SettingsPage() {
       isGlobal: false,
       isActive: true,
     });
+    setTestResult(null);
+  };
+
+  const handleTestAIConnection = async () => {
+    alert('按钮被点击了！');
+    console.log('测试连接按钮被点击');
+    
+    // 获取当前输入框的实际值
+    const apiKeyInput = document.querySelector('input[type="password"]') as HTMLInputElement;
+    const currentApiKey = apiKeyInput?.value || '';
+    
+    console.log('当前 API Key:', currentApiKey);
+    
+    if (!currentApiKey.trim()) {
+      console.log('API Key 为空，显示提示');
+      setTestResult("请先输入 API Key");
+      return;
+    }
+
+    console.log('开始测试连接');
+    setTestLoading(true);
+    setTestResult(null);
+    
+    try {
+      const result = await testAIConnection(
+        "Hello, please respond with just 'Connection successful!'"
+      );
+      console.log('测试成功:', result);
+      setTestResult(`✅ AI 连接测试成功！AI响应: ${result.response}`);
+    } catch (err: any) {
+      console.error('测试失败:', err);
+      const errorMessage = err.response?.data?.message || err.message || "连接测试失败";
+      setTestResult(`❌ ${errorMessage}`);
+    } finally {
+      setTestLoading(false);
+    }
   };
 
   const handleEdit = (provider: AIProvider) => {
@@ -215,7 +254,9 @@ export default function SettingsPage() {
                           <div className="flex items-center gap-2">
                             <h3 className="text-lg font-bold text-gray-900">{provider.name}</h3>
                             {provider.isGlobal && !canEditProvider(provider) && (
-                              <Lock className="h-4 w-4 text-gray-500" title="系统默认，不可修改" />
+                              <div title="系统默认，不可修改">
+                                <Lock className="h-4 w-4 text-gray-500" />
+                              </div>
                             )}
                           </div>
                           <p className="text-sm text-gray-600">
@@ -305,14 +346,56 @@ export default function SettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 API Key
               </label>
-              <input
-                type="password"
-                required
-                value={formData.apiKey}
-                onChange={(e) => setFormData(prev => ({ ...prev, apiKey: e.target.value }))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                placeholder="sk-..."
-              />
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  required
+                  value={formData.apiKey}
+                  onChange={(e) => setFormData(prev => ({ ...prev, apiKey: e.target.value }))}
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  placeholder="sk-..."
+                />
+                <button
+                  type="button"
+                  onClick={handleTestAIConnection}
+                  disabled={testLoading}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#DBEAFE',
+                    color: '#1E40AF',
+                    border: '1px solid #93C5FD',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!testLoading) {
+                      e.currentTarget.style.backgroundColor = '#BFDBFE';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!testLoading) {
+                      e.currentTarget.style.backgroundColor = '#DBEAFE';
+                    }
+                  }}
+                >
+                  <Zap className="h-4 w-4" />
+                  {testLoading ? '测试中...' : '测试连接'}
+                </button>
+              </div>
+              {testResult && (
+                <div className={`mt-2 p-2 rounded text-sm ${
+                  testResult.startsWith('✅') 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
+                    : 'bg-red-50 text-red-700 border border-red-200'
+                }`}>
+                  {testResult}
+                </div>
+              )}
             </div>
 
             <div>
