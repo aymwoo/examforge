@@ -8,7 +8,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { AIModule } from './modules/ai/ai.module';
 import { SubmissionModule } from './modules/submission/submission.module';
 import { DebugModule } from './modules/debug/debug.module';
-import { AuthModule as ExamAuthModule } from './modules/auth/exam-auth.module';
+import { ExamAuthModule } from './modules/auth/exam-auth.module';
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AIProviderModule } from './modules/ai-provider/ai-provider.module';

@@ -17,6 +17,7 @@ interface User {
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
@@ -45,10 +46,16 @@ export default function UsersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     try {
       if (editingUser) {
-        await api.patch(`/api/users/${editingUser.id}`, formData);
+        // For updates, don't send password if it's empty
+        const updateData = { ...formData };
+        if (!updateData.password) {
+          delete updateData.password;
+        }
+        await api.patch(`/api/users/${editingUser.id}`, updateData);
       } else {
         await api.post('/api/users', formData);
       }
@@ -65,7 +72,8 @@ export default function UsersPage() {
       });
       loadUsers();
     } catch (error: any) {
-      alert('操作失败: ' + (error.response?.data?.message || error.message));
+      const errorMessage = error.response?.data?.message || error.message || '操作失败';
+      setError(errorMessage);
     }
   };
 
@@ -85,11 +93,13 @@ export default function UsersPage() {
   const handleDelete = async (user: User) => {
     if (!confirm(`确定要删除用户 "${user.name}" 吗？`)) return;
     
+    setError(null);
     try {
       await api.delete(`/api/users/${user.id}`);
       loadUsers();
     } catch (error: any) {
-      alert('删除失败: ' + (error.response?.data?.message || error.message));
+      const errorMessage = error.response?.data?.message || error.message || '删除失败';
+      setError(errorMessage);
     }
   };
 
@@ -126,6 +136,19 @@ export default function UsersPage() {
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* 错误提示 */}
+        {error && (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4">
+            <p className="text-red-800">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="mt-2 text-sm text-red-600 hover:text-red-800"
+            >
+              关闭
+            </button>
+          </div>
+        )}
+
         {/* 页面标题 */}
         <div className="mb-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -231,9 +254,17 @@ export default function UsersPage() {
         {/* 用户表单模态框 */}
         <Modal
           isOpen={showModal}
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            setShowModal(false);
+            setError(null);
+          }}
           title={editingUser ? '编辑用户' : '添加用户'}
         >
+          {error && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -32,8 +32,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      window.location.href = "/auth";
+      // Don't redirect to /auth if we're on an exam login page
+      const currentPath = window.location.pathname;
+      if (!currentPath.includes('/exam/') || !currentPath.includes('/login')) {
+        localStorage.removeItem("token");
+        window.location.href = "/auth";
+      }
     }
     return Promise.reject(error);
   },

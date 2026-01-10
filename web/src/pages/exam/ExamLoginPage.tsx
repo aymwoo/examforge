@@ -104,41 +104,23 @@ export default function ExamLoginPage() {
     setError(null);
     
     try {
-      // 先尝试登录（检查是否已注册）
-      const username = `${exam?.title.substring(0, 2)}_${registerForm.studentName}`;
+      // 直接尝试注册/登录（后端会自动处理已存在账号的情况）
+      const response = await api.post('/api/auth/exam-register', {
+        examId,
+        studentName: registerForm.studentName,
+        password: registerForm.password,
+      });
+
+      // 保存token
+      localStorage.setItem('examToken', response.data.token);
+      localStorage.setItem('examStudent', JSON.stringify(response.data.student));
       
-      try {
-        const loginResponse = await api.post('/api/auth/exam-login', {
-          examId,
-          username,
-          password: registerForm.password,
-        });
-
-        // 登录成功，直接进入考试
-        localStorage.setItem('examToken', loginResponse.data.token);
-        localStorage.setItem('examStudent', JSON.stringify(loginResponse.data.student));
+      // 如果是新注册，显示密码提醒；如果是登录，直接进入考试
+      if (response.data.isNewAccount !== false) {
+        setRegisteredPassword(registerForm.password);
+        setShowPasswordReminder(true);
+      } else {
         navigate(`/exam/${examId}/take`);
-        return;
-      } catch (loginError: any) {
-        // 登录失败，可能是未注册或密码错误
-        if (loginError.response?.status === 401) {
-          // 尝试注册
-          const response = await api.post('/api/auth/exam-register', {
-            examId,
-            studentName: registerForm.studentName,
-            password: registerForm.password,
-          });
-
-          // 显示密码提醒
-          setRegisteredPassword(registerForm.password);
-          setShowPasswordReminder(true);
-          
-          // 保存token
-          localStorage.setItem('examToken', response.data.token);
-          localStorage.setItem('examStudent', JSON.stringify(response.data.student));
-        } else {
-          throw loginError;
-        }
       }
     } catch (err: any) {
       setError(err.response?.data?.message || '操作失败');
@@ -246,7 +228,7 @@ export default function ExamLoginPage() {
                           : 'text-ink-600 hover:text-ink-900'
                       }`}
                     >
-                      新学生注册
+                      临时账号登录
                     </button>
                   )}
                 </div>
@@ -330,8 +312,11 @@ export default function ExamLoginPage() {
                 className="w-full flex items-center justify-center gap-2"
               >
                 <UserPlus className="h-4 w-4" />
-                {submitting ? '注册中...' : '注册并开始考试'}
+                {submitting ? '登录中...' : '进入考试'}
               </Button>
+              <p className="mt-3 text-xs text-ink-600 text-center">
+                首次登录将保存账号密码为这次考试的临时记录
+              </p>
             </div>
           )}
             </>

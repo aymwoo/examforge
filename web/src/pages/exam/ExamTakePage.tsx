@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Clock, FileText, Save, Send, AlertCircle, CheckCircle } from "lucide-react";
+import { Clock, FileText, Save, Send, AlertCircle, CheckCircle, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
 import MDEditor from '@uiw/react-md-editor';
@@ -48,6 +48,7 @@ export default function ExamTakePage() {
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, message: '' });
   const [submissionResult, setSubmissionResult] = useState<any>(null);
+  const [showDetailedResults, setShowDetailedResults] = useState(false);
 
   useEffect(() => {
     // 检查是否已登录
@@ -281,18 +282,39 @@ export default function ExamTakePage() {
               <div className="bg-white rounded-lg p-4 mb-4">
                 <p className="text-sm text-gray-600">提交时间: {new Date(submissionResult.submittedAt).toLocaleString()}</p>
                 <p className="text-lg font-semibold text-green-600">得分: {submissionResult.score}分</p>
+                {exam?.questions?.some(q => q.type === 'ESSAY' || q.type === 'FILL_BLANK') && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-yellow-800">
+                        试卷中包含主观题，分数需要教师复核之后才会生效
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-            <Button onClick={() => navigate('/')} className="bg-green-600 hover:bg-green-700">
-              返回首页
-            </Button>
+            <div className="flex gap-3">
+              {submissionResult && (
+                <Button 
+                  onClick={() => setShowDetailedResults(true)} 
+                  variant="outline"
+                  className="flex-1"
+                >
+                  评分详情
+                </Button>
+              )}
+              <Button onClick={() => navigate('/')} className="bg-green-600 hover:bg-green-700 flex-1">
+                返回首页
+              </Button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  const currentQuestion = exam.examQuestions[currentQuestionIndex]?.question;
+  const currentQuestion = exam?.questions?.[currentQuestionIndex];
 
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen">
@@ -357,14 +379,14 @@ export default function ExamTakePage() {
             <div className="rounded-2xl border border-border bg-white p-4 sticky top-24">
               <h3 className="font-semibold text-ink-900 mb-4">题目导航</h3>
               <div className="grid grid-cols-5 gap-2">
-                {exam.examQuestions.map((examQuestion, index) => (
+                {exam.questions?.map((question, index) => (
                   <button
-                    key={examQuestion.question.id}
+                    key={question.id}
                     onClick={() => setCurrentQuestionIndex(index)}
                     className={`w-8 h-8 rounded text-xs font-semibold transition-colors ${
                       index === currentQuestionIndex
                         ? 'bg-blue-500 text-white'
-                        : answers[examQuestion.question.id] !== undefined
+                        : answers[question.id] !== undefined
                         ? 'bg-green-100 text-green-700 border border-green-300'
                         : 'bg-gray-100 text-gray-600 border border-gray-300'
                     }`}
@@ -497,7 +519,7 @@ export default function ExamTakePage() {
                     {autoSaving ? '保存中...' : '保存答案'}
                   </Button>
 
-                  {currentQuestionIndex === exam.examQuestions.length - 1 ? (
+                  {currentQuestionIndex === (exam.questions?.length || 0) - 1 ? (
                     <Button
                       onClick={handleSubmitExam}
                       disabled={isSubmitting}
@@ -508,7 +530,7 @@ export default function ExamTakePage() {
                     </Button>
                   ) : (
                     <Button
-                      onClick={() => setCurrentQuestionIndex(prev => Math.min(exam.examQuestions.length - 1, prev + 1))}
+                      onClick={() => setCurrentQuestionIndex(prev => Math.min((exam.questions?.length || 0) - 1, prev + 1))}
                     >
                       下一题
                     </Button>
@@ -605,6 +627,96 @@ export default function ExamTakePage() {
                 <p className="text-sm text-gray-600 mt-2">
                   {progress.total > 0 ? `${progress.current}/${progress.total}` : '0/0'} - {progress.message}
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 评分详情Modal */}
+      {showDetailedResults && submissionResult && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-ink-900">评分详情</h2>
+                <button
+                  onClick={() => setShowDetailedResults(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="mt-4 flex items-center gap-4">
+                <div className="text-sm text-gray-600">
+                  总分: <span className="font-semibold text-lg text-green-600">{submissionResult.score}分</span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  提交时间: {new Date(submissionResult.submittedAt).toLocaleString()}
+                </div>
+              </div>
+            </div>
+            
+            <div className="overflow-y-auto max-h-[calc(90vh-120px)] p-6">
+              <div className="space-y-6">
+                {submissionResult.answers?.map((answer: any, index: number) => {
+                  const question = exam?.questions?.find(q => q.id === answer.questionId);
+                  return (
+                    <div key={answer.questionId} className="border border-gray-200 rounded-xl p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="font-semibold text-ink-900">题目 {index + 1}</h3>
+                        <div className="text-right">
+                          <div className="text-sm text-gray-600">得分</div>
+                          <div className="font-semibold text-lg">
+                            <span className={answer.score > 0 ? 'text-green-600' : 'text-red-600'}>
+                              {answer.score}
+                            </span>
+                            <span className="text-gray-400">/{answer.maxScore}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-3">
+                        <div className="text-sm font-medium text-gray-700 mb-1">题目内容:</div>
+                        <div className="text-ink-900">{question?.content}</div>
+                      </div>
+                      
+                      <div className="mb-3">
+                        <div className="text-sm font-medium text-gray-700 mb-1">您的答案:</div>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          {answer.answer || '未作答'}
+                        </div>
+                      </div>
+                      
+                      {question?.answer && (
+                        <div className="mb-3">
+                          <div className="text-sm font-medium text-gray-700 mb-1">参考答案:</div>
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                            {question.answer}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {answer.feedback && (
+                        <div className="mb-3">
+                          <div className="text-sm font-medium text-gray-700 mb-1">评分说明:</div>
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
+                            {answer.feedback}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {question?.explanation && (
+                        <div>
+                          <div className="text-sm font-medium text-gray-700 mb-1">题目解析:</div>
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+                            {question.explanation}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

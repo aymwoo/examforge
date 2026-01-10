@@ -102,30 +102,37 @@ export class UserService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    const user = await this.findOne(id);
+    try {
+      const user = await this.findOne(id);
 
-    // 如果更新密码，需要加密
-    const updateData: any = { ...updateUserDto };
-    if (updateUserDto.password) {
-      updateData.password = await bcrypt.hash(updateUserDto.password, 10);
+      // 如果更新密码，需要加密
+      const updateData: any = { ...updateUserDto };
+      if (updateUserDto.password) {
+        updateData.password = await bcrypt.hash(updateUserDto.password, 10);
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id },
+        data: updateData,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      return updatedUser;
+    } catch (error) {
+      if (error.code === 'P2002') {
+        throw new ConflictException('用户名或邮箱已存在');
+      }
+      throw error;
     }
-
-    const updatedUser = await this.prisma.user.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        name: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-
-    return updatedUser;
   }
 
   async remove(id: string) {

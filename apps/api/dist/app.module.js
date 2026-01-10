@@ -38,7 +38,7 @@ exports.AppModule = AppModule = __decorate([
             ai_module_1.AIModule,
             submission_module_1.SubmissionModule,
             debug_module_1.DebugModule,
-            exam_auth_module_1.AuthModule,
+            exam_auth_module_1.ExamAuthModule,
             user_module_1.UserModule,
             auth_module_1.AuthModule,
             ai_provider_module_1.AIProviderModule,

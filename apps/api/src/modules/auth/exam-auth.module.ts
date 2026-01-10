@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { UserModule } from '../user/user.module';
+import { ExamAuthService } from './exam-auth.service';
+import { ExamAuthController } from './exam-auth.controller';
+import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
   imports: [
-    UserModule,
+    PrismaModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'your-secret-key',
       signOptions: { expiresIn: '24h' },
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService],
-  exports: [AuthService],
+  controllers: [ExamAuthController],
+  providers: [ExamAuthService],
+  exports: [ExamAuthService],
 })
-export class AuthModule {}
+export class ExamAuthModule {}

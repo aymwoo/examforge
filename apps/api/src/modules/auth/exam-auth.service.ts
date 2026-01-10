@@ -104,7 +104,40 @@ export class ExamAuthService {
     });
 
     if (existing) {
-      throw new BadRequestException('Student name already registered for this exam');
+      // 如果账号已存在，验证密码并登录
+      const isPasswordValid = await bcrypt.compare(dto.password, existing.password);
+      if (!isPasswordValid) {
+        throw new BadRequestException('密码错误');
+      }
+
+      // 密码正确，生成token并返回
+      const payload = { 
+        sub: existing.id, 
+        username: existing.username,
+        examId: existing.examId,
+        type: 'exam-student'
+      };
+      const token = this.jwtService.sign(payload);
+
+      return {
+        token,
+        student: {
+          id: existing.id,
+          username: existing.username,
+          displayName: existing.displayName,
+          examId: existing.examId,
+        },
+        exam: {
+          id: exam.id,
+          title: exam.title,
+          description: exam.description,
+          duration: exam.duration,
+          totalScore: exam.totalScore,
+          startTime: exam.startTime,
+          endTime: exam.endTime,
+        },
+        isNewAccount: false, // 标识这是已存在账号的登录
+      };
     }
 
     // 创建临时学生账号
@@ -146,6 +179,7 @@ export class ExamAuthService {
         startTime: exam.startTime,
         endTime: exam.endTime,
       },
+      isNewAccount: true,
     };
   }
 
