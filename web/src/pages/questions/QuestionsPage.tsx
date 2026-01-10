@@ -172,9 +172,22 @@ export default function QuestionsPage() {
 
     setClearing(true);
     try {
-      // Get all question IDs and delete them
-      const allQuestions = await listQuestions({ page: 1, limit: 10000 });
-      await deleteQuestions(allQuestions.data.map((q: any) => q.id));
+      // Get all question IDs in batches and delete them
+      let page = 1;
+      let hasMore = true;
+      const allIds: string[] = [];
+      
+      while (hasMore) {
+        const batch = await listQuestions({ page, limit: 100 });
+        allIds.push(...batch.data.map((q: any) => q.id));
+        hasMore = batch.data.length === 100;
+        page++;
+      }
+      
+      if (allIds.length > 0) {
+        await deleteQuestions(allIds);
+      }
+      
       loadQuestions(1);
       setSelectedIds(new Set());
     } catch (err: unknown) {

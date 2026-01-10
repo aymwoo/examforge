@@ -37,6 +37,7 @@ class CreateQuestionDto {
     options;
     answer;
     explanation;
+    illustration;
     tags;
     difficulty;
     knowledgePoint;
@@ -75,6 +76,12 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateQuestionDto.prototype, "explanation", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: 'Question illustration (image URL or base64)' }),
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateQuestionDto.prototype, "illustration", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ type: [String], required: false, description: 'Question tags' }),
     (0, class_validator_1.IsArray)(),

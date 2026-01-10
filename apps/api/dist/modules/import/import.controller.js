@@ -43,13 +43,13 @@ let ImportController = class ImportController {
         }
         return this.importService.importFromExcel(file.buffer);
     }
-    async importPdf(file, mode, req) {
+    async importPdf(file, mode, prompt, req) {
         if (!file) {
             throw new common_1.BadRequestException('File is required');
         }
         const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         this.progressStore.createJob(jobId);
-        void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id);
+        void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id, prompt);
         return { jobId };
     }
     async pdfImportProgress(res, jobId, since) {
@@ -177,11 +177,18 @@ __decorate([
             fileSize: 10 * 1024 * 1024,
         },
     })),
+    (0, swagger_1.ApiQuery)({
+        name: 'prompt',
+        required: false,
+        description: 'Custom AI prompt template for this import',
+        schema: { type: 'string' },
+    }),
     __param(0, (0, common_1.UploadedFile)()),
     __param(1, (0, common_1.Query)('mode')),
-    __param(2, (0, common_1.Req)()),
+    __param(2, (0, common_1.Query)('prompt')),
+    __param(3, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String, Object]),
+    __metadata("design:paramtypes", [Object, String, String, Object]),
     __metadata("design:returntype", Promise)
 ], ImportController.prototype, "importPdf", null);
 __decorate([

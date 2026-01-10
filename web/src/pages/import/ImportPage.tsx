@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import axios from "axios";
+import api from "@/services/api";
 import {
   getProviders,
   getSettings,
@@ -30,7 +31,7 @@ export default function ImportPage() {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
-  const [pdfMode, setPdfMode] = useState<"vision" | "file" | "text">("vision");
+  const [pdfMode, setPdfMode] = useState<"vision" | "text">("vision");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{
     success: number;
@@ -43,6 +44,8 @@ export default function ImportPage() {
   const [providerOptions, setProviderOptions] = useState<AIModelConfig[]>([]);
   const [pdfEvents, setPdfEvents] = useState<any[]>([]);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [tempPrompt, setTempPrompt] = useState<string>("");
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -211,6 +214,9 @@ export default function ImportPage() {
           "";
         setAiProvider(preferredId);
         setProviderOptions(providersData);
+        
+        // Load default prompt template
+        setTempPrompt(settingsData.promptTemplate || "");
       } catch {
         // ignore settings load errors on import page
       }
@@ -265,8 +271,14 @@ export default function ImportPage() {
     formData.append("file", selectedPdf);
 
     try {
-      const response = await axios.post(
-        `/api/import/pdf?mode=${pdfMode}`,
+      const params = new URLSearchParams();
+      params.append('mode', pdfMode);
+      if (tempPrompt.trim()) {
+        params.append('prompt', tempPrompt.trim());
+      }
+      
+      const response = await api.post(
+        `/api/import/pdf?${params.toString()}`,
         formData,
       );
       setPdfJobId(response.data.jobId);
@@ -578,8 +590,43 @@ export default function ImportPage() {
                   >
                     <option value="vision">图片识别（推荐）</option>
                     <option value="text">文本解析（可复制 PDF）</option>
-                    <option value="file">直接发送 PDF（若模型支持）</option>
                   </select>
+                </div>
+
+                {/* Prompt Editor */}
+                <div className="mt-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold text-ink-900">
+                      AI 提示词
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPromptEditor(!showPromptEditor)}
+                      className="text-xs text-accent-600 hover:text-accent-700"
+                    >
+                      {showPromptEditor ? "收起" : "展开编辑"}
+                    </button>
+                  </div>
+                  
+                  {showPromptEditor && (
+                    <div className="mt-2">
+                      <textarea
+                        value={tempPrompt}
+                        onChange={(e) => setTempPrompt(e.target.value)}
+                        placeholder="输入 AI 提示词..."
+                        className="w-full h-32 rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white resize-none"
+                      />
+                      <p className="mt-1 text-xs text-ink-600">
+                        此处修改仅对本次导入有效，不会保存到系统设置
+                      </p>
+                    </div>
+                  )}
+                  
+                  {!showPromptEditor && tempPrompt && (
+                    <div className="mt-1 p-2 bg-gray-50 rounded text-xs text-ink-600 line-clamp-2">
+                      {tempPrompt}
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -623,7 +670,7 @@ export default function ImportPage() {
                       </p>
                     </div>
                   )}
-                  {pdfStage === "chunked_text" && latestPdfEvent?.meta && (
+                  {pdfStage === "chunked_text" && latestPdfEvent?.meta && pdfMode === "text" && (
                     <div className="mt-4 rounded-2xl border border-border bg-slate-50 p-4">
                       <p className="text-sm font-semibold text-ink-900">
                         分块信息
@@ -657,7 +704,7 @@ export default function ImportPage() {
                     </div>
                   )}
 
-                  {pdfStage === "calling_ai" && latestPdfEvent?.meta && (
+                  {pdfStage === "calling_ai" && latestPdfEvent?.meta && pdfMode === "text" && (
                     <div className="mt-4 rounded-2xl border border-border bg-slate-50 p-4">
                       <p className="text-sm font-semibold text-ink-900">
                         当前分块

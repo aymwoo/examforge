@@ -12,6 +12,7 @@ export declare class QuestionController {
         options: string | null;
         answer: string | null;
         explanation: string | null;
+        illustration: string | null;
         tags: string;
         difficulty: number;
         knowledgePoint: string | null;

@@ -39,12 +39,12 @@ export class AIService {
 
   async generateQuestionsFromText(
     text: string,
-    opts?: { chunkIndex?: number; totalChunks?: number; userId?: string }
+    opts?: { chunkIndex?: number; totalChunks?: number; userId?: string; customPrompt?: string }
   ): Promise<GenerateExamQuestionsResponse> {
     const settings = opts?.userId 
       ? await this.settingsService.getUserSettings(opts.userId)
       : await this.settingsService.getSettings();
-    const promptTemplate = settings.promptTemplate;
+    const promptTemplate = opts?.customPrompt || settings.promptTemplate;
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(
@@ -240,12 +240,13 @@ export class AIService {
 
   async generateExamQuestionsFromImage(
     imageBase64: string,
-    userId?: string
+    userId?: string,
+    customPrompt?: string
   ): Promise<GenerateExamQuestionsResponse> {
     const settings = userId 
       ? await this.settingsService.getUserSettings(userId)
       : await this.settingsService.getSettings();
-    const promptTemplate = settings.promptTemplate;
+    const promptTemplate = customPrompt || settings.promptTemplate;
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(

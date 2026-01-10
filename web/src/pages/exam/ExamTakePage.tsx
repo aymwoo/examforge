@@ -692,7 +692,7 @@ export default function ExamTakePage() {
                         <div className="mb-3">
                           <div className="text-sm font-medium text-gray-700 mb-1">参考答案:</div>
                           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                            {question.answer}
+                            {question.answer || "无答案"}
                           </div>
                         </div>
                       )}
@@ -710,7 +710,7 @@ export default function ExamTakePage() {
                         <div>
                           <div className="text-sm font-medium text-gray-700 mb-1">题目解析:</div>
                           <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
-                            {question.explanation}
+                            {question.explanation || "无解析"}
                           </div>
                         </div>
                       )}

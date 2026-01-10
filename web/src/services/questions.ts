@@ -9,6 +9,7 @@ export interface Question {
   options?: Array<{ label: string; content: string }>;
   answer?: string;
   explanation?: string;
+  illustration?: string;
   status: string;
   knowledgePoint?: string;
   isPublic?: boolean;

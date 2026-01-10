@@ -58,6 +58,7 @@ model Question {
   options        String?
   answer         String?
   explanation    String?
+  illustration   String?  // 图例字段，存储图片URL或base64
   tags           String
   difficulty     Int      @default(1)
   status         String   @default("DRAFT")

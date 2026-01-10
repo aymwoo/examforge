@@ -9,6 +9,7 @@ export declare class CreateQuestionDto {
     options?: OptionDto[];
     answer?: string;
     explanation?: string;
+    illustration?: string;
     tags?: string[];
     difficulty?: number;
     knowledgePoint?: string;

@@ -15,6 +15,7 @@ export default function NewQuestionPage() {
     content: "",
     answer: "",
     explanation: "",
+    illustration: "",
     tags: [],
     difficulty: 1,
     options: [
@@ -206,6 +207,82 @@ export default function NewQuestionPage() {
                   }
                   placeholder="请输入题目解析（可选）"
                 />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-ink-900">
+                  图例
+                </label>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const result = event.target?.result as string;
+                            handleInputChange("illustration", result);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="hidden"
+                      id="illustration-upload"
+                    />
+                    <label
+                      htmlFor="illustration-upload"
+                      className="cursor-pointer inline-flex items-center px-3 py-1.5 text-xs font-medium text-accent-600 bg-accent-50 border border-accent-200 rounded-lg hover:bg-accent-100"
+                    >
+                      选择图片
+                    </label>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const clipboardItems = await navigator.clipboard.read();
+                          for (const item of clipboardItems) {
+                            if (item.types.includes('image/png') || item.types.includes('image/jpeg')) {
+                              const blob = await item.getType(item.types.find(type => type.startsWith('image/')) || '');
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const result = event.target?.result as string;
+                                handleInputChange("illustration", result);
+                              };
+                              reader.readAsDataURL(blob);
+                              break;
+                            }
+                          }
+                        } catch (err) {
+                          console.error('Failed to read clipboard:', err);
+                        }
+                      }}
+                      className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-accent-600 bg-accent-50 border border-accent-200 rounded-lg hover:bg-accent-100"
+                    >
+                      从剪贴板粘贴
+                    </button>
+                    {form.illustration && (
+                      <button
+                        type="button"
+                        onClick={() => handleInputChange("illustration", "")}
+                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100"
+                      >
+                        清除图片
+                      </button>
+                    )}
+                  </div>
+                  {form.illustration && (
+                    <div className="mt-2">
+                      <img
+                        src={form.illustration}
+                        alt="题目图例"
+                        className="max-w-full max-h-48 rounded-lg border border-border"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

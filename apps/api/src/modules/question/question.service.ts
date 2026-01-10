@@ -30,6 +30,7 @@ export class QuestionService {
         options: optionsJson,
         answer: serializeQuestionAnswer(dto.answer),
         explanation: dto.explanation,
+        illustration: dto.illustration,
         tags: tagsStr,
         difficulty: dto.difficulty || 1,
         status: QuestionStatus.DRAFT,
@@ -132,6 +133,7 @@ export class QuestionService {
     if (dto.options !== undefined) updateData.options = JSON.stringify(dto.options);
     if (dto.answer !== undefined) updateData.answer = serializeQuestionAnswer(dto.answer);
     if (dto.explanation !== undefined) updateData.explanation = dto.explanation;
+    if (dto.illustration !== undefined) updateData.illustration = dto.illustration;
     if (dto.tags !== undefined) updateData.tags = JSON.stringify(dto.tags);
     if (dto.difficulty !== undefined) updateData.difficulty = dto.difficulty;
     if (dto.status !== undefined) updateData.status = dto.status;

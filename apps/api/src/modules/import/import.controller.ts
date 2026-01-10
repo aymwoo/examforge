@@ -148,7 +148,13 @@ export class ImportController {
       },
     })
   )
-  async importPdf(@UploadedFile() file: Express.Multer.File, @Query('mode') mode?: string, @Req() req?: any) {
+  @ApiQuery({
+    name: 'prompt',
+    required: false,
+    description: 'Custom AI prompt template for this import',
+    schema: { type: 'string' },
+  })
+  async importPdf(@UploadedFile() file: Express.Multer.File, @Query('mode') mode?: string, @Query('prompt') prompt?: string, @Req() req?: any) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
@@ -156,7 +162,7 @@ export class ImportController {
     const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     this.progressStore.createJob(jobId);
 
-    void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id);
+    void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id, prompt);
 
     return { jobId };
   }

@@ -32,6 +32,7 @@ let QuestionService = class QuestionService {
                 options: optionsJson,
                 answer: (0, question_answer_1.serializeQuestionAnswer)(dto.answer),
                 explanation: dto.explanation,
+                illustration: dto.illustration,
                 tags: tagsStr,
                 difficulty: dto.difficulty || 1,
                 status: question_enum_1.QuestionStatus.DRAFT,
@@ -126,6 +127,8 @@ let QuestionService = class QuestionService {
             updateData.answer = (0, question_answer_1.serializeQuestionAnswer)(dto.answer);
         if (dto.explanation !== undefined)
             updateData.explanation = dto.explanation;
+        if (dto.illustration !== undefined)
+            updateData.illustration = dto.illustration;
         if (dto.tags !== undefined)
             updateData.tags = JSON.stringify(dto.tags);
         if (dto.difficulty !== undefined)

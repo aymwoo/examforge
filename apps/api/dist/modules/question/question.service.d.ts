@@ -12,6 +12,7 @@ export declare class QuestionService {
         options: string | null;
         answer: string | null;
         explanation: string | null;
+        illustration: string | null;
         tags: string;
         difficulty: number;
         knowledgePoint: string | null;
