@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, Save, Plus, Check, Lock } from "lucide-react";
+import { Settings, Save, Plus, Check, Lock, Trash2 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import {
   getSettings,
@@ -10,6 +10,8 @@ import {
   getProviders,
   getJsonStructureTemplate,
   createAIProvider,
+  getAIProviderDetails,
+  deleteAIProvider,
   type SystemSettings,
   type AIModelConfig,
 } from "@/services/settings";
@@ -85,12 +87,37 @@ export default function SettingsPage() {
     setSelectedProvider(providerId);
     const provider = providers.find(p => p.id === providerId);
     if (provider) {
-      setEditingProvider({
-        ...provider,
-        apiKey: providerId === settings.aiProvider ? settings.aiApiKey : "",
-        baseUrl: providerId === settings.aiProvider ? settings.aiBaseUrl : provider.defaultBaseUrl || "",
-        model: providerId === settings.aiProvider ? settings.aiModel : provider.defaultModel || "",
-      });
+      const isSystemProvider = ['gpt-4', 'gpt-3.5-turbo', 'qwen-turbo', 'qwen-plus', 'qwen-max'].includes(providerId);
+      
+      if (isSystemProvider) {
+        // For system providers, use system settings
+        setEditingProvider({
+          ...provider,
+          apiKey: providerId === settings.aiProvider ? settings.aiApiKey : "",
+          baseUrl: providerId === settings.aiProvider ? settings.aiBaseUrl : provider.defaultBaseUrl || "",
+          model: providerId === settings.aiProvider ? settings.aiModel : provider.defaultModel || "",
+        });
+      } else {
+        // For custom providers, fetch full details including API key
+        getAIProviderDetails(providerId)
+          .then(details => {
+            setEditingProvider({
+              ...provider,
+              apiKey: details.apiKey,
+              baseUrl: details.baseUrl || provider.defaultBaseUrl || "",
+              model: details.model || provider.defaultModel || "",
+            });
+          })
+          .catch(err => {
+            console.error('Failed to load provider details:', err);
+            setEditingProvider({
+              ...provider,
+              apiKey: "",
+              baseUrl: provider.defaultBaseUrl || "",
+              model: provider.defaultModel || "",
+            });
+          });
+      }
     }
     setHasChanges(false);
   };
@@ -239,6 +266,21 @@ export default function SettingsPage() {
     }
   };
 
+  const handleInsertGradingVariables = () => {
+    const variables = `
+支持的变量：
+- {questionContent} - 题目内容
+- {questionType} - 题目类型
+- {referenceAnswer} - 参考答案
+- {studentAnswer} - 学生答案
+- {maxScore} - 满分`;
+    
+    setSettings((prev) => ({
+      ...prev,
+      gradingPromptTemplate: prev.gradingPromptTemplate + variables,
+    }));
+  };
+
   const handleCreateAIProvider = async (providerData: {
     name: string;
     apiKey: string;
@@ -246,8 +288,29 @@ export default function SettingsPage() {
     model: string;
     isGlobal?: boolean;
   }) => {
-    await createAIProvider(providerData);
+    const createdProvider = await createAIProvider(providerData);
     await loadSettings(); // Reload to show new provider
+    // Auto-select the newly created provider
+    handleProviderSelect(createdProvider.id);
+  };
+
+  const handleDeleteAIProvider = async (providerId: string) => {
+    if (!confirm('确定要删除这个 AI Provider 吗？此操作不可撤销。')) {
+      return;
+    }
+    
+    try {
+      await deleteAIProvider(providerId);
+      await loadSettings(); // Reload to update provider list
+      // If deleted provider was selected, clear selection
+      if (selectedProvider === providerId) {
+        setSelectedProvider('');
+        setEditingProvider(null);
+      }
+      setError('AI Provider 删除成功');
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || '删除失败');
+    }
   };
 
   return (
@@ -290,23 +353,14 @@ export default function SettingsPage() {
               <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-ink-900">AI Provider 配置</h2>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddProviderModal(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      新增 Provider
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate("/settings/ai-providers")}
-                    >
-                      管理 Providers
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddProviderModal(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    新增 Provider
+                  </Button>
                 </div>
 
                 {/* 当前系统默认 AI Provider 显示 */}
@@ -331,7 +385,7 @@ export default function SettingsPage() {
                 {/* AI Provider 按钮列表 */}
                 <div className="mb-6">
                   <label className="mb-3 block text-sm font-semibold text-ink-900">
-                    选择 AI Provider {isTeacher && <span className="text-xs text-gray-500">(仅查看，无法修改系统配置)</span>}
+                    选择 AI Provider {isTeacher && <span className="text-xs text-gray-500">(系统配置为只读，可选择自定义配置)</span>}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {providers.map((provider, index) => {
@@ -350,7 +404,7 @@ export default function SettingsPage() {
                       ];
                       
                       let colorClass;
-                      if (isTeacher) {
+                      if (isTeacher && isSystemProvider) {
                         colorClass = 'bg-gray-50 border-gray-200';
                       } else if (isCustomProvider) {
                         colorClass = 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100';
@@ -358,23 +412,25 @@ export default function SettingsPage() {
                         colorClass = colors[index % colors.length];
                       }
                       
+                      const isProviderDisabled = isTeacher && isSystemProvider;
+                      
                       return (
                         <button
                           key={provider.id}
-                          onClick={() => !isTeacher && handleProviderSelect(provider.id)}
-                          disabled={isTeacher}
+                          onClick={() => !isProviderDisabled && handleProviderSelect(provider.id)}
+                          disabled={isProviderDisabled}
                           className={`relative flex items-center justify-between rounded-xl border p-3 text-left transition-all ${
                             selectedProvider === provider.id
-                              ? isTeacher 
+                              ? isProviderDisabled 
                                 ? "border-gray-400 bg-gray-100 text-gray-700"
                                 : "border-blue-500 bg-blue-50 text-blue-900 ring-2 ring-blue-200"
-                              : `${colorClass} text-ink-900 ${isTeacher ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`
+                              : `${colorClass} text-ink-900 ${isProviderDisabled ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`
                           }`}
                         >
                           <div>
                             <div className="font-medium flex items-center gap-2">
                               {provider.name}
-                              {isTeacher && <Lock className="h-3 w-3 text-gray-500" />}
+                              {isProviderDisabled && <Lock className="h-3 w-3 text-gray-500" />}
                               {isCustomProvider && (
                                 <span className="text-xs bg-yellow-200 text-yellow-800 px-1.5 py-0.5 rounded">
                                   自定义
@@ -384,7 +440,7 @@ export default function SettingsPage() {
                             <div className="text-xs text-ink-600">{provider.id}</div>
                           </div>
                           {selectedProvider === provider.id && settings.aiProvider === provider.id && (
-                            <Check className={`h-4 w-4 ${isTeacher ? 'text-gray-600' : 'text-blue-600'}`} />
+                            <Check className={`h-4 w-4 ${isProviderDisabled ? 'text-gray-600' : 'text-blue-600'}`} />
                           )}
                         </button>
                       );
@@ -395,97 +451,125 @@ export default function SettingsPage() {
                 {/* 编辑选中的 Provider */}
                 {editingProvider && (
                   <div className="space-y-4">
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
-                        API Key
-                        {isTeacher && <Lock className="h-3 w-3 text-gray-500" />}
-                      </label>
-                      <input
-                        type="password"
-                        className={`w-full rounded-xl border px-3 py-2 text-sm ${
-                          isTeacher 
-                            ? 'border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed' 
-                            : 'border-border bg-white text-ink-900'
-                        }`}
-                        placeholder="sk-..."
-                        value={editingProvider.apiKey || ""}
-                        onChange={(e) =>
-                          !isTeacher && handleProviderFieldChange("apiKey", e.target.value)
-                        }
-                        disabled={isTeacher}
-                      />
-                    </div>
+                    {(() => {
+                      const isSystemProvider = ['gpt-4', 'gpt-3.5-turbo', 'qwen-turbo', 'qwen-plus', 'qwen-max'].includes(editingProvider.id || '');
+                      const isProviderEditable = !isTeacher || !isSystemProvider;
+                      
+                      return (
+                        <>
+                          <div>
+                            <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
+                              API Key
+                              {!isProviderEditable && <Lock className="h-3 w-3 text-gray-500" />}
+                            </label>
+                            <input
+                              type="password"
+                              className={`w-full rounded-xl border px-3 py-2 text-sm ${
+                                !isProviderEditable 
+                                  ? 'border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed' 
+                                  : 'border-border bg-white text-ink-900'
+                              }`}
+                              placeholder="sk-..."
+                              value={editingProvider.apiKey || ""}
+                              onChange={(e) =>
+                                isProviderEditable && handleProviderFieldChange("apiKey", e.target.value)
+                              }
+                              disabled={!isProviderEditable}
+                            />
+                          </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
-                        Base URL
-                        {isTeacher && <Lock className="h-3 w-3 text-gray-500" />}
-                      </label>
-                      <input
-                        type="url"
-                        className={`w-full rounded-xl border px-3 py-2 text-sm ${
-                          isTeacher 
-                            ? 'border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed' 
-                            : 'border-border bg-white text-ink-900'
-                        }`}
-                        placeholder="https://api.openai.com/v1/chat/completions"
-                        value={editingProvider.baseUrl || ""}
-                        onChange={(e) =>
-                          !isTeacher && handleProviderFieldChange("baseUrl", e.target.value)
-                        }
-                        disabled={isTeacher}
-                      />
-                    </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
+                              Base URL
+                              {!isProviderEditable && <Lock className="h-3 w-3 text-gray-500" />}
+                            </label>
+                            <input
+                              type="url"
+                              className={`w-full rounded-xl border px-3 py-2 text-sm ${
+                                !isProviderEditable 
+                                  ? 'border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed' 
+                                  : 'border-border bg-white text-ink-900'
+                              }`}
+                              placeholder="https://api.openai.com/v1/chat/completions"
+                              value={editingProvider.baseUrl || ""}
+                              onChange={(e) =>
+                                isProviderEditable && handleProviderFieldChange("baseUrl", e.target.value)
+                              }
+                              disabled={!isProviderEditable}
+                            />
+                          </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
-                        Model
-                        {isTeacher && <Lock className="h-3 w-3 text-gray-500" />}
-                      </label>
-                      <input
-                        type="text"
-                        className={`w-full rounded-xl border px-3 py-2 text-sm ${
-                          isTeacher 
-                            ? 'border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed' 
-                            : 'border-border bg-white text-ink-900'
-                        }`}
-                        placeholder="gpt-4o"
-                        value={editingProvider.model || ""}
-                        onChange={(e) =>
-                          !isTeacher && handleProviderFieldChange("model", e.target.value)
-                        }
-                        disabled={isTeacher}
-                      />
-                    </div>
+                          <div>
+                            <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
+                              Model
+                              {!isProviderEditable && <Lock className="h-3 w-3 text-gray-500" />}
+                            </label>
+                            <input
+                              type="text"
+                              className={`w-full rounded-xl border px-3 py-2 text-sm ${
+                                !isProviderEditable 
+                                  ? 'border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed' 
+                                  : 'border-border bg-white text-ink-900'
+                              }`}
+                              placeholder="gpt-4o"
+                              value={editingProvider.model || ""}
+                              onChange={(e) =>
+                                isProviderEditable && handleProviderFieldChange("model", e.target.value)
+                              }
+                              disabled={!isProviderEditable}
+                            />
+                          </div>
 
-                    {hasChanges && !isTeacher && (
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={handleSaveProvider}
-                          disabled={saving}
-                          className="flex-1"
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          {saving ? "保存中..." : "保存设置"}
-                        </Button>
-                        <Button
-                          onClick={() => handleProviderSelect(selectedProvider)}
-                          variant="outline"
-                          className="flex-1 text-gray-600 border-gray-300 hover:bg-gray-50"
-                        >
-                          取消更改
-                        </Button>
-                      </div>
-                    )}
+                          {hasChanges && isProviderEditable && (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={handleSaveProvider}
+                                disabled={saving}
+                                className="flex-1"
+                              >
+                                <Save className="h-4 w-4 mr-2" />
+                                {saving ? "保存中..." : "保存设置"}
+                              </Button>
+                              <Button
+                                onClick={() => handleProviderSelect(selectedProvider)}
+                                variant="outline"
+                                className="flex-1 text-gray-600 border-gray-300 hover:bg-gray-50"
+                              >
+                                取消更改
+                              </Button>
+                            </div>
+                          )}
 
-                    {isTeacher && (
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Lock className="h-4 w-4" />
-                          <span>教师角色无法修改系统级 AI Provider 配置</span>
-                        </div>
-                      </div>
-                    )}
+                          {/* Delete button for custom providers */}
+                          {(() => {
+                            const isCustomProvider = !['gpt-4', 'gpt-3.5-turbo', 'qwen-turbo', 'qwen-plus', 'qwen-max'].includes(editingProvider?.id || '');
+                            const canDelete = isCustomProvider && (currentUser?.role === 'ADMIN' || isProviderEditable);
+                            
+                            return canDelete && (
+                              <div className="mt-4 pt-4 border-t border-gray-200">
+                                <Button
+                                  onClick={() => handleDeleteAIProvider(editingProvider?.id || '')}
+                                  variant="outline"
+                                  className="w-full text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  删除此 Provider
+                                </Button>
+                              </div>
+                            );
+                          })()}
+
+                          {!isProviderEditable && (
+                            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                                <Lock className="h-4 w-4" />
+                                <span>系统级 AI Provider 配置无法修改</span>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -494,9 +578,9 @@ export default function SettingsPage() {
                     onClick={handleTestAIConnection}
                     className="flex-1"
                     variant="outline"
-                    disabled={!editingProvider?.apiKey || isTeacher}
+                    disabled={!editingProvider?.apiKey || (isTeacher && ['gpt-4', 'gpt-3.5-turbo', 'qwen-turbo', 'qwen-plus', 'qwen-max'].includes(editingProvider?.id || ''))}
                   >
-                    {isTeacher ? (
+                    {isTeacher && ['gpt-4', 'gpt-3.5-turbo', 'qwen-turbo', 'qwen-plus', 'qwen-max'].includes(editingProvider?.id || '') ? (
                       <>
                         <Lock className="h-4 w-4 mr-2" />
                         无法测试连接
@@ -571,9 +655,18 @@ export default function SettingsPage() {
               </div>
 
               <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-                <h2 className="mb-6 text-lg font-semibold text-ink-900">
-                  AI评分提示词配置
-                </h2>
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-ink-900">
+                    AI评分提示词配置
+                  </h2>
+                  <Button
+                    onClick={handleInsertGradingVariables}
+                    variant="outline"
+                    size="sm"
+                  >
+                    插入支持变量
+                  </Button>
+                </div>
 
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-ink-900">
@@ -591,6 +684,15 @@ export default function SettingsPage() {
                     评分提示词模板用于指导AI如何评分学生答案。支持变量：{"{questionContent}"}, {"{questionType}"}, {"{referenceAnswer}"}, {"{studentAnswer}"}, {"{maxScore}"}。此为您的个人设置。
                   </p>
                 </div>
+
+                <Button
+                  onClick={handleSavePrompts}
+                  disabled={saving}
+                  className="mt-4 w-full"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? "保存中..." : "保存评分提示词设置"}
+                </Button>
               </div>
             </div>
           </div>

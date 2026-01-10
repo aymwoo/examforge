@@ -70,14 +70,30 @@ export const updateUserSetting = async (
   await api.put("/api/settings/user", { key, value });
 };
 
+export const deleteAIProvider = async (providerId: string): Promise<void> => {
+  await api.delete(`/api/ai-providers/${providerId}`);
+};
+
+export const getAIProviderDetails = async (providerId: string): Promise<{
+  id: string;
+  name: string;
+  apiKey: string;
+  baseUrl?: string;
+  model: string;
+}> => {
+  const response = await api.get(`/api/ai-providers/${providerId}`);
+  return response.data;
+};
+
 export const createAIProvider = async (provider: {
   name: string;
   apiKey: string;
   baseUrl?: string;
   model: string;
   isGlobal?: boolean;
-}): Promise<void> => {
-  await api.post("/api/ai-providers", provider);
+}): Promise<{ id: string }> => {
+  const response = await api.post("/api/ai-providers", provider);
+  return response.data;
 };
 
 export const generateExamFromAI = async (
