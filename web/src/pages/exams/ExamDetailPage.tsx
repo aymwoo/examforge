@@ -420,6 +420,60 @@ export default function ExamDetailPage() {
           </div>
         )}
 
+        {/* 快速操作区域 */}
+        <div className="mb-8 rounded-3xl border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-white p-8 shadow-lg">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="rounded-full bg-purple-500 p-2">
+              <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-purple-900">快速操作</h2>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Button 
+              onClick={() => navigate(`/exams/${id}/grading`)}
+              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-xl"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              评分管理
+            </Button>
+            
+            <Button 
+              onClick={() => window.open(`/exam/${id}/login`, '_blank')}
+              className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white p-4 rounded-xl"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              预览考试
+            </Button>
+            
+            <Button 
+              variant="outline"
+              className="flex items-center gap-2 border-2 border-orange-300 text-orange-600 hover:bg-orange-50 p-4 rounded-xl"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              导出数据
+            </Button>
+            
+            <Button 
+              variant="outline"
+              className="flex items-center gap-2 border-2 border-red-300 text-red-600 hover:bg-red-50 p-4 rounded-xl"
+              onClick={() => handleDeleteExam()}
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              删除考试
+            </Button>
+          </div>
+        </div>
+
         <div className="grid gap-8 lg:grid-cols-2">
           {/* 基本信息区域 */}
           <div className="rounded-3xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white p-8 shadow-lg">
@@ -1259,60 +1313,6 @@ export default function ExamDetailPage() {
                 )}
               </div>
             )}
-          </div>
-        </div>
-
-        {/* 分隔线 */}
-        <div className="my-8 flex items-center">
-          <div className="flex-1 border-t-2 border-gray-200"></div>
-          <div className="mx-4 rounded-full bg-gray-100 px-4 py-2">
-            <span className="text-sm font-medium text-gray-600">快速操作</span>
-          </div>
-          <div className="flex-1 border-t-2 border-gray-200"></div>
-        </div>
-
-        {/* 快速操作区域 */}
-        <div className="rounded-3xl border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-white p-8 shadow-lg">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Button 
-              onClick={() => navigate(`/exams/${id}/grading`)}
-              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-xl"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-              评分管理
-            </Button>
-            
-            <Button 
-              onClick={() => window.open(`/exam/${id}/login`, '_blank')}
-              className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white p-4 rounded-xl"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
-              预览考试
-            </Button>
-            
-            <Button 
-              variant="outline"
-              className="flex items-center gap-2 border-2 border-orange-300 text-orange-600 hover:bg-orange-50 p-4 rounded-xl"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              导出数据
-            </Button>
-            
-            <Button 
-              variant="outline"
-              className="flex items-center gap-2 border-2 border-gray-300 text-gray-600 hover:bg-gray-50 p-4 rounded-xl"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-              </svg>
-              分享考试
-            </Button>
           </div>
         </div>
       </div>

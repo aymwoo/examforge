@@ -19,35 +19,22 @@ interface OngoingExam {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const [ongoingExams, setOngoingExams] = useState<OngoingExam[]>([]);
+  const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadOngoingExams = async () => {
+  const loadDashboardData = async () => {
     try {
-      const response = await api.get('/api/exams');
-      const now = new Date();
-      
-      // 筛选正在进行的考试
-      const ongoing = response.data.data.filter((exam: any) => {
-        if (exam.status !== 'PUBLISHED') return false;
-        if (!exam.startTime || !exam.endTime) return false;
-        
-        const startTime = new Date(exam.startTime);
-        const endTime = new Date(exam.endTime);
-        
-        return now >= startTime && now <= endTime;
-      });
-      
-      setOngoingExams(ongoing);
+      const response = await api.get('/api/exams/dashboard');
+      setDashboardData(response.data);
     } catch (error) {
-      console.error('加载考试失败:', error);
+      console.error('加载仪表板数据失败:', error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOngoingExams();
+    loadDashboardData();
   }, []);
 
   const getTimeRemaining = (endTime: string) => {
@@ -96,7 +83,7 @@ export default function HomePage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-ink-600">正在进行</p>
-                <p className="text-2xl font-bold text-ink-900">{ongoingExams.length}</p>
+                <p className="text-2xl font-bold text-ink-900">{dashboardData?.ongoingExams || 0}</p>
               </div>
             </div>
           </div>
@@ -108,9 +95,7 @@ export default function HomePage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-ink-600">参与学生</p>
-                <p className="text-2xl font-bold text-ink-900">
-                  {ongoingExams.reduce((sum, exam) => sum + (exam.totalStudents || 0), 0)}
-                </p>
+                <p className="text-2xl font-bold text-ink-900">{dashboardData?.totalStudents || 0}</p>
               </div>
             </div>
           </div>
@@ -122,9 +107,7 @@ export default function HomePage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-ink-600">已提交</p>
-                <p className="text-2xl font-bold text-ink-900">
-                  {ongoingExams.reduce((sum, exam) => sum + (exam.submissionCount || 0), 0)}
-                </p>
+                <p className="text-2xl font-bold text-ink-900">{dashboardData?.totalSubmissions || 0}</p>
               </div>
             </div>
           </div>
@@ -152,7 +135,7 @@ export default function HomePage() {
         <div className="rounded-3xl border border-border bg-white p-8 shadow-soft">
           <h2 className="text-2xl font-bold text-ink-900 mb-6">正在进行的考试</h2>
           
-          {ongoingExams.length === 0 ? (
+          {(dashboardData?.exams?.length || 0) === 0 ? (
             <div className="text-center py-12">
               <Clock className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">暂无正在进行的考试</h3>
@@ -163,7 +146,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid gap-6 lg:grid-cols-2">
-              {ongoingExams.map((exam) => (
+              {dashboardData?.exams?.map((exam: any) => (
                 <div 
                   key={exam.id} 
                   className="rounded-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-white p-6 shadow-lg hover:shadow-xl transition-shadow"

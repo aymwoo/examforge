@@ -36,6 +36,11 @@ let ExamController = class ExamController {
     create(dto) {
         return this.examService.create(dto);
     }
+    async getDashboardStats(req) {
+        const userId = req?.user?.id;
+        const userRole = req?.user?.role || 'GUEST';
+        return this.examService.getDashboardStats(userId, userRole);
+    }
     findAll(paginationDto) {
         return this.examService.findAll(paginationDto);
     }
@@ -135,6 +140,14 @@ __decorate([
     __metadata("design:paramtypes", [create_exam_dto_1.CreateExamDto]),
     __metadata("design:returntype", void 0)
 ], ExamController.prototype, "create", null);
+__decorate([
+    (0, common_1.Get)('dashboard'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get dashboard statistics' }),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], ExamController.prototype, "getDashboardStats", null);
 __decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiOperation)({ summary: 'Get all exams with pagination' }),

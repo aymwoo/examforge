@@ -37,6 +37,64 @@ export class ExamService {
     });
   }
 
+  async getDashboardStats(userId?: string, userRole?: string) {
+    // Base query conditions - show all published exams, not just ongoing
+    const baseWhere: any = {
+      status: 'PUBLISHED',
+    };
+
+    // If authenticated and not admin, only show user's exams
+    if (userId && userRole && userRole !== 'ADMIN') {
+      baseWhere.createdBy = userId;
+    }
+
+    // Get published exams with submission counts
+    const publishedExams = await this.prisma.exam.findMany({
+      where: baseWhere,
+      include: {
+        submissions: {
+          select: {
+            id: true,
+          },
+        },
+        examStudents: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    // Filter for ongoing exams (for the ongoing count)
+    const now = new Date();
+    const ongoingExams = publishedExams.filter(exam => {
+      // If no start/end time set, consider it as ongoing
+      if (!exam.startTime || !exam.endTime) return true;
+      return now >= exam.startTime && now <= exam.endTime;
+    });
+
+    // Calculate statistics
+    const stats = {
+      ongoingExams: ongoingExams.length,
+      totalStudents: publishedExams.reduce((sum, exam) => sum + exam.examStudents.length, 0),
+      totalSubmissions: publishedExams.reduce((sum, exam) => sum + exam.submissions.length, 0),
+      exams: ongoingExams.map(exam => ({
+        id: exam.id,
+        title: exam.title,
+        description: exam.description,
+        startTime: exam.startTime,
+        endTime: exam.endTime,
+        duration: exam.duration,
+        totalScore: exam.totalScore,
+        status: exam.status,
+        submissionCount: exam.submissions.length,
+        totalStudents: exam.examStudents.length,
+      })),
+    };
+
+    return stats;
+  }
+
   async findAll(paginationDto: PaginationDto) {
     const { page = 1, limit = 20, status } = paginationDto;
     const skip = (page - 1) * limit;

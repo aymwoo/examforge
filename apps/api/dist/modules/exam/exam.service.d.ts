@@ -11,18 +11,35 @@ export declare class ExamService {
     private readonly aiService;
     constructor(prisma: PrismaService, aiService: AIService);
     create(dto: CreateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        createdBy: string | null;
+        title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
+        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        createdBy: string | null;
+    }>;
+    getDashboardStats(userId?: string, userRole?: string): Promise<{
+        ongoingExams: number;
+        totalStudents: number;
+        totalSubmissions: number;
+        exams: {
+            id: string;
+            title: string;
+            description: string;
+            startTime: Date;
+            endTime: Date;
+            duration: number;
+            totalScore: number;
+            status: string;
+            submissionCount: number;
+            totalStudents: number;
+        }[];
     }>;
     findAll(paginationDto: PaginationDto): Promise<{
         data: any[];
@@ -35,33 +52,33 @@ export declare class ExamService {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        createdBy: string | null;
+        title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
+        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        createdBy: string | null;
     }>;
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
+        examId: string;
         score: number;
         order: number;
-        examId: string;
         questionId: string;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
     updateQuestionOrder(examId: string, questionId: string, order: number, score?: number): Promise<{
         id: string;
+        examId: string;
         score: number;
         order: number;
-        examId: string;
         questionId: string;
     }>;
     private transformExam;
@@ -69,9 +86,9 @@ export declare class ExamService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        examId: string;
         username: string;
         password: string;
-        examId: string;
         displayName: string | null;
         accountType: string;
         studentId: string | null;
@@ -95,9 +112,9 @@ export declare class ExamService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
+        examId: string;
         username: string;
         password: string;
-        examId: string;
         displayName: string | null;
         accountType: string;
         studentId: string | null;

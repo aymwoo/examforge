@@ -22,6 +22,7 @@ export default function QuestionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [meta, setMeta] = useState({
     total: 0,
     page: 1,
@@ -32,6 +33,7 @@ export default function QuestionsPage() {
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   const [filters, setFilters] = useState({
     type: "",
@@ -52,7 +54,7 @@ export default function QuestionsPage() {
         tags?: string;
       } = {
         page: pageNum,
-        limit: 20,
+        limit: pageSize,
       };
       if (filters.type) params.type = filters.type;
       if (filters.difficulty) params.difficulty = parseInt(filters.difficulty);
@@ -164,6 +166,37 @@ export default function QuestionsPage() {
     }
   };
 
+  const handleClearQuestionBank = async () => {
+    if (!confirm('确定要清空整个题库吗？此操作不可撤销！')) return;
+    if (!confirm('再次确认：这将删除所有题目，确定继续吗？')) return;
+
+    setClearing(true);
+    try {
+      // Get all question IDs and delete them
+      const allQuestions = await listQuestions({ page: 1, limit: 10000 });
+      await deleteQuestions(allQuestions.data.map((q: any) => q.id));
+      loadQuestions(1);
+      setSelectedIds(new Set());
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      setError(
+        axiosError.response?.data?.message ||
+          axiosError.message ||
+          "清空题库失败",
+      );
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setPage(1);
+  };
+
   const isAllSelected =
     questions.length > 0 && selectedIds.size === questions.length;
   const isPartialSelected =
@@ -201,6 +234,14 @@ export default function QuestionsPage() {
             <Button onClick={handleCreateQuestion}>
               <Plus className="h-4 w-4 mr-2" />
               新增题目
+            </Button>
+            <Button 
+              onClick={handleClearQuestionBank}
+              disabled={clearing}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <span className="mr-2">🗑️</span>
+              {clearing ? "清空中..." : "清空题库"}
             </Button>
           </div>
         </div>

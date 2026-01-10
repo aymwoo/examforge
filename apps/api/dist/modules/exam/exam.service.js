@@ -69,6 +69,53 @@ let ExamService = class ExamService {
             },
         });
     }
+    async getDashboardStats(userId, userRole) {
+        const baseWhere = {
+            status: 'PUBLISHED',
+        };
+        if (userId && userRole && userRole !== 'ADMIN') {
+            baseWhere.createdBy = userId;
+        }
+        const publishedExams = await this.prisma.exam.findMany({
+            where: baseWhere,
+            include: {
+                submissions: {
+                    select: {
+                        id: true,
+                    },
+                },
+                examStudents: {
+                    select: {
+                        id: true,
+                    },
+                },
+            },
+        });
+        const now = new Date();
+        const ongoingExams = publishedExams.filter(exam => {
+            if (!exam.startTime || !exam.endTime)
+                return true;
+            return now >= exam.startTime && now <= exam.endTime;
+        });
+        const stats = {
+            ongoingExams: ongoingExams.length,
+            totalStudents: publishedExams.reduce((sum, exam) => sum + exam.examStudents.length, 0),
+            totalSubmissions: publishedExams.reduce((sum, exam) => sum + exam.submissions.length, 0),
+            exams: ongoingExams.map(exam => ({
+                id: exam.id,
+                title: exam.title,
+                description: exam.description,
+                startTime: exam.startTime,
+                endTime: exam.endTime,
+                duration: exam.duration,
+                totalScore: exam.totalScore,
+                status: exam.status,
+                submissionCount: exam.submissions.length,
+                totalStudents: exam.examStudents.length,
+            })),
+        };
+        return stats;
+    }
     async findAll(paginationDto) {
         const { page = 1, limit = 20, status } = paginationDto;
         const skip = (page - 1) * limit;

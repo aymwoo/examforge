@@ -10,6 +10,8 @@ import {
   HttpCode,
   Res,
   HttpStatus,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -19,6 +21,7 @@ import {
   ApiResponse,
   ApiConsumes,
   ApiBody,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { ExamService } from './exam.service';
 import { CreateExamDto } from './dto/create-exam.dto';
@@ -28,6 +31,7 @@ import { CreateExamStudentDto } from './dto/create-exam-student.dto';
 import { BatchCreateExamStudentsDto } from './dto/batch-create-exam-students.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AIService } from '../ai/ai.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('exams')
 @Controller('exams')
@@ -60,6 +64,14 @@ export class ExamController {
   @ApiResponse({ status: 201, description: 'Exam created successfully' })
   create(@Body() dto: CreateExamDto) {
     return this.examService.create(dto);
+  }
+
+  @Get('dashboard')
+  @ApiOperation({ summary: 'Get dashboard statistics' })
+  async getDashboardStats(@Request() req?: any) {
+    const userId = req?.user?.id;
+    const userRole = req?.user?.role || 'GUEST';
+    return this.examService.getDashboardStats(userId, userRole);
   }
 
   @Get()
