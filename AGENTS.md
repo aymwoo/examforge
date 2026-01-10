@@ -1,58 +1,60 @@
 # AGENTS.md — ExamForge (Monorepo) Agent Guide
 
-This file is for agentic coding tools operating in this repo. Follow it strictly.
-
 ## Repo layout
 
-- `apps/api/` — NestJS + TypeScript REST API
-- `packages/*` — shared packages
-- `web/` — Vite frontend (follow `/demo.html` UI style)
+- `apps/api/` — NestJS + TypeScript REST API (Jest unit + e2e)
+- `web/` — Vite + React + Tailwind frontend (UI style: `demo.html`)
+- `packages/shared-types/` — TypeScript types shared across apps
+- `packages/config/` — shared Prettier/Tailwind preset
 
-Feature modules: `apps/api/src/modules/<feature>/` (controller/service/dto/module together)
-Shared code: `apps/api/src/common/`
-Prisma schema: `apps/api/prisma/schema.prisma`
+API code lives in `apps/api/src/` (features in `src/modules/`, shared in `src/common/`).
 
-## Environment / prereqs
+## Environment
 
-- Node: >= 18, pnpm: >= 8
+- Node: `>=18`
+- pnpm: `>=8` (repo uses `pnpm@10.x` via `packageManager`)
 - Install: `pnpm install`
-- API env: `apps/api/.env` (do not commit)
+- API env file: `apps/api/.env` (do not commit)
 
-Quick start: `pnpm dev` (API:3000, Web:5173)
+## Commands
 
-## Build / lint / test commands
+### Workspace-level (root)
 
-**Workspace-level:**
+- `pnpm dev` — run API + Web dev servers
+- `pnpm build` — build everything
+- `pnpm lint` / `pnpm lint:fix` — lint everything
+- `pnpm format` / `pnpm format:check` — Prettier write/check
+- `pnpm test` — workspace tests (only packages that define `test`)
+- `pnpm test:e2e` — API e2e tests
 
-- `pnpm run build` - build everything
-- `pnpm run lint` - lint everything
-- `pnpm run lint:fix` - lint & auto-fix
-- `pnpm run format` - Prettier format whole repo
-- `pnpm run test` - run all tests
+### Package-specific
 
-**API-only (recommended while working):**
+- API: `pnpm dev:api`, `pnpm build:api`, `pnpm --filter ./apps/api run lint|test|test:e2e`
+- Web: `pnpm dev:web`, `pnpm build:web`, `pnpm --filter ./web run lint|lint:fix`
+- Shared types: `pnpm --filter @examforge/shared-types run build|watch|clean`
 
-- `pnpm run dev:api` - start API dev server
-- `pnpm run build:api` - build API
-- `pnpm --filter ./apps/api run lint`
-- `pnpm --filter ./apps/api run format`
-
-**Run a single unit test:**
+### Single test (API - Jest)
 
 ```bash
 pnpm --filter ./apps/api run test -- src/modules/question/question.service.spec.ts
 pnpm --filter ./apps/api run test -- -t "should create question"
 pnpm --filter ./apps/api run test -- src/modules/question/question.service.spec.ts -t "should create"
+pnpm --filter ./apps/api run test:watch
+pnpm --filter ./apps/api run test:debug -- -t "should create"
 ```
 
-**Run a single e2e test:**
+Tip: when running from `apps/api`, you can also use `pnpm test -- <path> -t <pattern>`.
+
+### Single e2e (API - Jest)
 
 ```bash
 pnpm --filter ./apps/api run test:e2e -- test/app.e2e-spec.ts
 pnpm --filter ./apps/api run test:e2e -- -t "health"
 ```
 
-**Prisma:**
+Tip: when running from `apps/api`, you can also use `pnpm test:e2e -- <path> -t <pattern>`.
+
+### Prisma (API)
 
 ```bash
 pnpm --filter ./apps/api run prisma:generate
@@ -62,71 +64,71 @@ pnpm --filter ./apps/api run prisma:studio
 
 ## Cursor / Copilot rules
 
-- No `.cursorrules`, `.cursor/rules/`, or `.github/copilot-instructions.md` exist
-- If added later, mirror them here (higher priority than rest of this doc)
+- No `.cursorrules`, `.cursor/rules/`, or `.github/copilot-instructions.md` exist.
+- If added later, summarize them here; those rules override this file.
 
-## Code style & conventions
+## Code style
 
-### TypeScript & compiler settings
+### TypeScript
 
-- TS strict mode enabled (`strict: true`, `noImplicitAny: true`)
-- API tsconfig alias: `@/* -> src/*` — prefer `@/common/...` for shared code
+- TS `strict: true`; do not introduce `any` (API ESLint enforces this).
+- Prefer explicit domain types and request/response DTOs over ad-hoc object shapes.
+- Path aliases (`tsconfig.json`):
+  - API: `@/* -> apps/api/src/*`
+  - Web: `@/* -> web/src/*`
+  - Shared types: `@examforge/shared-types -> packages/shared-types/src`
 
 ### Formatting
 
-- Single quotes, semicolons, trailing commas (es5), print width 100, tab width 2
+- Prettier: `printWidth: 100`, `tabWidth: 2`, `singleQuote: true`, `semi: true`, `trailingComma: 'es5'`, `endOfLine: 'lf'`.
+- Prefer running `pnpm format` over manual formatting.
+
+### Linting
+
+- API ESLint errors on `@typescript-eslint/no-explicit-any`; fix types instead of using `any`.
+- Keep lint fixes scoped to touched files.
 
 ### Imports
 
-- `@nestjs/*` imports at top
-- Absolute alias imports for shared code inside API: `import { PaginationDto } from '@/common/dto/pagination.dto';`
-- Relative imports OK within a feature module
-
-### NestJS module organization (IMPORTANT)
-
-- Feature-based folders (not layer-based): `apps/api/src/modules/<feature>/`
-  - `<feature>.controller.ts` — routing only
-  - `<feature>.service.ts` — business logic + DB
-  - `<feature>.module.ts` — Nest module wiring
-  - `dto/*.dto.ts` — request/response shapes
-
-### Validation & DTOs
-
-- Global ValidationPipe enabled (`whitelist`, `forbidNonWhitelisted`, `transform`)
-- All controller inputs must use DTOs with `class-validator` decorators
-- Prefer `@IsOptional()` + specific type validator over untyped fields
+- Order: framework → third-party → internal alias → relative.
+- API: keep `@nestjs/*` imports at the top.
+- Prefer alias imports for cross-module code, e.g. `@/common/...`.
 
 ### Naming
 
-- Files: kebab-case | Classes: PascalCase | Functions/methods: camelCase | DB tables: snake_case
-- Avoid `I*` interface prefix
+- Files/folders: `kebab-case`.
+- Classes/providers: `PascalCase`.
+- Functions/variables: `camelCase`.
+- Avoid `I*` interface prefix.
+
+### Backend architecture (NestJS)
+
+- Feature folders: `apps/api/src/modules/<feature>/`.
+- Controllers: routing only; no Prisma, no business logic.
+- Services: business logic + DB access via injected `PrismaService`.
+- DTOs: `dto/*.dto.ts` with `class-validator` decorators.
 
 ### Error handling
 
-- Use Nest exceptions: `NotFoundException`, `BadRequestException`, `UnprocessableEntityException`
-- Check existence before update/delete and throw early
+- Use Nest exceptions (`BadRequestException`, `NotFoundException`, `UnprocessableEntityException`, etc.).
+- Check existence before update/delete and fail fast.
 
-### Database access (Prisma)
+### DB / Prisma
 
-- Controllers MUST NOT touch Prisma directly
-- Services inject `PrismaService` and perform DB operations
-- Use transactions for multi-step writes that must be atomic
+- Controllers MUST NOT touch Prisma directly.
+- Use transactions for multi-step writes.
 
-### Known codebase debt (don't cargo-cult)
+### Frontend UI
 
-- ESLint forbids `any` but a few `as any` exist for Prisma enums/sheet parsing
-- Prefer fixing type correctness when touching these areas
+- Use `demo.html` as the visual reference.
+- Use shared Tailwind preset: `packages/config/tailwind.preset.js`.
+- Ensure focus-visible rings and `prefers-reduced-motion` support.
 
-## Frontend UI style (web/)
+### Scope
 
-See `/demo.html` as source of truth. Key requirements:
+- More-specific `AGENTS.md` files (if present) override this one for their subtree.
 
-- Use shared Tailwind preset: `packages/config/tailwind.preset.js`
-- Apply base styles: `bg-slatebg text-ink-900 antialiased`
-- Required: focus-visible ring, prefers-reduced-motion support
-- Standardize on card/panel/button recipes from demo.html
+## Notes
 
-## Project notes
-
-- Swagger decorators (`@ApiTags`, `@ApiOperation`, etc.) are used; keep API docs consistent
-- Do not add new dependencies without explicit reason and approval
+- Root `tsconfig.json` includes `@examforge/web -> apps/web/src` but the actual frontend lives in `web/src`; treat it as legacy unless confirmed.
+- Swagger decorators are used on API routes; keep docs consistent.

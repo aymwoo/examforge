@@ -316,7 +316,7 @@ export default function SettingsPage() {
   return (
     <>
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-none px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="outline" onClick={() => navigate("/questions")}>

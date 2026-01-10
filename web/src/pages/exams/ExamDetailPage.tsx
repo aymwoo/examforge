@@ -836,14 +836,29 @@ export default function ExamDetailPage() {
                   <h2 className="text-lg font-semibold text-ink-900">
                     考试题目 ({exam.examQuestions?.length || 0} 题)
                   </h2>
-                  <Button
-                    onClick={handleToggleQuestionBank}
-                    className="inline-flex items-center gap-2"
-                    variant="outline"
-                  >
-                    <Plus className="h-4 w-4" />
-                    {showQuestionBank ? "收起题库" : "从题库添加"}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {showQuestionBank && selectedQuestions.length > 0 && (
+                      <Button
+                        onClick={handleAddSelectedQuestions}
+                        disabled={addingQuestions}
+                        className="inline-flex items-center gap-2"
+                      >
+                        <Check className="h-4 w-4" />
+                        {addingQuestions 
+                          ? "添加中..." 
+                          : `添加到考试 (${selectedQuestions.length})`
+                        }
+                      </Button>
+                    )}
+                    <Button
+                      onClick={handleToggleQuestionBank}
+                      className="inline-flex items-center gap-2"
+                      variant="outline"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {showQuestionBank ? "收起题库" : "从题库添加"}
+                    </Button>
+                  </div>
                 </div>
 
             {exam.examQuestions && exam.examQuestions.length > 0 ? (
@@ -921,19 +936,6 @@ export default function ExamDetailPage() {
                       题库列表
                     </h3>
                     <div className="flex items-center gap-3">
-                      {selectedQuestions.length > 0 && (
-                        <Button
-                          onClick={handleAddSelectedQuestions}
-                          disabled={addingQuestions}
-                          className="inline-flex items-center gap-2"
-                        >
-                          <Check className="h-4 w-4" />
-                          {addingQuestions 
-                            ? "添加中..." 
-                            : `添加到考试 (${selectedQuestions.length})`
-                          }
-                        </Button>
-                      )}
                       <Button
                         variant="outline"
                         onClick={() => setShowFilters(!showFilters)}

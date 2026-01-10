@@ -104,22 +104,44 @@ export default function ExamLoginPage() {
     setError(null);
     
     try {
-      const response = await api.post('/api/auth/exam-register', {
-        examId,
-        studentName: registerForm.studentName,
-        password: registerForm.password,
-      });
+      // 先尝试登录（检查是否已注册）
+      const username = `${exam?.title.substring(0, 2)}_${registerForm.studentName}`;
+      
+      try {
+        const loginResponse = await api.post('/api/auth/exam-login', {
+          examId,
+          username,
+          password: registerForm.password,
+        });
 
-      // 显示密码提醒
-      setRegisteredPassword(registerForm.password);
-      setShowPasswordReminder(true);
-      
-      // 保存token
-      localStorage.setItem('examToken', response.data.token);
-      localStorage.setItem('examStudent', JSON.stringify(response.data.student));
-      
+        // 登录成功，直接进入考试
+        localStorage.setItem('examToken', loginResponse.data.token);
+        localStorage.setItem('examStudent', JSON.stringify(loginResponse.data.student));
+        navigate(`/exam/${examId}/take`);
+        return;
+      } catch (loginError: any) {
+        // 登录失败，可能是未注册或密码错误
+        if (loginError.response?.status === 401) {
+          // 尝试注册
+          const response = await api.post('/api/auth/exam-register', {
+            examId,
+            studentName: registerForm.studentName,
+            password: registerForm.password,
+          });
+
+          // 显示密码提醒
+          setRegisteredPassword(registerForm.password);
+          setShowPasswordReminder(true);
+          
+          // 保存token
+          localStorage.setItem('examToken', response.data.token);
+          localStorage.setItem('examStudent', JSON.stringify(response.data.student));
+        } else {
+          throw loginError;
+        }
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || '注册失败');
+      setError(err.response?.data?.message || '操作失败');
     } finally {
       setSubmitting(false);
     }
