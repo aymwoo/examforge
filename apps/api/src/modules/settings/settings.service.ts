@@ -16,6 +16,11 @@ export enum SettingKey {
   GRADING_PROMPT_TEMPLATE = 'GRADING_PROMPT_TEMPLATE',
 }
 
+export enum UserSettingKey {
+  PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
+  GRADING_PROMPT_TEMPLATE = 'GRADING_PROMPT_TEMPLATE',
+}
+
 export interface AIModelConfig {
   id: string;
   name: string;
@@ -94,8 +99,58 @@ export class SettingsService {
     };
   }
 
-  async getAvailableProviders(): Promise<AIModelConfig[]> {
-    return [...AI_MODELS, { id: 'custom', name: '自定义模型', provider: AIProvider.CUSTOM }];
+  async getUserSettings(userId: string): Promise<SystemSettings> {
+    const [systemSettings, userSettings] = await Promise.all([
+      this.getSettings(),
+      this.prisma.userSetting.findMany({ where: { userId } })
+    ]);
+
+    const userSettingsMap = new Map(userSettings.map((s) => [s.key, s.value]));
+
+    return {
+      ...systemSettings,
+      promptTemplate: userSettingsMap.get(UserSettingKey.PROMPT_TEMPLATE) || systemSettings.promptTemplate,
+      gradingPromptTemplate: userSettingsMap.get(UserSettingKey.GRADING_PROMPT_TEMPLATE) || systemSettings.gradingPromptTemplate,
+    };
+  }
+
+  async getAvailableProviders(userId?: string, userRole?: string): Promise<AIModelConfig[]> {
+    // Get custom providers from database
+    const where: any = { isActive: true };
+    
+    if (userId && userRole) {
+      if (userRole === 'ADMIN') {
+        // Admin can see all providers
+      } else {
+        // Teachers can see global providers and their own
+        where.OR = [
+          { isGlobal: true },
+          { createdBy: userId },
+        ];
+      }
+    } else {
+      // If no user context, only show global providers
+      where.isGlobal = true;
+    }
+
+    const customProviders = await this.prisma.aIProvider.findMany({
+      where,
+      orderBy: [
+        { isGlobal: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+
+    // Convert custom providers to AIModelConfig format
+    const customConfigs: AIModelConfig[] = customProviders.map(provider => ({
+      id: provider.id,
+      name: provider.name,
+      provider: 'custom' as any,
+      defaultBaseUrl: provider.baseUrl || undefined,
+      defaultModel: provider.model,
+    }));
+
+    return [...AI_MODELS, ...customConfigs];
   }
 
   async getSetting(key: string): Promise<string> {
@@ -115,6 +170,14 @@ export class SettingsService {
       where: { key },
       update: { value, updatedAt: new Date() },
       create: { key, value },
+    });
+  }
+
+  async updateUserSetting(userId: string, key: string, value: string): Promise<void> {
+    await this.prisma.userSetting.upsert({
+      where: { userId_key: { userId, key } },
+      update: { value, updatedAt: new Date() },
+      create: { userId, key, value },
     });
   }
 
@@ -147,6 +210,23 @@ export class SettingsService {
 }
 
 请只返回JSON格式的题目数据，不要包含其他说明文字。`;
+  }
+
+  getJsonStructureTemplate(): string {
+    return `{
+  "questions": [
+    {
+      "content": "题干内容",
+      "type": "题型(SINGLE_CHOICE/MULTIPLE_CHOICE/TRUE_FALSE/FILL_BLANK/ESSAY)",
+      "options": [{"label": "A", "content": "选项1"}, {"label": "B", "content": "选项2"}],
+      "answer": "正确答案",
+      "explanation": "题目解析",
+      "difficulty": 1,
+      "tags": ["标签1", "标签2"],
+      "knowledgePoint": "知识点"
+    }
+  ]
+}`;
   }
 
   private getDefaultGradingPromptTemplate(): string {

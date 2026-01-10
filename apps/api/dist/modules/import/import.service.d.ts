@@ -21,7 +21,7 @@ export declare class ImportService {
     constructor(prisma: PrismaService, aiService: AIService, progressStore: ImportProgressStore, settingsService: SettingsService);
     private get question();
     importFromExcel(buffer: Buffer): Promise<ImportResult>;
-    importFromPdf(jobId: string, buffer: Buffer, mode?: string): Promise<void>;
+    importFromPdf(jobId: string, buffer: Buffer, mode?: string, userId?: string): Promise<void>;
     private importFromPdfVision;
     private importFromPdfFile;
     private importFromPdfText;

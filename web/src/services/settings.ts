@@ -36,6 +36,16 @@ export const getSettings = async (): Promise<SystemSettings> => {
   return response.data;
 };
 
+export const getUserSettings = async (): Promise<SystemSettings> => {
+  const response = await api.get<SystemSettings>("/api/settings/user");
+  return response.data;
+};
+
+export const getJsonStructureTemplate = async (): Promise<string> => {
+  const response = await api.get<{ template: string }>("/api/settings/json-structure");
+  return response.data.template;
+};
+
 export const getProviders = async (): Promise<AIModelConfig[]> => {
   const response = await api.get<AIModelConfig[]>("/api/settings/providers");
   return response.data;
@@ -51,6 +61,23 @@ export const updateSetting = async (
   value: string,
 ): Promise<void> => {
   await api.put("/api/settings", { key, value });
+};
+
+export const updateUserSetting = async (
+  key: string,
+  value: string,
+): Promise<void> => {
+  await api.put("/api/settings/user", { key, value });
+};
+
+export const createAIProvider = async (provider: {
+  name: string;
+  apiKey: string;
+  baseUrl?: string;
+  model: string;
+  isGlobal?: boolean;
+}): Promise<void> => {
+  await api.post("/api/ai-providers", provider);
 };
 
 export const generateExamFromAI = async (

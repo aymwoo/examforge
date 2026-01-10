@@ -25,19 +25,19 @@ export class AIProviderController {
   @Post()
   @ApiOperation({ summary: 'Create AI Provider' })
   create(@Body() createDto: CreateAIProviderDto, @Request() req: any) {
-    return this.aiProviderService.create(createDto, req.user.sub, req.user.role);
+    return this.aiProviderService.create(createDto, req.user.id, req.user.role);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all AI Providers' })
   findAll(@Request() req: any) {
-    return this.aiProviderService.findAll(req.user.sub, req.user.role);
+    return this.aiProviderService.findAll(req.user.id, req.user.role);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get AI Provider by ID' })
   findOne(@Param('id') id: string, @Request() req: any) {
-    return this.aiProviderService.findOne(id, req.user.sub, req.user.role);
+    return this.aiProviderService.findOne(id, req.user.id, req.user.role);
   }
 
   @Patch(':id')
@@ -47,12 +47,12 @@ export class AIProviderController {
     @Body() updateDto: UpdateAIProviderDto,
     @Request() req: any,
   ) {
-    return this.aiProviderService.update(id, updateDto, req.user.sub, req.user.role);
+    return this.aiProviderService.update(id, updateDto, req.user.id, req.user.role);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete AI Provider' })
   remove(@Param('id') id: string, @Request() req: any) {
-    return this.aiProviderService.remove(id, req.user.sub, req.user.role);
+    return this.aiProviderService.remove(id, req.user.id, req.user.role);
   }
 }

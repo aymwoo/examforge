@@ -14,7 +14,7 @@ export declare class ImportController {
         message: string;
     }>;
     importExcel(file: Express.Multer.File): Promise<import("./import.service").ImportResult>;
-    importPdf(file: Express.Multer.File, mode?: string): Promise<{
+    importPdf(file: Express.Multer.File, mode?: string, req?: any): Promise<{
         jobId: string;
     }>;
     pdfImportProgress(res: Response, jobId: string, since?: string): Promise<void>;

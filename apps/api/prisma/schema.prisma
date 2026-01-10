@@ -28,6 +28,7 @@ model User {
   createdQuestions Question[] @relation("CreatedBy")
   createdExams     Exam[]     @relation("CreatedBy")
   aiProviders      AIProvider[] @relation("CreatedAIProviders")
+  userSettings     UserSetting[]
 
   @@map("users")
 }
@@ -186,4 +187,19 @@ model SystemSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("system_settings")
+}
+
+model UserSetting {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  key       String
+  value     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // 关联关系
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@map("user_settings")
 }

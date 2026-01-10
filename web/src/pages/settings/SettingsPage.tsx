@@ -1,18 +1,26 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings, Save, Plus, Check } from "lucide-react";
+import { Settings, Save, Plus, Check, Lock } from "lucide-react";
 import Button from "@/components/ui/Button";
 import {
   getSettings,
+  getUserSettings,
   updateSetting,
+  updateUserSetting,
   getProviders,
+  getJsonStructureTemplate,
+  createAIProvider,
   type SystemSettings,
   type AIModelConfig,
 } from "@/services/settings";
 import { testAIConnection } from "@/services/settings";
+import { getCurrentUser } from "@/utils/auth";
+import AddAIProviderModal from "@/components/modals/AddAIProviderModal";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
+  const isTeacher = currentUser?.role === 'TEACHER';
   const [settings, setSettings] = useState<SystemSettings>({
     aiProvider: "openai",
     aiApiKey: "",
@@ -29,18 +37,20 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [showAddProviderModal, setShowAddProviderModal] = useState(false);
 
   const loadSettings = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [settingsData, providersData] = await Promise.all([
+      const [settingsData, userSettingsData, providersData] = await Promise.all([
         getSettings(),
+        getUserSettings(),
         getProviders(),
       ]);
-      setSettings(settingsData);
+      setSettings(userSettingsData); // Use user-specific settings
       setProviders(providersData);
-      setSelectedProvider(settingsData.aiProvider);
+      setSelectedProvider(settingsData.aiProvider); // System AI provider
       
       // 设置当前编辑的provider
       const currentProvider = providersData.find(p => p.id === settingsData.aiProvider);
@@ -133,8 +143,8 @@ export default function SettingsPage() {
     setSaving(true);
     setError(null);
     try {
-      await updateSetting("PROMPT_TEMPLATE", settings.promptTemplate);
-      await updateSetting("GRADING_PROMPT_TEMPLATE", settings.gradingPromptTemplate);
+      await updateUserSetting("PROMPT_TEMPLATE", settings.promptTemplate);
+      await updateUserSetting("GRADING_PROMPT_TEMPLATE", settings.gradingPromptTemplate);
       setError("提示词设置保存成功");
     } catch (err: unknown) {
       const axiosError = err as {
@@ -154,6 +164,21 @@ export default function SettingsPage() {
   const handleInputChange = (field: string, value: string) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
     setError(null);
+  };
+
+  const handleInsertJsonStructure = async () => {
+    try {
+      const jsonTemplate = await getJsonStructureTemplate();
+      const currentTemplate = settings.promptTemplate;
+      const insertText = `\n\n输出JSON格式要求：\n${jsonTemplate}`;
+      
+      setSettings((prev) => ({
+        ...prev,
+        promptTemplate: currentTemplate + insertText,
+      }));
+    } catch (err: unknown) {
+      setError("获取JSON结构模板失败");
+    }
   };
 
   const handleResetToDefault = async () => {
@@ -214,7 +239,19 @@ export default function SettingsPage() {
     }
   };
 
+  const handleCreateAIProvider = async (providerData: {
+    name: string;
+    apiKey: string;
+    baseUrl: string;
+    model: string;
+    isGlobal?: boolean;
+  }) => {
+    await createAIProvider(providerData);
+    await loadSettings(); // Reload to show new provider
+  };
+
   return (
+    <>
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-center justify-between">
@@ -253,23 +290,54 @@ export default function SettingsPage() {
               <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-ink-900">AI Provider 配置</h2>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate("/settings/ai-providers")}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    管理 Providers
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddProviderModal(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      新增 Provider
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate("/settings/ai-providers")}
+                    >
+                      管理 Providers
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 当前系统默认 AI Provider 显示 */}
+                <div className="mb-4 rounded-xl border border-gray-300 bg-gray-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Lock className="h-4 w-4 text-gray-600" />
+                        <div className="text-sm font-medium text-gray-800">当前系统默认 AI Provider</div>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {providers.find(p => p.id === settings.aiProvider)?.name || settings.aiProvider}
+                        {settings.aiModel && ` (${settings.aiModel})`}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-md">
+                      系统配置
+                    </div>
+                  </div>
                 </div>
 
                 {/* AI Provider 按钮列表 */}
                 <div className="mb-6">
                   <label className="mb-3 block text-sm font-semibold text-ink-900">
-                    选择 AI Provider
+                    选择 AI Provider {isTeacher && <span className="text-xs text-gray-500">(仅查看，无法修改系统配置)</span>}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {providers.map((provider, index) => {
+                      const isSystemProvider = ['gpt-4', 'gpt-3.5-turbo', 'qwen-turbo', 'qwen-plus', 'qwen-max'].includes(provider.id);
+                      const isCustomProvider = !isSystemProvider;
+                      
                       const colors = [
                         'bg-blue-50 border-blue-200 hover:bg-blue-100',
                         'bg-green-50 border-green-200 hover:bg-green-100', 
@@ -280,24 +348,43 @@ export default function SettingsPage() {
                         'bg-teal-50 border-teal-200 hover:bg-teal-100',
                         'bg-red-50 border-red-200 hover:bg-red-100',
                       ];
-                      const colorClass = colors[index % colors.length];
+                      
+                      let colorClass;
+                      if (isTeacher) {
+                        colorClass = 'bg-gray-50 border-gray-200';
+                      } else if (isCustomProvider) {
+                        colorClass = 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100';
+                      } else {
+                        colorClass = colors[index % colors.length];
+                      }
                       
                       return (
                         <button
                           key={provider.id}
-                          onClick={() => handleProviderSelect(provider.id)}
+                          onClick={() => !isTeacher && handleProviderSelect(provider.id)}
+                          disabled={isTeacher}
                           className={`relative flex items-center justify-between rounded-xl border p-3 text-left transition-all ${
                             selectedProvider === provider.id
-                              ? "border-blue-500 bg-blue-50 text-blue-900 ring-2 ring-blue-200"
-                              : `${colorClass} text-ink-900`
+                              ? isTeacher 
+                                ? "border-gray-400 bg-gray-100 text-gray-700"
+                                : "border-blue-500 bg-blue-50 text-blue-900 ring-2 ring-blue-200"
+                              : `${colorClass} text-ink-900 ${isTeacher ? 'cursor-not-allowed opacity-75' : 'cursor-pointer'}`
                           }`}
                         >
                           <div>
-                            <div className="font-medium">{provider.name}</div>
+                            <div className="font-medium flex items-center gap-2">
+                              {provider.name}
+                              {isTeacher && <Lock className="h-3 w-3 text-gray-500" />}
+                              {isCustomProvider && (
+                                <span className="text-xs bg-yellow-200 text-yellow-800 px-1.5 py-0.5 rounded">
+                                  自定义
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-ink-600">{provider.id}</div>
                           </div>
                           {selectedProvider === provider.id && settings.aiProvider === provider.id && (
-                            <Check className="h-4 w-4 text-blue-600" />
+                            <Check className={`h-4 w-4 ${isTeacher ? 'text-gray-600' : 'text-blue-600'}`} />
                           )}
                         </button>
                       );
@@ -309,51 +396,69 @@ export default function SettingsPage() {
                 {editingProvider && (
                   <div className="space-y-4">
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
                         API Key
+                        {isTeacher && <Lock className="h-3 w-3 text-gray-500" />}
                       </label>
                       <input
                         type="password"
-                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                        className={`w-full rounded-xl border px-3 py-2 text-sm ${
+                          isTeacher 
+                            ? 'border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed' 
+                            : 'border-border bg-white text-ink-900'
+                        }`}
                         placeholder="sk-..."
                         value={editingProvider.apiKey || ""}
                         onChange={(e) =>
-                          handleProviderFieldChange("apiKey", e.target.value)
+                          !isTeacher && handleProviderFieldChange("apiKey", e.target.value)
                         }
+                        disabled={isTeacher}
                       />
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
                         Base URL
+                        {isTeacher && <Lock className="h-3 w-3 text-gray-500" />}
                       </label>
                       <input
                         type="url"
-                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                        className={`w-full rounded-xl border px-3 py-2 text-sm ${
+                          isTeacher 
+                            ? 'border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed' 
+                            : 'border-border bg-white text-ink-900'
+                        }`}
                         placeholder="https://api.openai.com/v1/chat/completions"
                         value={editingProvider.baseUrl || ""}
                         onChange={(e) =>
-                          handleProviderFieldChange("baseUrl", e.target.value)
+                          !isTeacher && handleProviderFieldChange("baseUrl", e.target.value)
                         }
+                        disabled={isTeacher}
                       />
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
                         Model
+                        {isTeacher && <Lock className="h-3 w-3 text-gray-500" />}
                       </label>
                       <input
                         type="text"
-                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                        className={`w-full rounded-xl border px-3 py-2 text-sm ${
+                          isTeacher 
+                            ? 'border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed' 
+                            : 'border-border bg-white text-ink-900'
+                        }`}
                         placeholder="gpt-4o"
                         value={editingProvider.model || ""}
                         onChange={(e) =>
-                          handleProviderFieldChange("model", e.target.value)
+                          !isTeacher && handleProviderFieldChange("model", e.target.value)
                         }
+                        disabled={isTeacher}
                       />
                     </div>
 
-                    {hasChanges && (
+                    {hasChanges && !isTeacher && (
                       <div className="flex gap-2">
                         <Button
                           onClick={handleSaveProvider}
@@ -372,6 +477,15 @@ export default function SettingsPage() {
                         </Button>
                       </div>
                     )}
+
+                    {isTeacher && (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <Lock className="h-4 w-4" />
+                          <span>教师角色无法修改系统级 AI Provider 配置</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -380,9 +494,16 @@ export default function SettingsPage() {
                     onClick={handleTestAIConnection}
                     className="flex-1"
                     variant="outline"
-                    disabled={!editingProvider?.apiKey}
+                    disabled={!editingProvider?.apiKey || isTeacher}
                   >
-                    测试 AI 连接
+                    {isTeacher ? (
+                      <>
+                        <Lock className="h-4 w-4 mr-2" />
+                        无法测试连接
+                      </>
+                    ) : (
+                      "测试 AI 连接"
+                    )}
                   </Button>
                 </div>
 
@@ -404,13 +525,22 @@ export default function SettingsPage() {
                   <h2 className="text-lg font-semibold text-ink-900">
                     试卷生成提示词配置
                   </h2>
-                  <Button
-                    onClick={handleResetToDefault}
-                    variant="outline"
-                    size="sm"
-                  >
-                    重置默认
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleInsertJsonStructure}
+                      variant="outline"
+                      size="sm"
+                    >
+                      插入JSON结构
+                    </Button>
+                    <Button
+                      onClick={handleResetToDefault}
+                      variant="outline"
+                      size="sm"
+                    >
+                      重置默认
+                    </Button>
+                  </div>
                 </div>
 
                 <div>
@@ -426,7 +556,7 @@ export default function SettingsPage() {
                     placeholder="输入AI提示词模板..."
                   />
                   <p className="mt-1 text-xs text-ink-700">
-                    提示词模板用于指导AI如何根据试卷图像生成题目。支持变量占位符。
+                    提示词模板用于指导AI如何根据试卷图像生成题目。支持变量占位符。此为您的个人设置。
                   </p>
                 </div>
 
@@ -458,7 +588,7 @@ export default function SettingsPage() {
                     placeholder="输入AI评分提示词模板..."
                   />
                   <p className="mt-1 text-xs text-ink-700">
-                    评分提示词模板用于指导AI如何评分学生答案。支持变量：{"{questionContent}"}, {"{questionType}"}, {"{referenceAnswer}"}, {"{studentAnswer}"}, {"{maxScore}"}
+                    评分提示词模板用于指导AI如何评分学生答案。支持变量：{"{questionContent}"}, {"{questionType}"}, {"{referenceAnswer}"}, {"{studentAnswer}"}, {"{maxScore}"}。此为您的个人设置。
                   </p>
                 </div>
               </div>
@@ -467,5 +597,13 @@ export default function SettingsPage() {
         )}
       </div>
     </div>
+
+    <AddAIProviderModal
+      isOpen={showAddProviderModal}
+      onClose={() => setShowAddProviderModal(false)}
+      onSave={handleCreateAIProvider}
+      userRole={currentUser?.role || 'TEACHER'}
+    />
+    </>
   );
 }

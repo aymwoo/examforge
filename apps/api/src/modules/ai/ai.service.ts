@@ -39,10 +39,12 @@ export class AIService {
 
   async generateQuestionsFromText(
     text: string,
-    opts?: { chunkIndex?: number; totalChunks?: number }
+    opts?: { chunkIndex?: number; totalChunks?: number; userId?: string }
   ): Promise<GenerateExamQuestionsResponse> {
-    const settings = await this.settingsService.getSettings();
-    const promptTemplate = await this.settingsService.getPromptTemplate();
+    const settings = opts?.userId 
+      ? await this.settingsService.getUserSettings(opts.userId)
+      : await this.settingsService.getSettings();
+    const promptTemplate = settings.promptTemplate;
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(
@@ -118,9 +120,11 @@ export class AIService {
     }
   }
 
-  async generateExamQuestions(imageBuffer: Buffer): Promise<GenerateExamQuestionsResponse> {
-    const settings = await this.settingsService.getSettings();
-    const promptTemplate = await this.settingsService.getPromptTemplate();
+  async generateExamQuestions(imageBuffer: Buffer, userId?: string): Promise<GenerateExamQuestionsResponse> {
+    const settings = userId 
+      ? await this.settingsService.getUserSettings(userId)
+      : await this.settingsService.getSettings();
+    const promptTemplate = settings.promptTemplate;
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(
@@ -235,10 +239,13 @@ export class AIService {
   }
 
   async generateExamQuestionsFromImage(
-    imageBase64: string
+    imageBase64: string,
+    userId?: string
   ): Promise<GenerateExamQuestionsResponse> {
-    const settings = await this.settingsService.getSettings();
-    const promptTemplate = await this.settingsService.getPromptTemplate();
+    const settings = userId 
+      ? await this.settingsService.getUserSettings(userId)
+      : await this.settingsService.getSettings();
+    const promptTemplate = settings.promptTemplate;
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(

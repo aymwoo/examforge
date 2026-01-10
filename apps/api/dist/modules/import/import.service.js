@@ -110,9 +110,11 @@ let ImportService = class ImportService {
         }
         return result;
     }
-    async importFromPdf(jobId, buffer, mode) {
+    async importFromPdf(jobId, buffer, mode, userId) {
         const resolvedMode = (mode || '').toLowerCase().trim();
-        const settings = await this.settingsService.getSettings();
+        const settings = userId
+            ? await this.settingsService.getUserSettings(userId)
+            : await this.settingsService.getSettings();
         const effectiveMode = resolvedMode || (settings.aiProvider === 'qwen' ? 'vision' : 'text');
         this.progressStore.append(jobId, {
             stage: 'received',
@@ -122,14 +124,14 @@ let ImportService = class ImportService {
             },
         });
         if (effectiveMode === 'vision') {
-            return this.importFromPdfVision(jobId, buffer);
+            return this.importFromPdfVision(jobId, buffer, userId);
         }
         if (effectiveMode === 'file') {
-            return this.importFromPdfFile(jobId, buffer);
+            return this.importFromPdfFile(jobId, buffer, userId);
         }
-        return this.importFromPdfText(jobId, buffer);
+        return this.importFromPdfText(jobId, buffer, userId);
     }
-    async importFromPdfVision(jobId, buffer) {
+    async importFromPdfVision(jobId, buffer, userId) {
         const questionIds = [];
         try {
             this.progressStore.append(jobId, {
@@ -163,7 +165,7 @@ let ImportService = class ImportService {
                 let lastError = null;
                 for (let attempt = 1; attempt <= 2; attempt++) {
                     try {
-                        const { questions } = await this.aiService.generateExamQuestionsFromImage(b64);
+                        const { questions } = await this.aiService.generateExamQuestionsFromImage(b64, userId);
                         this.progressStore.append(jobId, {
                             stage: 'ai_response_received',
                             message: `AI 返回 ${questions.length} 道题（第 ${pageIndex + 1}/${images.length} 页）`,
@@ -253,7 +255,7 @@ let ImportService = class ImportService {
             throw error;
         }
     }
-    async importFromPdfFile(jobId, _buffer) {
+    async importFromPdfFile(jobId, _buffer, userId) {
         const error = new common_1.BadRequestException('当前 AI 提供方/模型暂不支持直接发送 PDF 文件。请改用“图片识别（推荐）”或“文本解析”。');
         this.progressStore.append(jobId, {
             stage: 'error',
@@ -261,7 +263,7 @@ let ImportService = class ImportService {
         });
         throw error;
     }
-    async importFromPdfText(jobId, buffer) {
+    async importFromPdfText(jobId, buffer, userId) {
         const questionIds = [];
         try {
             this.progressStore.append(jobId, {
@@ -322,6 +324,7 @@ let ImportService = class ImportService {
                     const { questions } = await this.aiService.generateQuestionsFromText(inputChunk, {
                         chunkIndex: i + 1,
                         totalChunks: chunks.length,
+                        userId,
                     });
                     this.progressStore.append(jobId, {
                         stage: 'ai_response_received',

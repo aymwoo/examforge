@@ -9,17 +9,22 @@ import {
   Query,
   Res,
   Body,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
 
 import { ImportProgressStore } from './import-progress.store';
 import { ImportService } from './import.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('import')
 @Controller('import')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class ImportController {
   constructor(
     private readonly importService: ImportService,
@@ -143,7 +148,7 @@ export class ImportController {
       },
     })
   )
-  async importPdf(@UploadedFile() file: Express.Multer.File, @Query('mode') mode?: string) {
+  async importPdf(@UploadedFile() file: Express.Multer.File, @Query('mode') mode?: string, @Req() req?: any) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
@@ -151,7 +156,7 @@ export class ImportController {
     const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     this.progressStore.createJob(jobId);
 
-    void this.importService.importFromPdf(jobId, file.buffer, mode);
+    void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id);
 
     return { jobId };
   }

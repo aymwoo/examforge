@@ -19,6 +19,7 @@ const swagger_1 = require("@nestjs/swagger");
 const multer_1 = require("multer");
 const import_progress_store_1 = require("./import-progress.store");
 const import_service_1 = require("./import.service");
+const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 let ImportController = class ImportController {
     importService;
     progressStore;
@@ -42,13 +43,13 @@ let ImportController = class ImportController {
         }
         return this.importService.importFromExcel(file.buffer);
     }
-    async importPdf(file, mode) {
+    async importPdf(file, mode, req) {
         if (!file) {
             throw new common_1.BadRequestException('File is required');
         }
         const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         this.progressStore.createJob(jobId);
-        void this.importService.importFromPdf(jobId, file.buffer, mode);
+        void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id);
         return { jobId };
     }
     async pdfImportProgress(res, jobId, since) {
@@ -178,8 +179,9 @@ __decorate([
     })),
     __param(0, (0, common_1.UploadedFile)()),
     __param(1, (0, common_1.Query)('mode')),
+    __param(2, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, String]),
+    __metadata("design:paramtypes", [Object, String, Object]),
     __metadata("design:returntype", Promise)
 ], ImportController.prototype, "importPdf", null);
 __decorate([
@@ -195,6 +197,8 @@ __decorate([
 exports.ImportController = ImportController = __decorate([
     (0, swagger_1.ApiTags)('import'),
     (0, common_1.Controller)('import'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
     __metadata("design:paramtypes", [import_service_1.ImportService,
         import_progress_store_1.ImportProgressStore])
 ], ImportController);
