@@ -1339,4 +1339,125 @@ ${studentAnswer}
     }
     return password;
   }
+
+  async getExamAnalytics(examId: string) {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId },
+      include: {
+        examQuestions: {
+          include: {
+            question: true,
+          },
+          orderBy: { order: 'asc' },
+        },
+        examStudents: true,
+        submissions: {
+          include: {
+            examStudent: true,
+          },
+        },
+      },
+    });
+
+    if (!exam) {
+      throw new Error('考试不存在');
+    }
+
+    const submissions = exam.submissions;
+    const totalStudents = exam.examStudents.length;
+    const submittedCount = submissions.length;
+    const notSubmittedCount = totalStudents - submittedCount;
+
+    // 成绩统计
+    const scores = submissions.map(s => s.score).filter(s => s !== null);
+    const scoreStats = {
+      average: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
+      highest: scores.length > 0 ? Math.max(...scores) : 0,
+      lowest: scores.length > 0 ? Math.min(...scores) : 0,
+      passRate: scores.length > 0 ? (scores.filter(s => s >= 60).length / scores.length) * 100 : 0,
+    };
+
+    // 题目分析
+    const questionStats = [];
+    for (const examQuestion of exam.examQuestions) {
+      const questionAnswers = [];
+      
+      for (const submission of submissions) {
+        if (submission.answers) {
+          const answers = JSON.parse(submission.answers);
+          const answer = answers[examQuestion.question.id];
+          if (answer !== undefined) {
+            questionAnswers.push({
+              answer: answer,
+              score: submission.gradingDetails ? 
+                JSON.parse(submission.gradingDetails)[examQuestion.question.id]?.score || 0 : 0,
+              maxScore: examQuestion.score,
+            });
+          }
+        }
+      }
+
+      const correctAnswers = questionAnswers.filter(qa => qa.score === qa.maxScore).length;
+      const correctRate = questionAnswers.length > 0 ? (correctAnswers / questionAnswers.length) * 100 : 0;
+      const averageScore = questionAnswers.length > 0 ? 
+        questionAnswers.reduce((sum, qa) => sum + qa.score, 0) / questionAnswers.length : 0;
+
+      questionStats.push({
+        questionId: examQuestion.question.id,
+        content: examQuestion.question.content,
+        type: examQuestion.question.type,
+        correctRate,
+        averageScore,
+        difficulty: examQuestion.question.difficulty,
+        knowledgePoint: examQuestion.question.knowledgePoint,
+      });
+    }
+
+    // 知识点分析
+    const knowledgePointMap = new Map();
+    questionStats.forEach(qs => {
+      const kp = qs.knowledgePoint || '未分类';
+      if (!knowledgePointMap.has(kp)) {
+        knowledgePointMap.set(kp, {
+          knowledgePoint: kp,
+          questionCount: 0,
+          totalScore: 0,
+          maxScore: 0,
+          correctCount: 0,
+          totalAnswers: 0,
+        });
+      }
+      
+      const kpData = knowledgePointMap.get(kp);
+      kpData.questionCount++;
+      kpData.totalScore += qs.averageScore;
+      kpData.maxScore += exam.examQuestions.find(eq => eq.question.id === qs.questionId)?.score || 0;
+      
+      const questionAnswers = submissions.length;
+      kpData.totalAnswers += questionAnswers;
+      kpData.correctCount += (qs.correctRate / 100) * questionAnswers;
+    });
+
+    const knowledgePointStats = Array.from(knowledgePointMap.values()).map(kp => ({
+      knowledgePoint: kp.knowledgePoint,
+      questionCount: kp.questionCount,
+      averageScore: kp.questionCount > 0 ? kp.totalScore / kp.questionCount : 0,
+      masteryRate: kp.totalAnswers > 0 ? (kp.correctCount / kp.totalAnswers) * 100 : 0,
+    }));
+
+    // 参与情况统计
+    const participationStats = {
+      totalStudents,
+      submittedCount,
+      notSubmittedCount,
+      participationRate: totalStudents > 0 ? (submittedCount / totalStudents) * 100 : 0,
+    };
+
+    return {
+      scoreStats,
+      questionStats,
+      knowledgePointStats,
+      participationStats,
+    };
+  }
 }

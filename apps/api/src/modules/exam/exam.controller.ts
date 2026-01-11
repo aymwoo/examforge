@@ -331,4 +331,12 @@ export class ExamController {
   ) {
     return this.examService.getAIGradingSuggestions(examId, submissionId);
   }
+
+  @Get(':id/analytics')
+  @ApiOperation({ summary: 'Get exam analytics and statistics' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiResponse({ status: 200, description: 'Analytics retrieved successfully' })
+  getExamAnalytics(@Param('id') examId: string) {
+    return this.examService.getExamAnalytics(examId);
+  }
 }
