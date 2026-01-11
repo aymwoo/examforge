@@ -6,7 +6,7 @@ import { getExamById, deleteExam, type Exam } from "@/services/exams";
 
 interface ExamLayoutProps {
   children: ReactNode;
-  activeTab: 'details' | 'analytics' | 'grading';
+  activeTab: 'details' | 'analytics' | 'grading' | 'preview' | 'export' | 'delete';
 }
 
 export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
@@ -119,56 +119,11 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
               </div>
             </div>
 
-            {/* 快速操作 */}
-            <div className="border-t border-blue-200 pt-6">
-              <h3 className="text-lg font-semibold text-blue-900 mb-4">快速操作</h3>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <Button 
-                  onClick={() => navigate(`/exams/${id}/grading`)}
-                  className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-xl text-sm"
-                >
-                  <CheckSquare className="h-4 w-4" />
-                  评分管理
-                </Button>
-                
-                <Button 
-                  onClick={() => navigate(`/exams/${id}/analytics`)}
-                  className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white p-3 rounded-xl text-sm"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  统计分析
-                </Button>
-                
-                <Button 
-                  onClick={() => window.open(`/exam/${id}/login`, '_blank')}
-                  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white p-3 rounded-xl text-sm"
-                >
-                  <Eye className="h-4 w-4" />
-                  预览考试
-                </Button>
-                
-                <Button 
-                  variant="outline"
-                  className="flex items-center gap-2 border-2 border-orange-300 text-orange-600 hover:bg-orange-50 p-3 rounded-xl text-sm"
-                >
-                  <Download className="h-4 w-4" />
-                  导出数据
-                </Button>
-                
-                <Button 
-                  variant="outline"
-                  className="flex items-center gap-2 border-2 border-red-300 text-red-600 hover:bg-red-50 p-3 rounded-xl text-sm"
-                  onClick={handleDeleteExam}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  删除考试
-                </Button>
-              </div>
-            </div>
+            {/* 快速操作 - 移除此部分 */}
           </div>
 
           {/* 标签页导航 */}
-          <div className="flex border-b-2 border-gray-200 mb-8">
+          <div className="flex flex-wrap border-b-2 border-gray-200 mb-8 gap-1">
             <button
               onClick={() => navigate(`/exams/${id}`)}
               className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
@@ -184,8 +139,8 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
               onClick={() => navigate(`/exams/${id}/analytics`)}
               className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
                 activeTab === 'analytics'
-                  ? 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
-                  : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                  ? 'border-b-2 border-purple-500 text-purple-700 bg-purple-50'
+                  : 'text-gray-600 hover:text-purple-700 hover:bg-purple-50'
               }`}
             >
               <BarChart3 className="h-4 w-4" />
@@ -195,12 +150,44 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
               onClick={() => navigate(`/exams/${id}/grading`)}
               className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
                 activeTab === 'grading'
-                  ? 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
-                  : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
+                  ? 'border-b-2 border-green-500 text-green-700 bg-green-50'
+                  : 'text-gray-600 hover:text-green-700 hover:bg-green-50'
               }`}
             >
               <CheckSquare className="h-4 w-4" />
               评分管理
+            </button>
+            <button
+              onClick={() => window.open(`/exam/${id}/login`, '_blank')}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
+                activeTab === 'preview'
+                  ? 'border-b-2 border-cyan-500 text-cyan-700 bg-cyan-50'
+                  : 'text-gray-600 hover:text-cyan-700 hover:bg-cyan-50'
+              }`}
+            >
+              <Eye className="h-4 w-4" />
+              预览考试
+            </button>
+            <button
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
+                activeTab === 'export'
+                  ? 'border-b-2 border-orange-500 text-orange-700 bg-orange-50'
+                  : 'text-gray-600 hover:text-orange-700 hover:bg-orange-50'
+              }`}
+            >
+              <Download className="h-4 w-4" />
+              导出数据
+            </button>
+            <button
+              onClick={handleDeleteExam}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
+                activeTab === 'delete'
+                  ? 'border-b-2 border-red-500 text-red-700 bg-red-50'
+                  : 'text-gray-600 hover:text-red-700 hover:bg-red-50'
+              }`}
+            >
+              <Trash2 className="h-4 w-4" />
+              删除考试
             </button>
           </div>
         </div>
