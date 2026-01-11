@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Users, FileText, Calendar, RefreshCw, Zap, Brain, BarChart3, Shield, Upload, CheckCircle } from "lucide-react";
+import { Clock, Users, FileText, Calendar, RefreshCw, Zap, Brain, BarChart3, Shield, Upload, CheckCircle, BookOpen } from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
 
@@ -78,85 +78,90 @@ export default function HomePage() {
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* 统计卡片 */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
-            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 p-8 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer">
+            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+            <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full blur-lg"></div>
+            <div className="absolute top-4 right-4 w-2 h-2 bg-white/60 rounded-full animate-ping"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <Clock className="h-6 w-6 text-white" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="p-4 bg-white/15 rounded-3xl backdrop-blur-md border border-white/20 shadow-lg">
+                  <Clock className="h-7 w-7 text-white drop-shadow-sm" />
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-bold text-white">{dashboardData?.ongoingExams || 0}</p>
-                  <p className="text-blue-100 text-sm font-medium">正在进行</p>
+                  <p className="text-4xl font-black text-white mb-1 tracking-tight">{dashboardData?.ongoingExams || 0}</p>
+                  <p className="text-blue-100 text-sm font-semibold tracking-wide">正在进行</p>
                 </div>
               </div>
-              <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white/40 rounded-full w-3/4 animate-pulse"></div>
+              <div className="h-2 bg-white/15 rounded-full overflow-hidden backdrop-blur-sm">
+                <div className="h-full bg-gradient-to-r from-white/40 to-white/60 rounded-full w-3/4 animate-pulse shadow-sm"></div>
               </div>
             </div>
           </div>
 
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-green-500 to-green-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
-            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 p-8 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer">
+            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+            <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full blur-lg"></div>
+            <div className="absolute top-4 right-4 w-2 h-2 bg-white/60 rounded-full animate-ping"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <Users className="h-6 w-6 text-white" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="p-4 bg-white/15 rounded-3xl backdrop-blur-md border border-white/20 shadow-lg">
+                  <Users className="h-7 w-7 text-white drop-shadow-sm" />
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-bold text-white">{dashboardData?.totalStudents || 0}</p>
-                  <p className="text-green-100 text-sm font-medium">参与学生</p>
+                  <p className="text-4xl font-black text-white mb-1 tracking-tight">{dashboardData?.totalStudents || 0}</p>
+                  <p className="text-emerald-100 text-sm font-semibold tracking-wide">参与学生</p>
                 </div>
               </div>
-              <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white/40 rounded-full w-4/5 animate-pulse"></div>
+              <div className="h-2 bg-white/15 rounded-full overflow-hidden backdrop-blur-sm">
+                <div className="h-full bg-gradient-to-r from-white/40 to-white/60 rounded-full w-4/5 animate-pulse shadow-sm"></div>
               </div>
             </div>
           </div>
 
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 to-orange-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
-            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 p-8 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer">
+            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+            <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full blur-lg"></div>
+            <div className="absolute top-4 right-4 w-2 h-2 bg-white/60 rounded-full animate-ping"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <FileText className="h-6 w-6 text-white" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="p-4 bg-white/15 rounded-3xl backdrop-blur-md border border-white/20 shadow-lg">
+                  <FileText className="h-7 w-7 text-white drop-shadow-sm" />
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-bold text-white">{dashboardData?.totalSubmissions || 0}</p>
-                  <p className="text-orange-100 text-sm font-medium">已提交</p>
+                  <p className="text-4xl font-black text-white mb-1 tracking-tight">{dashboardData?.totalSubmissions || 0}</p>
+                  <p className="text-amber-100 text-sm font-semibold tracking-wide">已提交</p>
                 </div>
               </div>
-              <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white/40 rounded-full w-2/3 animate-pulse"></div>
+              <div className="h-2 bg-white/15 rounded-full overflow-hidden backdrop-blur-sm">
+                <div className="h-full bg-gradient-to-r from-white/40 to-white/60 rounded-full w-2/3 animate-pulse shadow-sm"></div>
               </div>
             </div>
           </div>
 
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-500 to-purple-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
-            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-500 via-violet-600 to-violet-700 p-8 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer">
+            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+            <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full blur-lg"></div>
+            <div className="absolute top-4 right-4 w-2 h-2 bg-white/60 rounded-full animate-ping"></div>
             <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <Calendar className="h-6 w-6 text-white" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="p-4 bg-white/15 rounded-3xl backdrop-blur-md border border-white/20 shadow-lg">
+                  <BookOpen className="h-7 w-7 text-white drop-shadow-sm" />
                 </div>
                 <div className="text-right">
-                  <Button 
-                    onClick={() => navigate('/exams')}
-                    className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm text-sm px-4 py-2"
-                  >
-                    查看全部
-                  </Button>
-                  <p className="text-purple-100 text-sm font-medium mt-2">总考试</p>
+                  <p className="text-4xl font-black text-white mb-1 tracking-tight">{dashboardData?.totalQuestions || 0}</p>
+                  <p className="text-violet-100 text-sm font-semibold tracking-wide">题目数量</p>
                 </div>
               </div>
-              <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white/40 rounded-full w-full animate-pulse"></div>
+              <div className="h-2 bg-white/15 rounded-full overflow-hidden backdrop-blur-sm">
+                <div className="h-full bg-gradient-to-r from-white/40 to-white/60 rounded-full w-full animate-pulse shadow-sm"></div>
               </div>
+              <Button 
+                onClick={() => navigate('/questions')}
+                className="mt-4 w-full bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md text-sm py-2 font-semibold transition-all duration-300 hover:scale-105"
+              >
+                查看题库
+              </Button>
             </div>
           </div>
         </div>
