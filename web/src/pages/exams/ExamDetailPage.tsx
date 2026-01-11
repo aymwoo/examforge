@@ -78,7 +78,7 @@ export default function ExamDetailPage() {
                       <div className="text-gray-800 mb-2">
                         {examQuestion.question?.content}
                       </div>
-                      {examQuestion.question?.options && examQuestion.question.options.length > 0 && (
+                      {examQuestion.question?.options && Array.isArray(examQuestion.question.options) && examQuestion.question.options.length > 0 && (
                         <div className="text-sm text-gray-600 space-y-1">
                           {examQuestion.question.options.map((option: any, optIndex: number) => (
                             <div key={optIndex}>
