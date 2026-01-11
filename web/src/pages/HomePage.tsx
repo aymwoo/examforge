@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Users, FileText, Calendar, RefreshCw } from "lucide-react";
+import { Clock, Users, FileText, Calendar, RefreshCw, Zap, Brain, BarChart3, Shield, Upload, CheckCircle } from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
 
@@ -227,6 +227,191 @@ export default function HomePage() {
               ))}
             </div>
           )}
+        </div>
+
+        {/* 产品特性介绍 */}
+        <div className="mt-16 mb-16">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-ink-900 mb-4">为什么选择 ExamForge？</h2>
+            <p className="text-lg text-ink-600 max-w-2xl mx-auto">
+              基于AI的智能考试平台，让考试管理变得简单高效
+            </p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {/* AI智能评分 */}
+            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                <Brain className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-ink-900 mb-4">AI智能评分</h3>
+              <p className="text-ink-600 mb-4">
+                支持主观题智能评分，基于大语言模型提供准确的评分建议，大幅提升评分效率。
+              </p>
+              <ul className="space-y-2 text-sm text-ink-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  支持简答题、论述题评分
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  多种AI模型可选
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  人工复核确保准确性
+                </li>
+              </ul>
+            </div>
+
+            {/* 批量导入 */}
+            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
+              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-6">
+                <Upload className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-ink-900 mb-4">批量导入题目</h3>
+              <p className="text-ink-600 mb-4">
+                支持Excel、PDF等多种格式的题目批量导入，OCR识别让题目录入变得轻松简单。
+              </p>
+              <ul className="space-y-2 text-sm text-ink-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  Excel标准格式导入
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  PDF文档OCR识别
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  多种题型自动识别
+                </li>
+              </ul>
+            </div>
+
+            {/* 数据分析 */}
+            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6">
+                <BarChart3 className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-ink-900 mb-4">智能数据分析</h3>
+              <p className="text-ink-600 mb-4">
+                提供丰富的图表分析和统计报告，深入了解学生学习情况和考试效果。
+              </p>
+              <ul className="space-y-2 text-sm text-ink-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  多维度数据可视化
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  知识点掌握分析
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  学习效果评估
+                </li>
+              </ul>
+            </div>
+
+            {/* 实时监控 */}
+            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
+              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6">
+                <Zap className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-ink-900 mb-4">实时监控</h3>
+              <p className="text-ink-600 mb-4">
+                实时监控考试进度，掌握学生参与情况，及时发现和处理考试中的问题。
+              </p>
+              <ul className="space-y-2 text-sm text-ink-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  考试进度实时跟踪
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  学生状态监控
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  异常情况预警
+                </li>
+              </ul>
+            </div>
+
+            {/* 安全可靠 */}
+            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
+              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mb-6">
+                <Shield className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-ink-900 mb-4">安全可靠</h3>
+              <p className="text-ink-600 mb-4">
+                企业级安全保障，数据加密存储，权限管理完善，确保考试公平公正。
+              </p>
+              <ul className="space-y-2 text-sm text-ink-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  数据加密保护
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  角色权限管理
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  防作弊机制
+                </li>
+              </ul>
+            </div>
+
+            {/* 易于使用 */}
+            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
+              <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl flex items-center justify-center mb-6">
+                <Users className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-ink-900 mb-4">易于使用</h3>
+              <p className="text-ink-600 mb-4">
+                直观的用户界面，简单的操作流程，无需复杂培训即可快速上手使用。
+              </p>
+              <ul className="space-y-2 text-sm text-ink-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  现代化界面设计
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  一键式操作
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  完整使用文档
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA区域 */}
+        <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-12 text-center text-white mb-16">
+          <h2 className="text-3xl font-bold mb-4">开始使用 ExamForge</h2>
+          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            立即体验AI驱动的智能考试平台，让考试管理变得更加高效便捷
+          </p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            <Button 
+              onClick={() => navigate('/exams')}
+              className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg font-semibold"
+            >
+              创建考试
+            </Button>
+            <Button 
+              onClick={() => navigate('/docs')}
+              variant="outline"
+              className="border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 text-lg font-semibold"
+            >
+              查看文档
+            </Button>
+          </div>
         </div>
       </div>
     </div>
