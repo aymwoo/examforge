@@ -312,9 +312,10 @@ export default function ExamTakePage() {
                 <Button 
                   onClick={() => {
                     console.log('submissionResult:', submissionResult);
-                    console.log('showDetailedResults before:', showDetailedResults);
+                    console.log('exam questions:', exam?.questions);
+                    console.log('submissionResult.answers:', submissionResult.answers);
+                    console.log('answers count:', submissionResult.answers?.length);
                     setShowDetailedResults(true);
-                    console.log('showDetailedResults after:', true);
                   }} 
                   variant="outline"
                   className="flex-1"
@@ -326,157 +327,114 @@ export default function ExamTakePage() {
                 返回首页
               </Button>
             </div>
-            
-            {/* 直接显示的测试元素 */}
-            {showDetailedResults && (
-              <div className="mt-4 p-4 bg-red-500 text-white text-center text-xl font-bold border-4 border-black">
-                🚨 测试元素显示成功！showDetailedResults = {String(showDetailedResults)} 🚨
-              </div>
-            )}
-            
           </div>
         </div>
+
+        {/* 评分详情Modal */}
+        {showDetailedResults && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-gray-900">评分详情</h2>
+                  <button
+                    onClick={() => setShowDetailedResults(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+                {submissionResult && (
+                  <div className="mt-4 flex gap-6 text-sm text-gray-600">
+                    <div>
+                      总分: <span className="font-bold text-lg text-green-600">{submissionResult.score}分</span>
+                    </div>
+                    <div>
+                      提交时间: {new Date(submissionResult.submittedAt).toLocaleString()}
+                    </div>
+                    <div>
+                      题目数量: {exam?.questions?.length || 0} | 答案数量: {submissionResult.answers?.length || 0}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
+                {submissionResult?.answers && Array.isArray(submissionResult.answers) ? (
+                  <div className="space-y-6">
+                    {submissionResult.answers.map((answer, index) => {
+                      const question = exam?.questions?.find(q => q.id === answer.questionId);
+                      return (
+                        <div key={answer.questionId} className="border border-gray-200 rounded-xl p-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-lg">题目 {index + 1}</h3>
+                            <div className="text-right">
+                              <div className="text-xs text-gray-500">得分</div>
+                              <div className="font-bold text-lg">
+                                <span className={answer.score > 0 ? 'text-green-600' : 'text-red-600'}>
+                                  {answer.score}
+                                </span>
+                                <span className="text-gray-400">/{answer.maxScore}</span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-4">
+                            <div>
+                              <div className="text-sm font-medium text-gray-700 mb-2">题目内容:</div>
+                              <div className="text-gray-900">{question?.content || '题目内容未找到'}</div>
+                            </div>
+                            
+                            <div>
+                              <div className="text-sm font-medium text-gray-700 mb-2">您的答案:</div>
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                {answer.answer || '未作答'}
+                              </div>
+                            </div>
+                            
+                            {question?.answer && (
+                              <div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">参考答案:</div>
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                  {question.answer}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {answer.feedback && (
+                              <div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">评分说明:</div>
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
+                                  {answer.feedback}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {question?.explanation && (
+                              <div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">题目解析:</div>
+                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+                                  {question.explanation}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    暂无评分详情数据
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
-
-  // 使用useEffect在body上添加Modal
-  useEffect(() => {
-    if (showDetailedResults) {
-      const modalDiv = document.createElement('div');
-      modalDiv.id = 'exam-modal';
-      modalDiv.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.8);
-        z-index: 999999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        box-sizing: border-box;
-      `;
-      
-      // 创建评分详情内容
-      let answersHtml = '';
-      if (submissionResult?.answers && Array.isArray(submissionResult.answers)) {
-        answersHtml = submissionResult.answers.map((answer, index) => {
-          const question = exam?.questions?.find(q => q.id === answer.questionId);
-          return `
-            <div style="border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; background: white;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                <h3 style="font-weight: bold; margin: 0;">题目 ${index + 1}</h3>
-                <div style="text-align: right;">
-                  <div style="font-size: 12px; color: #6b7280;">得分</div>
-                  <div style="font-weight: bold; font-size: 18px;">
-                    <span style="color: ${answer.score > 0 ? '#059669' : '#dc2626'};">${answer.score}</span>
-                    <span style="color: #9ca3af;">/${answer.maxScore}</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div style="margin-bottom: 12px;">
-                <div style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px;">题目内容:</div>
-                <div style="color: #111827;">${question?.content || '题目内容未找到'}</div>
-              </div>
-              
-              <div style="margin-bottom: 12px;">
-                <div style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px;">您的答案:</div>
-                <div style="background: #dbeafe; border: 1px solid #93c5fd; border-radius: 8px; padding: 12px;">
-                  ${answer.answer || '未作答'}
-                </div>
-              </div>
-              
-              ${question?.answer ? `
-                <div style="margin-bottom: 12px;">
-                  <div style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px;">参考答案:</div>
-                  <div style="background: #dcfce7; border: 1px solid #86efac; border-radius: 8px; padding: 12px;">
-                    ${question.answer}
-                  </div>
-                </div>
-              ` : ''}
-              
-              ${answer.feedback ? `
-                <div style="margin-bottom: 12px;">
-                  <div style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px;">评分说明:</div>
-                  <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px; font-size: 14px;">
-                    ${answer.feedback}
-                  </div>
-                </div>
-              ` : ''}
-              
-              ${question?.explanation ? `
-                <div>
-                  <div style="font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 4px;">题目解析:</div>
-                  <div style="background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; font-size: 14px;">
-                    ${question.explanation}
-                  </div>
-                </div>
-              ` : ''}
-            </div>
-          `;
-        }).join('');
-      } else {
-        answersHtml = '<div style="text-align: center; color: #6b7280; padding: 32px;">暂无评分详情数据</div>';
-      }
-      
-      modalDiv.innerHTML = `
-        <div style="
-          background-color: white;
-          border-radius: 16px;
-          max-width: 800px;
-          width: 100%;
-          max-height: 90vh;
-          overflow: hidden;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        ">
-          <div style="padding: 24px; border-bottom: 1px solid #e5e7eb;">
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <h2 style="font-size: 20px; font-weight: bold; margin: 0; color: #111827;">评分详情</h2>
-              <button onclick="document.getElementById('exam-modal').remove(); window.setShowDetailedResults(false);" style="
-                background: none;
-                border: none;
-                font-size: 24px;
-                cursor: pointer;
-                color: #6b7280;
-                padding: 4px;
-              ">✕</button>
-            </div>
-            ${submissionResult ? `
-              <div style="margin-top: 16px; display: flex; gap: 16px; flex-wrap: wrap;">
-                <div style="font-size: 14px; color: #6b7280;">
-                  总分: <span style="font-weight: bold; font-size: 18px; color: #059669;">${submissionResult.score}分</span>
-                </div>
-                <div style="font-size: 14px; color: #6b7280;">
-                  提交时间: ${new Date(submissionResult.submittedAt).toLocaleString()}
-                </div>
-              </div>
-            ` : ''}
-          </div>
-          
-          <div style="padding: 24px; max-height: calc(90vh - 120px); overflow-y: auto;">
-            ${answersHtml}
-          </div>
-        </div>
-      `;
-      
-      document.body.appendChild(modalDiv);
-      
-      // 设置全局函数供关闭按钮使用
-      window.setShowDetailedResults = setShowDetailedResults;
-      
-      return () => {
-        const existingModal = document.getElementById('exam-modal');
-        if (existingModal) {
-          existingModal.remove();
-        }
-        delete window.setShowDetailedResults;
-      };
-    }
-  }, [showDetailedResults, submissionResult, exam]);
 
   const currentQuestion = exam?.questions?.[currentQuestionIndex];
   
