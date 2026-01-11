@@ -1,17 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Check } from "lucide-react";
+import { ArrowLeft, Plus, Check, Search } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { getExamById, type Exam } from "@/services/exams";
-import api from "@/services/api";
+import { listQuestions, type Question } from "@/services/questions";
 
-interface Question {
-  id: string;
-  content: string;
-  type: string;
-  difficulty: number;
-  knowledgePoint?: string;
-}
+const typeLabels: Record<string, string> = {
+  SINGLE_CHOICE: "单选题",
+  MULTIPLE_CHOICE: "多选题", 
+  TRUE_FALSE: "判断题",
+  FILL_BLANK: "填空题",
+  ESSAY: "简答题",
+};
 
 export default function AddQuestionsPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,33 +21,104 @@ export default function AddQuestionsPage() {
   const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({
+    total: 0,
+    page: 1,
+    limit: 20,
+    totalPages: 1,
+  });
+
+  const [filters, setFilters] = useState({
+    type: "",
+    difficulty: "",
+    tags: "",
+    search: "",
+  });
+
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (id) {
-      loadData();
+      loadExam();
     }
   }, [id]);
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      loadQuestions(1);
+    }, 300);
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [filters.type, filters.difficulty, filters.tags, filters.search, exam]);
+
+  const loadExam = async () => {
     if (!id) return;
+    try {
+      const examData = await getExamById(id);
+      setExam(examData);
+    } catch (error) {
+      console.error('加载考试失败:', error);
+    }
+  };
+
+  const loadQuestions = async (pageNum: number = 1) => {
+    if (!exam) return;
+    
     setLoading(true);
     try {
-      const [examData, questionsResponse] = await Promise.all([
-        getExamById(id),
-        api.get('/api/questions')
-      ]);
-      setExam(examData);
+      const params: any = {
+        page: pageNum,
+        limit: 20,
+      };
       
+      if (filters.type) params.type = filters.type;
+      if (filters.difficulty) params.difficulty = parseInt(filters.difficulty);
+      if (filters.tags) params.tags = filters.tags;
+
+      const response = await listQuestions(params);
+      let filteredData = response.data;
+
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        filteredData = response.data.filter((q) =>
+          q.content.toLowerCase().includes(searchTerm),
+        );
+      }
+
       // 过滤掉已经在考试中的题目
-      const existingQuestionIds = new Set(examData.examQuestions?.map((eq: any) => eq.questionId) || []);
-      const availableQuestions = questionsResponse.data.questions.filter(
+      const existingQuestionIds = new Set(exam.examQuestions?.map((eq: any) => eq.questionId) || []);
+      const availableQuestions = filteredData.filter(
         (q: Question) => !existingQuestionIds.has(q.id)
       );
+
       setQuestions(availableQuestions);
+      setMeta(response.meta);
+      setPage(pageNum);
     } catch (error) {
-      console.error('加载数据失败:', error);
+      console.error('加载题目失败:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFilterChange = (field: string, value: string) => {
+    setFilters((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleResetFilters = () => {
+    setFilters({ type: "", difficulty: "", tags: "", search: "" });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= meta.totalPages) {
+      loadQuestions(newPage);
     }
   };
 
@@ -61,6 +132,14 @@ export default function AddQuestionsPage() {
     setSelectedQuestions(newSelected);
   };
 
+  const handleSelectAll = () => {
+    if (selectedQuestions.size === questions.length) {
+      setSelectedQuestions(new Set());
+    } else {
+      setSelectedQuestions(new Set(questions.map((q) => q.id)));
+    }
+  };
+
   const handleAddQuestions = async () => {
     if (selectedQuestions.size === 0) {
       alert('请选择要添加的题目');
@@ -70,10 +149,14 @@ export default function AddQuestionsPage() {
     setSaving(true);
     try {
       const promises = Array.from(selectedQuestions).map((questionId, index) => 
-        api.post(`/api/exams/${id}/questions`, {
-          questionId,
-          order: (exam?.examQuestions?.length || 0) + index + 1,
-          score: 10 // 默认分值
+        fetch(`/api/exams/${id}/questions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            questionId,
+            order: (exam?.examQuestions?.length || 0) + index + 1,
+            score: 10
+          })
         })
       );
       
@@ -86,18 +169,6 @@ export default function AddQuestionsPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const getQuestionTypeName = (type: string) => {
-    const typeMap: Record<string, string> = {
-      'SINGLE_CHOICE': '单选题',
-      'MULTIPLE_CHOICE': '多选题',
-      'TRUE_FALSE': '判断题',
-      'FILL_BLANK': '填空题',
-      'SHORT_ANSWER': '简答题',
-      'ESSAY': '论述题'
-    };
-    return typeMap[type] || type;
   };
 
   if (loading) {
@@ -127,10 +198,93 @@ export default function AddQuestionsPage() {
           </p>
         </div>
 
-        {/* 操作栏 */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="flex items-center justify-between">
+        {/* 筛选器 */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                题型
+              </label>
+              <select
+                value={filters.type}
+                onChange={(e) => handleFilterChange("type", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">全部题型</option>
+                {Object.entries(typeLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                难度
+              </label>
+              <select
+                value={filters.difficulty}
+                onChange={(e) => handleFilterChange("difficulty", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">全部难度</option>
+                <option value="1">1 - 简单</option>
+                <option value="2">2 - 较易</option>
+                <option value="3">3 - 中等</option>
+                <option value="4">4 - 较难</option>
+                <option value="5">5 - 困难</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                标签
+              </label>
+              <input
+                type="text"
+                value={filters.tags}
+                onChange={(e) => handleFilterChange("tags", e.target.value)}
+                placeholder="输入标签"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                搜索
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange("search", e.target.value)}
+                  placeholder="搜索题目内容"
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleResetFilters}
+            className="text-gray-600"
+          >
+            重置筛选
+          </Button>
+        </div>
+
+        {/* 操作栏 */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={questions.length > 0 && selectedQuestions.size === questions.length}
+                  onChange={handleSelectAll}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-gray-700">全选</span>
+              </label>
               <p className="text-gray-700">
                 已选择 <span className="font-semibold text-blue-600">{selectedQuestions.size}</span> 道题目
               </p>
@@ -152,55 +306,104 @@ export default function AddQuestionsPage() {
           
           {questions.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">没有可添加的题目</p>
+              <p className="text-gray-500 mb-4">没有找到符合条件的题目</p>
               <Button onClick={() => navigate('/questions')}>
                 前往题库管理
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              {questions.map((question) => (
-                <div
-                  key={question.id}
-                  className={`border rounded-xl p-6 cursor-pointer transition-all ${
-                    selectedQuestions.has(question.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => handleQuestionToggle(question.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                          selectedQuestions.has(question.id)
-                            ? 'border-blue-500 bg-blue-500'
-                            : 'border-gray-300'
-                        }`}>
-                          {selectedQuestions.has(question.id) && (
-                            <Check className="h-4 w-4 text-white" />
+            <>
+              <div className="space-y-4 mb-6">
+                {questions.map((question) => (
+                  <div
+                    key={question.id}
+                    className={`border rounded-xl p-6 cursor-pointer transition-all ${
+                      selectedQuestions.has(question.id)
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => handleQuestionToggle(question.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                            selectedQuestions.has(question.id)
+                              ? 'border-blue-500 bg-blue-500'
+                              : 'border-gray-300'
+                          }`}>
+                            {selectedQuestions.has(question.id) && (
+                              <Check className="h-4 w-4 text-white" />
+                            )}
+                          </div>
+                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                            {typeLabels[question.type] || question.type}
+                          </span>
+                          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                            难度: {question.difficulty}
+                          </span>
+                          {question.knowledgePoint && (
+                            <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
+                              {question.knowledgePoint}
+                            </span>
+                          )}
+                          {question.tags && question.tags.length > 0 && (
+                            <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs">
+                              {question.tags.join(', ')}
+                            </span>
                           )}
                         </div>
-                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                          {getQuestionTypeName(question.type)}
-                        </span>
-                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                          难度: {question.difficulty}
-                        </span>
-                        {question.knowledgePoint && (
-                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
-                            {question.knowledgePoint}
-                          </span>
+                        <div className="text-gray-800 mb-2">
+                          {question.content}
+                        </div>
+                        {question.options && Array.isArray(question.options) && question.options.length > 0 && (
+                          <div className="text-sm text-gray-600 space-y-1 ml-8">
+                            {question.options.map((option: any, optIndex: number) => (
+                              <div key={optIndex}>
+                                {option.label}: {option.content}
+                              </div>
+                            ))}
+                          </div>
                         )}
-                      </div>
-                      <div className="text-gray-800">
-                        {question.content}
+                        {question.answer && (
+                          <div className="text-sm text-green-600 ml-8 mt-2">
+                            答案: {question.answer}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {/* 分页 */}
+              {meta.totalPages > 1 && (
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-gray-700">
+                    共 {meta.total} 道题目，第 {meta.page} / {meta.totalPages} 页
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => handlePageChange(page - 1)}
+                      disabled={page <= 1}
+                    >
+                      上一页
+                    </Button>
+                    <span className="px-3 py-1 text-sm">
+                      {page} / {meta.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      onClick={() => handlePageChange(page + 1)}
+                      disabled={page >= meta.totalPages}
+                    >
+                      下一页
+                    </Button>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
