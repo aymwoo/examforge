@@ -9,6 +9,7 @@ import {
   LogOut,
   User,
   ChevronDown,
+  Home,
 } from "lucide-react";
 import { getCurrentUser, hasRole, logout } from "../../utils/auth";
 
@@ -62,6 +63,13 @@ export default function Layout() {
                 <>
                   {canAccessSettings && (
                     <>
+                      <Link
+                        to="/"
+                        className="flex items-center gap-2 hover:text-primary"
+                      >
+                        <Home className="h-4 w-4" />
+                        首页
+                      </Link>
                       <Link
                         to="/questions"
                         className="flex items-center gap-2 hover:text-primary"
