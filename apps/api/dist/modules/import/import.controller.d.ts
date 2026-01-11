@@ -18,4 +18,42 @@ export declare class ImportController {
         jobId: string;
     }>;
     pdfImportProgress(res: Response, jobId: string, since?: string): Promise<void>;
+    getImportHistory(req: any): Promise<{
+        id: string;
+        jobId: string;
+        fileName: string;
+        fileSize: number;
+        mode: string;
+        status: string;
+        questionIds: string;
+        errorMessage: string;
+        createdAt: Date;
+        completedAt: Date;
+    }[]>;
+    getImportRecord(jobId: string, req: any): Promise<{
+        questionIds: any;
+        questions: {
+            id: string;
+            status: string;
+            createdAt: Date;
+            content: string;
+            type: string;
+        }[];
+        user: {
+            id: string;
+            name: string;
+            username: string;
+        };
+        id: string;
+        jobId: string;
+        fileName: string;
+        fileSize: number;
+        filePath: string | null;
+        userId: string | null;
+        mode: string;
+        status: string;
+        errorMessage: string | null;
+        createdAt: Date;
+        completedAt: Date | null;
+    }>;
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, Trash2, Save, X } from 'lucide-react';
 import Button from '@/components/ui/Button';
+import QuestionImageManager from '@/components/QuestionImageManager';
 import { getQuestionById, updateQuestion, deleteQuestion, type Question } from '@/services/questions';
 
 const typeLabels: Record<string, string> = {
@@ -277,6 +278,16 @@ export default function QuestionDetailPage() {
               </div>
 
               <div>
+                <label className="mb-2 block text-sm font-semibold text-ink-900">示例图</label>
+                <QuestionImageManager
+                  questionId={id}
+                  images={editForm.images || []}
+                  onImagesChange={(images) => handleInputChange('images', images)}
+                  isEditing={true}
+                />
+              </div>
+
+              <div>
                 <label className="mb-2 block text-sm font-semibold text-ink-900">标签</label>
                 <input
                   type="text"
@@ -360,6 +371,33 @@ export default function QuestionDetailPage() {
                   <p className="rounded-xl border border-border bg-slate-50 px-3 py-2 text-ink-900">
                     {question.explanation}
                   </p>
+                </div>
+              )}
+
+              {question.images && question.images.length > 0 && (
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-ink-900">示例图</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {question.images.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image.startsWith('data:') ? image : `http://localhost:3000/${image}`}
+                        alt={`示例图 ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border border-border"
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {question.illustration && (
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-ink-900">图例（旧版）</h3>
+                  <img
+                    src={question.illustration}
+                    alt="题目图例"
+                    className="max-w-full max-h-48 rounded-lg border border-border"
+                  />
                 </div>
               )}
 

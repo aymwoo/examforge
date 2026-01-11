@@ -29,6 +29,7 @@ model User {
   createdExams     Exam[]     @relation("CreatedBy")
   aiProviders      AIProvider[] @relation("CreatedAIProviders")
   userSettings     UserSetting[]
+  importRecords    ImportRecord[] @relation("ImportRecords")
 
   @@map("users")
 }
@@ -59,6 +60,7 @@ model Question {
   answer         String?
   explanation    String?
   illustration   String?  // 图例字段，存储图片URL或base64
+  images         String?  @default("[]") // JSON array of image paths
   tags           String
   difficulty     Int      @default(1)
   status         String   @default("DRAFT")
@@ -203,4 +205,24 @@ model UserSetting {
 
   @@unique([userId, key])
   @@map("user_settings")
+}
+
+model ImportRecord {
+  id          String    @id @default(cuid())
+  jobId       String    @unique @map("job_id")
+  fileName    String    @map("file_name")
+  fileSize    Int       @map("file_size")
+  filePath    String?   @map("file_path")
+  userId      String?   @map("user_id")
+  mode        String    @default("vision")
+  status      String    @default("processing")
+  questionIds String    @default("[]") @map("question_ids") // JSON array
+  errorMessage String?  @map("error_message")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  // 关联关系
+  user User? @relation("ImportRecords", fields: [userId], references: [id])
+
+  @@map("import_records")
 }

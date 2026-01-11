@@ -180,8 +180,10 @@ export class AIService {
     }
   }
 
-  async testConnection(message: string = 'Hello'): Promise<{ response: string }> {
-    const settings = await this.settingsService.getSettings();
+  async testConnection(message: string = 'Hello', userId?: string): Promise<{ response: string }> {
+    const settings = userId 
+      ? await this.settingsService.getUserSettings(userId)
+      : await this.settingsService.getSettings();
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(

@@ -162,7 +162,7 @@ export class ImportController {
     const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     this.progressStore.createJob(jobId);
 
-    void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id, prompt);
+    void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id, prompt, file.originalname);
 
     return { jobId };
   }
@@ -207,5 +207,23 @@ export class ImportController {
       clearInterval(interval);
       res.end();
     });
+  }
+
+  @Get('history')
+  @ApiOperation({ summary: 'Get import history' })
+  async getImportHistory(@Req() req: any) {
+    return this.importService.getImportHistory(req.user?.id);
+  }
+
+  @Get('history/:jobId')
+  @ApiOperation({ summary: 'Get import record details' })
+  async getImportRecord(@Param('jobId') jobId: string, @Req() req: any) {
+    return this.importService.getImportRecord(jobId, req.user?.id);
+  }
+
+  @Get('history/:jobId/pdf-images')
+  @ApiOperation({ summary: 'Get PDF images from import record' })
+  async getPdfImages(@Param('jobId') jobId: string, @Req() req: any) {
+    return this.importService.getPdfImages(jobId, req.user?.id);
   }
 }

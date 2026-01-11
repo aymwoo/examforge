@@ -11,13 +11,13 @@ export declare class ExamService {
     private readonly aiService;
     constructor(prisma: PrismaService, aiService: AIService);
     create(dto: CreateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
+        description: string | null;
+        title: string;
         duration: number;
         totalScore: number;
         accountModes: string;
@@ -52,13 +52,13 @@ export declare class ExamService {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
+        description: string | null;
+        title: string;
         duration: number;
         totalScore: number;
         accountModes: string;

@@ -75,9 +75,8 @@ export default function Layout() {
                   )}
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>{user.name}</span>
                       <span className="text-xs bg-muted px-2 py-1 rounded">
-                        {user.role === 'ADMIN' ? '管理员' : user.role === 'TEACHER' ? '教师' : '学生'}
+                        {user.name}
                       </span>
                     </div>
                     <button

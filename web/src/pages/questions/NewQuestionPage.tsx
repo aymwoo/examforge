@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import Button from "@/components/ui/Button";
+import QuestionImageManager from "@/components/QuestionImageManager";
 import { createQuestion, type Question } from "@/services/questions";
 
 
@@ -16,6 +17,7 @@ export default function NewQuestionPage() {
     answer: "",
     explanation: "",
     illustration: "",
+    images: [],
     tags: [],
     difficulty: 1,
     options: [
@@ -211,7 +213,17 @@ export default function NewQuestionPage() {
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-ink-900">
-                  图例
+                  示例图
+                </label>
+                <QuestionImageManager
+                  images={form.images || []}
+                  onImagesChange={(images) => handleInputChange("images", images)}
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-ink-900">
+                  图例（兼容旧版）
                 </label>
                 <div className="space-y-2">
                   <div className="flex gap-2">

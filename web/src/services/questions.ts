@@ -10,6 +10,7 @@ export interface Question {
   answer?: string;
   explanation?: string;
   illustration?: string;
+  images?: string[];
   status: string;
   knowledgePoint?: string;
   isPublic?: boolean;
@@ -80,6 +81,45 @@ export const deleteQuestions = async (
   const response = await api.post<{ deleted: number }>(
     "/api/questions/batch-delete",
     { ids },
+  );
+  return response.data;
+};
+
+export const uploadQuestionImage = async (
+  questionId: string,
+  file: File,
+): Promise<{ imagePath: string }> => {
+  const formData = new FormData();
+  formData.append('image', file);
+  const response = await api.post<{ imagePath: string }>(
+    `/api/questions/${questionId}/images`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
+};
+
+export const addClipboardImage = async (
+  questionId: string,
+  imageData: string,
+): Promise<{ imagePath: string }> => {
+  const response = await api.post<{ imagePath: string }>(
+    `/api/questions/${questionId}/images/clipboard`,
+    { imageData }
+  );
+  return response.data;
+};
+
+export const deleteQuestionImage = async (
+  questionId: string,
+  imageIndex: number,
+): Promise<{ success: boolean }> => {
+  const response = await api.delete<{ success: boolean }>(
+    `/api/questions/${questionId}/images/${imageIndex}`
   );
   return response.data;
 };

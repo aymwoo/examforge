@@ -546,19 +546,26 @@ export default function ImportPage() {
                     );
                     if (!model) return;
 
-                    setAiProvider(model.provider);
+                    setAiProvider(selectedId);
 
                     try {
-                      await updateSetting("AI_PROVIDER", model.provider);
+                      // Always save the selected provider ID
+                      await updateSetting("AI_PROVIDER", selectedId);
 
-                      if (model.defaultBaseUrl) {
-                        await updateSetting(
-                          "AI_BASE_URL",
-                          model.defaultBaseUrl,
-                        );
-                      }
-                      if (model.defaultModel) {
-                        await updateSetting("AI_MODEL", model.defaultModel);
+                      // For built-in providers, also save their settings to system_settings
+                      const isBuiltInProvider = ['gpt-4', 'gpt-3.5-turbo', 'qwen-turbo', 'qwen-plus', 'qwen-max'].includes(selectedId);
+                      
+                      if (isBuiltInProvider) {
+                        if (model.defaultBaseUrl) {
+                          await updateSetting("AI_BASE_URL", model.defaultBaseUrl);
+                        }
+                        if (model.defaultModel) {
+                          await updateSetting("AI_MODEL", model.defaultModel);
+                        }
+                      } else {
+                        // For custom providers, clear system settings as they're stored in ai_providers table
+                        await updateSetting("AI_BASE_URL", "");
+                        await updateSetting("AI_MODEL", "");
                       }
                     } catch {
                       // ignore update errors here (Settings page is source of truth)
@@ -593,42 +600,6 @@ export default function ImportPage() {
                   </select>
                 </div>
 
-                {/* Prompt Editor */}
-                <div className="mt-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold text-ink-900">
-                      AI 提示词
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowPromptEditor(!showPromptEditor)}
-                      className="text-xs text-accent-600 hover:text-accent-700"
-                    >
-                      {showPromptEditor ? "收起" : "展开编辑"}
-                    </button>
-                  </div>
-                  
-                  {showPromptEditor && (
-                    <div className="mt-2">
-                      <textarea
-                        value={tempPrompt}
-                        onChange={(e) => setTempPrompt(e.target.value)}
-                        placeholder="输入 AI 提示词..."
-                        className="w-full h-32 rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white resize-none"
-                      />
-                      <p className="mt-1 text-xs text-ink-600">
-                        此处修改仅对本次导入有效，不会保存到系统设置
-                      </p>
-                    </div>
-                  )}
-                  
-                  {!showPromptEditor && tempPrompt && (
-                    <div className="mt-1 p-2 bg-gray-50 rounded text-xs text-ink-600 line-clamp-2">
-                      {tempPrompt}
-                    </div>
-                  )}
-                </div>
-
                 <button
                   onClick={handlePdfUpload}
                   disabled={!selectedPdf || isUploading}
@@ -636,6 +607,42 @@ export default function ImportPage() {
                 >
                   {isUploading ? "上传中..." : "开始导入"}
                 </button>
+              </div>
+
+              {/* Prompt Editor - moved below the import button */}
+              <div className="mt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-ink-900">
+                    AI 提示词
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPromptEditor(!showPromptEditor)}
+                    className="text-xs text-accent-600 hover:text-accent-700"
+                  >
+                    {showPromptEditor ? "收起" : "展开编辑"}
+                  </button>
+                </div>
+                
+                {showPromptEditor && (
+                  <div className="mt-2">
+                    <textarea
+                      value={tempPrompt}
+                      onChange={(e) => setTempPrompt(e.target.value)}
+                      placeholder="输入 AI 提示词..."
+                      className="w-full h-48 rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white resize-y"
+                    />
+                    <p className="mt-1 text-xs text-ink-600">
+                      此处修改仅对本次导入有效，不会保存到系统设置
+                    </p>
+                  </div>
+                )}
+                
+                {!showPromptEditor && tempPrompt && (
+                  <div className="mt-1 p-2 bg-gray-50 rounded text-xs text-ink-600 max-h-24 overflow-y-auto">
+                    {tempPrompt}
+                  </div>
+                )}
               </div>
 
               {pdfError && (

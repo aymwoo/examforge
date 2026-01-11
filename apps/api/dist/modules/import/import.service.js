@@ -53,6 +53,8 @@ const pdf_text_1 = require("../../common/utils/pdf-text");
 const question_answer_1 = require("../../common/utils/question-answer");
 const pdf_to_images_1 = require("../../common/utils/pdf-to-images");
 const import_progress_store_1 = require("./import-progress.store");
+const fs = __importStar(require("fs/promises"));
+const path = __importStar(require("path"));
 let ImportService = class ImportService {
     prisma;
     aiService;
@@ -110,12 +112,24 @@ let ImportService = class ImportService {
         }
         return result;
     }
-    async importFromPdf(jobId, buffer, mode, userId, customPrompt) {
+    async importFromPdf(jobId, buffer, mode, userId, customPrompt, fileName) {
         const resolvedMode = (mode || '').toLowerCase().trim();
         const settings = userId
             ? await this.settingsService.getUserSettings(userId)
             : await this.settingsService.getSettings();
         const effectiveMode = resolvedMode || (settings.aiProvider === 'qwen' ? 'vision' : 'text');
+        const filePath = await this.savePdfFile(buffer, fileName || `${jobId}.pdf`);
+        await this.prisma.importRecord.create({
+            data: {
+                jobId,
+                fileName: fileName || `${jobId}.pdf`,
+                fileSize: buffer.length,
+                filePath,
+                userId,
+                mode: effectiveMode,
+                status: 'processing',
+            },
+        });
         this.progressStore.append(jobId, {
             stage: 'received',
             message: '已收到 PDF，开始解析',
@@ -246,11 +260,20 @@ let ImportService = class ImportService {
                     questionIds,
                 },
             });
+            await this.updateImportRecord(jobId, {
+                status: 'completed',
+                questionIds,
+            });
         }
         catch (error) {
+            const errorMessage = error?.message || '导入失败';
             this.progressStore.append(jobId, {
                 stage: 'error',
-                message: error?.message || '导入失败',
+                message: errorMessage,
+            });
+            await this.updateImportRecord(jobId, {
+                status: 'failed',
+                errorMessage,
             });
             throw error;
         }
@@ -397,11 +420,20 @@ let ImportService = class ImportService {
                     questionIds,
                 },
             });
+            await this.updateImportRecord(jobId, {
+                status: 'completed',
+                questionIds,
+            });
         }
         catch (error) {
+            const errorMessage = error?.message || '导入失败';
             this.progressStore.append(jobId, {
                 stage: 'error',
-                message: error?.message || '导入失败',
+                message: errorMessage,
+            });
+            await this.updateImportRecord(jobId, {
+                status: 'failed',
+                errorMessage,
             });
             throw error;
         }
@@ -670,6 +702,79 @@ let ImportService = class ImportService {
             });
         }
         return exam.id;
+    }
+    async savePdfFile(buffer, fileName) {
+        const uploadsDir = path.join(process.cwd(), 'uploads', 'pdfs');
+        await fs.mkdir(uploadsDir, { recursive: true });
+        const filePath = path.join(uploadsDir, fileName);
+        await fs.writeFile(filePath, buffer);
+        return filePath;
+    }
+    async updateImportRecord(jobId, updates) {
+        const data = {};
+        if (updates.status)
+            data.status = updates.status;
+        if (updates.questionIds)
+            data.questionIds = JSON.stringify(updates.questionIds);
+        if (updates.errorMessage)
+            data.errorMessage = updates.errorMessage;
+        if (updates.status === 'completed')
+            data.completedAt = new Date();
+        await this.prisma.importRecord.update({
+            where: { jobId },
+            data,
+        });
+    }
+    async getImportHistory(userId) {
+        const where = userId ? { userId } : {};
+        return this.prisma.importRecord.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                jobId: true,
+                fileName: true,
+                fileSize: true,
+                mode: true,
+                status: true,
+                createdAt: true,
+                completedAt: true,
+                questionIds: true,
+                errorMessage: true,
+            },
+        });
+    }
+    async getImportRecord(jobId, userId) {
+        const where = { jobId };
+        if (userId)
+            where.userId = userId;
+        const record = await this.prisma.importRecord.findFirst({
+            where,
+            include: {
+                user: {
+                    select: { id: true, name: true, username: true },
+                },
+            },
+        });
+        if (!record) {
+            throw new common_1.BadRequestException('Import record not found');
+        }
+        const questionIds = JSON.parse(record.questionIds || '[]');
+        const questions = questionIds.length > 0 ? await this.prisma.question.findMany({
+            where: { id: { in: questionIds } },
+            select: {
+                id: true,
+                content: true,
+                type: true,
+                status: true,
+                createdAt: true,
+            },
+        }) : [];
+        return {
+            ...record,
+            questionIds,
+            questions,
+        };
     }
 };
 exports.ImportService = ImportService;

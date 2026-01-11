@@ -49,7 +49,7 @@ let ImportController = class ImportController {
         }
         const jobId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         this.progressStore.createJob(jobId);
-        void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id, prompt);
+        void this.importService.importFromPdf(jobId, file.buffer, mode, req?.user?.id, prompt, file.originalname);
         return { jobId };
     }
     async pdfImportProgress(res, jobId, since) {
@@ -75,6 +75,12 @@ let ImportController = class ImportController {
             clearInterval(interval);
             res.end();
         });
+    }
+    async getImportHistory(req) {
+        return this.importService.getImportHistory(req.user?.id);
+    }
+    async getImportRecord(jobId, req) {
+        return this.importService.getImportRecord(jobId, req.user?.id);
     }
 };
 exports.ImportController = ImportController;
@@ -201,6 +207,23 @@ __decorate([
     __metadata("design:paramtypes", [Object, String, String]),
     __metadata("design:returntype", Promise)
 ], ImportController.prototype, "pdfImportProgress", null);
+__decorate([
+    (0, common_1.Get)('history'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get import history' }),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], ImportController.prototype, "getImportHistory", null);
+__decorate([
+    (0, common_1.Get)('history/:jobId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get import record details' }),
+    __param(0, (0, common_1.Param)('jobId')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ImportController.prototype, "getImportRecord", null);
 exports.ImportController = ImportController = __decorate([
     (0, swagger_1.ApiTags)('import'),
     (0, common_1.Controller)('import'),

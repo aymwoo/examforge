@@ -9,6 +9,8 @@ import { extractTextFromPdf } from '@/common/utils/pdf-text';
 import { serializeQuestionAnswer } from '@/common/utils/question-answer';
 import { convertPdfToPngBuffers } from '@/common/utils/pdf-to-images';
 import { ImportProgressStore } from './import-progress.store';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 export interface ImportResult {
   success: number;
@@ -82,12 +84,28 @@ export class ImportService {
     return result;
   }
 
-  async importFromPdf(jobId: string, buffer: Buffer, mode?: string, userId?: string, customPrompt?: string): Promise<void> {
+  async importFromPdf(jobId: string, buffer: Buffer, mode?: string, userId?: string, customPrompt?: string, fileName?: string): Promise<void> {
     const resolvedMode = (mode || '').toLowerCase().trim();
     const settings = userId 
       ? await this.settingsService.getUserSettings(userId)
       : await this.settingsService.getSettings();
     const effectiveMode = resolvedMode || (settings.aiProvider === 'qwen' ? 'vision' : 'text');
+
+    // 保存PDF文件
+    const filePath = await this.savePdfFile(buffer, fileName || `${jobId}.pdf`);
+    
+    // 创建导入记录
+    await this.prisma.importRecord.create({
+      data: {
+        jobId,
+        fileName: fileName || `${jobId}.pdf`,
+        fileSize: buffer.length,
+        filePath,
+        userId,
+        mode: effectiveMode,
+        status: 'processing',
+      },
+    });
 
     this.progressStore.append(jobId, {
       stage: 'received',
@@ -245,10 +263,24 @@ export class ImportService {
           questionIds,
         },
       });
+
+      // 更新导入记录
+      await this.updateImportRecord(jobId, {
+        status: 'completed',
+        questionIds,
+      });
     } catch (error: unknown) {
+      const errorMessage = (error as any)?.message || '导入失败';
+      
       this.progressStore.append(jobId, {
         stage: 'error',
-        message: (error as any)?.message || '导入失败',
+        message: errorMessage,
+      });
+
+      // 更新导入记录
+      await this.updateImportRecord(jobId, {
+        status: 'failed',
+        errorMessage,
       });
       throw error;
     }
@@ -420,10 +452,24 @@ export class ImportService {
           questionIds,
         },
       });
+
+      // 更新导入记录
+      await this.updateImportRecord(jobId, {
+        status: 'completed',
+        questionIds,
+      });
     } catch (error: unknown) {
+      const errorMessage = (error as any)?.message || '导入失败';
+      
       this.progressStore.append(jobId, {
         stage: 'error',
-        message: (error as any)?.message || '导入失败',
+        message: errorMessage,
+      });
+
+      // 更新导入记录
+      await this.updateImportRecord(jobId, {
+        status: 'failed',
+        errorMessage,
       });
       throw error;
     }
@@ -769,5 +815,115 @@ export class ImportService {
     }
 
     return exam.id;
+  }
+
+  private async savePdfFile(buffer: Buffer, fileName: string): Promise<string> {
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'pdfs');
+    await fs.mkdir(uploadsDir, { recursive: true });
+    
+    const filePath = path.join(uploadsDir, fileName);
+    await fs.writeFile(filePath, buffer);
+    
+    return filePath;
+  }
+
+  private async updateImportRecord(jobId: string, updates: { status?: string; questionIds?: string[]; errorMessage?: string }) {
+    const data: any = {};
+    
+    if (updates.status) data.status = updates.status;
+    if (updates.questionIds) data.questionIds = JSON.stringify(updates.questionIds);
+    if (updates.errorMessage) data.errorMessage = updates.errorMessage;
+    if (updates.status === 'completed') data.completedAt = new Date();
+    
+    await this.prisma.importRecord.update({
+      where: { jobId },
+      data,
+    });
+  }
+
+  async getImportHistory(userId?: string) {
+    const where = userId ? { userId } : {};
+    
+    return this.prisma.importRecord.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        jobId: true,
+        fileName: true,
+        fileSize: true,
+        mode: true,
+        status: true,
+        createdAt: true,
+        completedAt: true,
+        questionIds: true,
+        errorMessage: true,
+      },
+    });
+  }
+
+  async getImportRecord(jobId: string, userId?: string) {
+    const where: any = { jobId };
+    if (userId) where.userId = userId;
+    
+    const record = await this.prisma.importRecord.findFirst({
+      where,
+      include: {
+        user: {
+          select: { id: true, name: true, username: true },
+        },
+      },
+    });
+
+    if (!record) {
+      throw new BadRequestException('Import record not found');
+    }
+
+    // 解析questionIds
+    const questionIds = JSON.parse(record.questionIds || '[]');
+    
+    // 获取关联的题目信息
+    const questions = questionIds.length > 0 ? await this.prisma.question.findMany({
+      where: { id: { in: questionIds } },
+      select: {
+        id: true,
+        content: true,
+        type: true,
+        status: true,
+        createdAt: true,
+      },
+    }) : [];
+
+    return {
+      ...record,
+      questionIds,
+      questions,
+    };
+  }
+
+  async getPdfImages(jobId: string, userId?: string) {
+    const record = await this.getImportRecord(jobId, userId);
+    
+    if (!record.filePath) {
+      throw new BadRequestException('PDF file not found');
+    }
+
+    try {
+      // 将PDF转换为图片
+      const images = await convertPdfToPngBuffers(
+        await fs.readFile(record.filePath),
+        { density: 150 }
+      );
+
+      // 转换为base64格式返回
+      return {
+        images: images.map((buffer, index) => ({
+          index,
+          data: `data:image/png;base64,${buffer.toString('base64')}`,
+        })),
+      };
+    } catch (error) {
+      throw new BadRequestException('Failed to convert PDF to images');
+    }
   }
 }

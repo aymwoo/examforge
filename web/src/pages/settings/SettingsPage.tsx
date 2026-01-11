@@ -135,18 +135,31 @@ export default function SettingsPage() {
     setSaving(true);
     setError(null);
     try {
-      await updateSetting("AI_PROVIDER", selectedProvider);
-      await updateSetting("AI_API_KEY", editingProvider.apiKey || "");
-      await updateSetting("AI_BASE_URL", editingProvider.baseUrl || "");
-      await updateSetting("AI_MODEL", editingProvider.model || "");
+      const isSystemProvider = ['gpt-4', 'gpt-3.5-turbo', 'qwen-turbo', 'qwen-plus', 'qwen-max'].includes(selectedProvider);
+      
+      if (isSystemProvider) {
+        // For system providers, save all settings to system_settings
+        await updateSetting("AI_PROVIDER", selectedProvider);
+        await updateSetting("AI_API_KEY", editingProvider.apiKey || "");
+        await updateSetting("AI_BASE_URL", editingProvider.baseUrl || "");
+        await updateSetting("AI_MODEL", editingProvider.model || "");
+      } else {
+        // For custom providers, only save the provider ID
+        // The provider details are already stored in ai_providers table
+        await updateSetting("AI_PROVIDER", selectedProvider);
+        // Clear system settings for custom providers
+        await updateSetting("AI_API_KEY", "");
+        await updateSetting("AI_BASE_URL", "");
+        await updateSetting("AI_MODEL", "");
+      }
       
       // 更新本地状态
       setSettings(prev => ({
         ...prev,
         aiProvider: selectedProvider,
-        aiApiKey: editingProvider.apiKey || "",
-        aiBaseUrl: editingProvider.baseUrl || "",
-        aiModel: editingProvider.model || "",
+        aiApiKey: isSystemProvider ? (editingProvider.apiKey || "") : "",
+        aiBaseUrl: isSystemProvider ? (editingProvider.baseUrl || "") : "",
+        aiModel: isSystemProvider ? (editingProvider.model || "") : "",
       }));
       
       setHasChanges(false);

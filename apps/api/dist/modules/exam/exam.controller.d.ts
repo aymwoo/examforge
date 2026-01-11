@@ -15,13 +15,13 @@ export declare class ExamController {
         image: string;
     }): Promise<import("../ai/ai.service").GenerateExamQuestionsResponse>;
     create(dto: CreateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
+        description: string | null;
+        title: string;
         duration: number;
         totalScore: number;
         accountModes: string;
@@ -56,13 +56,13 @@ export declare class ExamController {
     }>;
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
-        description: string | null;
-        title: string;
-        status: string;
         id: string;
+        status: string;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
+        description: string | null;
+        title: string;
         duration: number;
         totalScore: number;
         accountModes: string;

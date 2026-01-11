@@ -12,8 +12,12 @@ import {
   BadRequestException,
   UseGuards,
   Request,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { QuestionService } from './question.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -94,5 +98,62 @@ export class QuestionController {
     }
 
     return this.questionService.clearAll();
+  }
+
+  @Post(':id/images')
+  @ApiOperation({ summary: 'Upload image for question' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: memoryStorage(),
+      fileFilter: (_req, file, cb) => {
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+        if (allowedMimes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Only image files are allowed'), false);
+        }
+      },
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+      },
+    })
+  )
+  async uploadImage(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Request() req) {
+    if (!file) {
+      throw new BadRequestException('Image file is required');
+    }
+    return this.questionService.addImage(id, file.buffer, file.originalname, req.user.id);
+  }
+
+  @Delete(':id/images/:imageIndex')
+  @ApiOperation({ summary: 'Delete image from question' })
+  async deleteImage(@Param('id') id: string, @Param('imageIndex') imageIndex: string, @Request() req) {
+    return this.questionService.removeImage(id, parseInt(imageIndex), req.user.id);
+  }
+
+  @Post(':id/images/clipboard')
+  @ApiOperation({ summary: 'Add image from clipboard' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        imageData: { type: 'string', description: 'Base64 image data' },
+      },
+    },
+  })
+  async addClipboardImage(@Param('id') id: string, @Body() body: { imageData: string }, @Request() req) {
+    return this.questionService.addClipboardImage(id, body.imageData, req.user.id);
   }
 }

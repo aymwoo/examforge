@@ -48,6 +48,12 @@ export class CreateQuestionDto {
   @IsOptional()
   illustration?: string;
 
+  @ApiProperty({ type: [String], required: false, description: 'Question images array' })
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  images?: string[];
+
   @ApiProperty({ type: [String], required: false, description: 'Question tags' })
   @IsArray()
   @IsString({ each: true })

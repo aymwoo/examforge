@@ -5,12 +5,15 @@ import {
   UseInterceptors,
   BadRequestException,
   Body,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AIService } from './ai.service';
 import { memoryStorage } from 'multer';
 import { IsOptional, IsString } from 'class-validator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 class TestConnectionDto {
   @IsOptional()
@@ -20,14 +23,16 @@ class TestConnectionDto {
 
 @ApiTags('ai')
 @Controller('ai')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class AIController {
   constructor(private readonly aiService: AIService) {}
 
   @Post('test')
   @ApiOperation({ summary: 'Test AI connection with a simple message' })
   @ApiBody({ schema: { type: 'object', properties: { message: { type: 'string' } } } })
-  async testConnection(@Body() dto: TestConnectionDto) {
-    return this.aiService.testConnection(dto.message);
+  async testConnection(@Body() dto: TestConnectionDto, @Req() req: any) {
+    return this.aiService.testConnection(dto.message, req.user?.id);
   }
 
   @Post('generate-questions')
