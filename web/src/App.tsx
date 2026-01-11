@@ -20,6 +20,7 @@ import ExamTakePage from "./pages/exam/ExamTakePage";
 import ExamGradingPageSimple from "./pages/exams/ExamGradingPageSimple";
 import HomePage from "./pages/HomePage";
 import UsersPage from "./pages/UsersPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function App() {
   return (
@@ -82,6 +83,7 @@ function App() {
               <UsersPage />
             </ProtectedRoute>
           } />
+          <Route path="profile" element={<ProfilePage />} />
           <Route path="import" element={
             <ProtectedRoute requiredRole="TEACHER">
               <ImportPage />

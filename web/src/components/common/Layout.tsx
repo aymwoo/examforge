@@ -135,14 +135,14 @@ export default function Layout() {
                         </div>
                         
                         <div className="py-2">
-                          <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
+                          <Link 
+                            to="/profile"
+                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => setShowProfileDropdown(false)}
+                          >
                             <User className="h-4 w-4" />
                             个人资料设置
-                          </button>
-                          <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2">
-                            <SettingsIcon className="h-4 w-4" />
-                            账户设置
-                          </button>
+                          </Link>
                         </div>
                         
                         <div className="border-t border-gray-100 pt-2">
