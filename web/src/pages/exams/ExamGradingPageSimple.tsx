@@ -283,7 +283,7 @@ export default function ExamGradingPage() {
                       </div>
                     </div>
                     {selectedSubmission.isAutoGraded && !selectedSubmission.isReviewed && 
-                     selectedSubmission.answers?.some(answer => 
+                     Array.isArray(selectedSubmission.answers) && selectedSubmission.answers.some(answer => 
                        ['ESSAY', 'FILL_BLANK'].includes(
                          exam?.examQuestions?.find(eq => eq.question.id === answer.questionId)?.question.type
                        )
