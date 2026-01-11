@@ -149,18 +149,18 @@ export default function HomePage() {
                   <BookOpen className="h-7 w-7 text-white drop-shadow-sm" />
                 </div>
                 <div className="text-right">
-                  <p className="text-4xl font-black text-white mb-1 tracking-tight">{dashboardData?.totalExams || 0}</p>
-                  <p className="text-violet-100 text-sm font-semibold tracking-wide">总考试</p>
+                  <p className="text-4xl font-black text-white mb-1 tracking-tight">{dashboardData?.totalQuestions || 0}</p>
+                  <p className="text-violet-100 text-sm font-semibold tracking-wide">题目数量</p>
                 </div>
               </div>
               <div className="h-2 bg-white/15 rounded-full overflow-hidden backdrop-blur-sm">
                 <div className="h-full bg-gradient-to-r from-white/40 to-white/60 rounded-full w-full animate-pulse shadow-sm"></div>
               </div>
               <Button 
-                onClick={() => navigate('/exams')}
+                onClick={() => navigate('/questions')}
                 className="mt-4 w-full bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md text-sm py-2 font-semibold transition-all duration-300 hover:scale-105"
               >
-                查看全部
+                查看题库
               </Button>
             </div>
           </div>

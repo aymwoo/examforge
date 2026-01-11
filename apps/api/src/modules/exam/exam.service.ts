@@ -48,6 +48,13 @@ export class ExamService {
       baseWhere.createdBy = userId;
     }
 
+    // Get total questions count
+    const totalQuestions = await this.prisma.question.count({
+      where: {
+        status: 'ACTIVE',
+      },
+    });
+
     // Get published exams with submission counts
     const publishedExams = await this.prisma.exam.findMany({
       where: baseWhere,
@@ -78,7 +85,7 @@ export class ExamService {
       ongoingExams: ongoingExams.length,
       totalStudents: publishedExams.reduce((sum, exam) => sum + exam.examStudents.length, 0),
       totalSubmissions: publishedExams.reduce((sum, exam) => sum + exam.submissions.length, 0),
-      totalExams: publishedExams.length,
+      totalQuestions: totalQuestions,
       exams: ongoingExams.map(exam => ({
         id: exam.id,
         title: exam.title,
