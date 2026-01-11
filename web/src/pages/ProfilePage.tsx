@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Mail, Phone, Calendar, Save, ArrowLeft } from "lucide-react";
+import { User, Mail, Phone, Calendar, Save, Lock, Eye, EyeOff } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { getCurrentUser } from "@/utils/auth";
 
@@ -13,6 +13,16 @@ export default function ProfilePage() {
     phone: user?.phone || '',
     bio: user?.bio || '',
     avatar: user?.avatar || ''
+  });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
   });
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +43,21 @@ export default function ProfilePage() {
     }));
   };
 
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [field]: !prev[field]
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -43,6 +68,40 @@ export default function ProfilePage() {
       alert('个人资料已保存');
     } catch (error) {
       alert('保存失败，请重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('新密码和确认密码不匹配');
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 6) {
+      alert('新密码长度至少6位');
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      // TODO: 实现修改密码的API调用
+      console.log('修改密码:', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
+      alert('密码修改成功');
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error) {
+      alert('密码修改失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -64,14 +123,6 @@ export default function ProfilePage() {
       <div className="max-w-4xl mx-auto px-4">
         {/* 页面头部 */}
         <div className="mb-8">
-          <Button
-            variant="outline"
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 mb-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            返回
-          </Button>
           <h1 className="text-3xl font-bold text-gray-900">个人资料设置</h1>
           <p className="text-gray-600 mt-2">管理您的个人信息和偏好设置</p>
         </div>
@@ -96,7 +147,8 @@ export default function ProfilePage() {
           </div>
 
           {/* 个人资料表单 */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-8">
+            {/* 基本信息 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
               <h3 className="text-xl font-semibold text-gray-900 mb-6">基本信息</h3>
               
@@ -170,6 +222,109 @@ export default function ProfilePage() {
                   >
                     <Save className="h-4 w-4" />
                     {loading ? '保存中...' : '保存更改'}
+                  </Button>
+                </div>
+              </form>
+            </div>
+
+            {/* 修改密码 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+              <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                <Lock className="h-5 w-5 inline mr-2" />
+                修改密码
+              </h3>
+              
+              <form onSubmit={handlePasswordSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    当前密码
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.current ? "text" : "password"}
+                      name="currentPassword"
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="请输入当前密码"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => togglePasswordVisibility('current')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPasswords.current ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      新密码
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.new ? "text" : "password"}
+                        name="newPassword"
+                        value={passwordData.newPassword}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="请输入新密码"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility('new')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPasswords.new ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      确认新密码
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.confirm ? "text" : "password"}
+                        name="confirmPassword"
+                        value={passwordData.confirmPassword}
+                        onChange={handlePasswordChange}
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="请再次输入新密码"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => togglePasswordVisibility('confirm')}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPasswords.confirm ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-800">
+                    <strong>密码要求：</strong>至少6位字符，建议包含字母、数字和特殊字符以提高安全性。
+                  </p>
+                </div>
+
+                <div className="flex justify-end pt-6 border-t border-gray-200">
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3"
+                  >
+                    <Lock className="h-4 w-4" />
+                    {loading ? '修改中...' : '修改密码'}
                   </Button>
                 </div>
               </form>
