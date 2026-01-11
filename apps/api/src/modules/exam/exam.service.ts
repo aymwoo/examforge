@@ -78,6 +78,7 @@ export class ExamService {
       ongoingExams: ongoingExams.length,
       totalStudents: publishedExams.reduce((sum, exam) => sum + exam.examStudents.length, 0),
       totalSubmissions: publishedExams.reduce((sum, exam) => sum + exam.submissions.length, 0),
+      totalExams: publishedExams.length,
       exams: ongoingExams.map(exam => ({
         id: exam.id,
         title: exam.title,
