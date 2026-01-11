@@ -6,6 +6,7 @@ import QuestionDetailPage from "./pages/questions/QuestionDetailPage";
 import NewQuestionPage from "./pages/questions/NewQuestionPage";
 import ExamsPage from "./pages/exams/ExamsPage";
 import ExamDetailPage from "./pages/exams/ExamDetailPage";
+import ExamAnalyticsPage from "./pages/exams/ExamAnalyticsPage";
 import ExamStudentsPage from "./pages/exams/ExamStudentsPage";
 import NewExamPage from "./pages/exams/NewExamPage";
 import ImportPage from "./pages/import/ImportPage";
