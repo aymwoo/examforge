@@ -1,0 +1,14 @@
+{
+  "name": "@examforge/config",
+  "version": "1.0.0",
+  "description": "Shared configuration for ESLint, TypeScript, and Prettier",
+  "files": [
+    "eslint.base.js",
+    "tsconfig.base.json",
+    "prettier.config.js"
+  ],
+  "scripts": {},
+  "keywords": ["config", "eslint", "typescript", "prettier"],
+  "author": "",
+  "license": "ISC"
+}

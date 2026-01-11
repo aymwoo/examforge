@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Backend API
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:./dev.db
+      - PORT=3000
+    volumes:
+      - ../apps/api/prisma:/app/apps/api/prisma
+    depends_on:
+      - postgres
+    networks:
+      - examforge-network
+
+  # Frontend Web
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+    ports:
+      - "80:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    depends_on:
+      - api
+    networks:
+      - examforge-network
+
+  # OCR Service
+  ocr:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.ocr
+    ports:
+      - "8001:8001"
+    environment:
+      - OCR_ENGINE=paddleocr
+      - PORT=8001
+    networks:
+      - examforge-network
+
+  # LLM Service
+  llm:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.llm
+    ports:
+      - "8002:8002"
+    environment:
+      - LLM_PROVIDER=qwen
+      - PORT=8002
+    networks:
+      - examforge-network
+
+  # PostgreSQL Database (for production)
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=examforge
+      - POSTGRES_PASSWORD=examforge
+      - POSTGRES_DB=examforge
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - examforge-network
+
+  # Redis (for caching/sessions)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - examforge-network
+
+networks:
+  examforge-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:

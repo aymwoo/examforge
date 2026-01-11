@@ -1,0 +1,68 @@
+import { Controller, Get, Put, Body, Req, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBody, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { SettingsService, SystemSettings, AIModelConfig } from './settings.service';
+import { UpdateSettingDto } from './dto/update-setting.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
+@ApiTags('settings')
+@Controller('settings')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+export class SettingsController {
+  constructor(private readonly settingsService: SettingsService) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get all system settings' })
+  @ApiResponse({ status: 200, description: 'Settings retrieved successfully' })
+  async getSettings(): Promise<SystemSettings> {
+    return this.settingsService.getSettings();
+  }
+
+  @Get('user')
+  @ApiOperation({ summary: 'Get user-specific settings' })
+  @ApiResponse({ status: 200, description: 'User settings retrieved successfully' })
+  async getUserSettings(@Req() req: any): Promise<SystemSettings> {
+    return this.settingsService.getUserSettings(req.user.id);
+  }
+
+  @Get('prompt')
+  @ApiOperation({ summary: 'Get AI prompt template' })
+  @ApiResponse({ status: 200, description: 'Prompt template retrieved successfully' })
+  async getPrompt(): Promise<{ template: string }> {
+    const template = await this.settingsService.getPromptTemplate();
+    return { template };
+  }
+
+  @Get('providers')
+  @ApiOperation({ summary: 'Get available AI providers and models' })
+  @ApiResponse({ status: 200, description: 'Providers retrieved successfully' })
+  async getProviders(@Req() req: any): Promise<AIModelConfig[]> {
+    return this.settingsService.getAvailableProviders(req.user.id, req.user.role);
+  }
+
+  @Get('json-structure')
+  @ApiOperation({ summary: 'Get JSON structure template' })
+  @ApiResponse({ status: 200, description: 'JSON structure template retrieved successfully' })
+  async getJsonStructure(): Promise<{ template: string }> {
+    const template = this.settingsService.getJsonStructureTemplate();
+    return { template };
+  }
+
+  @Put()
+  @ApiOperation({ summary: 'Update a system setting' })
+  @ApiBody({ type: UpdateSettingDto })
+  @ApiResponse({ status: 200, description: 'Setting updated successfully' })
+  async updateSetting(@Body() dto: UpdateSettingDto) {
+    await this.settingsService.updateSetting(dto.key, dto.value);
+    return { success: true };
+  }
+
+  @Put('user')
+  @ApiOperation({ summary: 'Update a user setting' })
+  @ApiBody({ type: UpdateSettingDto })
+  @ApiResponse({ status: 200, description: 'User setting updated successfully' })
+  async updateUserSetting(@Req() req: any, @Body() dto: UpdateSettingDto) {
+    await this.settingsService.updateUserSetting(req.user.id, dto.key, dto.value);
+    return { success: true };
+  }
+}

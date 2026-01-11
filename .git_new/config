@@ -1,0 +1,18 @@
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+[remote "origin"]
+	url = git@github.com:aymwoo/examforge.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "main"]
+	remote = origin
+	merge = refs/heads/main
+	vscode-merge-base = origin/main
+	gk-last-accessed = 2026-01-07T00:33:13.409Z
+	gk-last-modified = 2026-01-07T00:33:13.409Z
+[branch "feature/pdfai"]
+	remote = origin
+	merge = refs/heads/feature/pdfai
+	vscode-merge-base = origin/main
