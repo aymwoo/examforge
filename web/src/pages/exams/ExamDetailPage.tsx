@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Trash2, Plus, Check, Users, BookOpen, CheckCircle, Filter, Clock } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { getExamById, deleteExam, addQuestionToExam, getExamStudents, addExamStudent, generateExamStudents, deleteExamStudent, type Exam } from "@/services/exams";
@@ -9,6 +9,7 @@ import api from "@/services/api";
 export default function ExamDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [exam, setExam] = useState<Exam | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -128,6 +129,37 @@ export default function ExamDetailPage() {
   useEffect(() => {
     loadExam();
   }, [id]);
+
+  // Auto-add questions from URL params
+  useEffect(() => {
+    const addQuestions = searchParams.get('addQuestions');
+    if (addQuestions && exam) {
+      const questionIds = addQuestions.split(',').filter(Boolean);
+      if (questionIds.length > 0) {
+        // Auto-add questions and remove the parameter
+        handleAutoAddQuestions(questionIds);
+        setSearchParams(prev => {
+          const newParams = new URLSearchParams(prev);
+          newParams.delete('addQuestions');
+          return newParams;
+        });
+      }
+    }
+  }, [exam, searchParams]);
+
+  const handleAutoAddQuestions = async (questionIds: string[]) => {
+    if (!id) return;
+    
+    try {
+      for (const questionId of questionIds) {
+        await addQuestionToExam(id, questionId, 1); // Default score of 1
+      }
+      await loadExam(); // Reload to show added questions
+    } catch (err: unknown) {
+      console.error('Auto-add questions failed:', err);
+      // Don't show error to user as this is automatic
+    }
+  };
 
   const loadQuestionBank = async () => {
     setQuestionsLoading(true);

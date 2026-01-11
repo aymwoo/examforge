@@ -15,6 +15,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.QuestionController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
+const platform_express_1 = require("@nestjs/platform-express");
+const multer_1 = require("multer");
 const question_service_1 = require("./question.service");
 const create_question_dto_1 = require("./dto/create-question.dto");
 const update_question_dto_1 = require("./dto/update-question.dto");
@@ -54,6 +56,18 @@ let QuestionController = class QuestionController {
             throw new common_1.BadRequestException('Confirmation string invalid');
         }
         return this.questionService.clearAll();
+    }
+    async uploadImage(id, file, req) {
+        if (!file) {
+            throw new common_1.BadRequestException('Image file is required');
+        }
+        return this.questionService.addImage(id, file.buffer, file.originalname, req.user.id);
+    }
+    async deleteImage(id, imageIndex, req) {
+        return this.questionService.removeImage(id, parseInt(imageIndex), req.user.id);
+    }
+    async addClipboardImage(id, body, req) {
+        return this.questionService.addClipboardImage(id, body.imageData, req.user.id);
     }
 };
 exports.QuestionController = QuestionController;
@@ -135,6 +149,71 @@ __decorate([
     __metadata("design:paramtypes", [clear_questions_dto_1.ClearQuestionsDto]),
     __metadata("design:returntype", void 0)
 ], QuestionController.prototype, "clearAll", null);
+__decorate([
+    (0, common_1.Post)(':id/images'),
+    (0, swagger_1.ApiOperation)({ summary: 'Upload image for question' }),
+    (0, swagger_1.ApiConsumes)('multipart/form-data'),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                image: {
+                    type: 'string',
+                    format: 'binary',
+                },
+            },
+        },
+    }),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('image', {
+        storage: (0, multer_1.memoryStorage)(),
+        fileFilter: (_req, file, cb) => {
+            const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+            if (allowedMimes.includes(file.mimetype)) {
+                cb(null, true);
+            }
+            else {
+                cb(new common_1.BadRequestException('Only image files are allowed'), false);
+            }
+        },
+        limits: {
+            fileSize: 5 * 1024 * 1024,
+        },
+    })),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.UploadedFile)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], QuestionController.prototype, "uploadImage", null);
+__decorate([
+    (0, common_1.Delete)(':id/images/:imageIndex'),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete image from question' }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Param)('imageIndex')),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], QuestionController.prototype, "deleteImage", null);
+__decorate([
+    (0, common_1.Post)(':id/images/clipboard'),
+    (0, swagger_1.ApiOperation)({ summary: 'Add image from clipboard' }),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                imageData: { type: 'string', description: 'Base64 image data' },
+            },
+        },
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __param(2, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object, Object]),
+    __metadata("design:returntype", Promise)
+], QuestionController.prototype, "addClipboardImage", null);
 exports.QuestionController = QuestionController = __decorate([
     (0, swagger_1.ApiTags)('questions'),
     (0, common_1.Controller)('questions'),

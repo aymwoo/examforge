@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { createExam, type CreateExamDto } from "@/services/exams";
@@ -12,8 +12,12 @@ export enum ExamAccountMode {
 
 export default function NewExamPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Get question IDs from URL params
+  const questionIds = searchParams.get('questionIds')?.split(',').filter(Boolean) || [];
 
   const [form, setForm] = useState<CreateExamDto>({
     title: "",
@@ -22,6 +26,16 @@ export default function NewExamPage() {
     totalScore: 100,
     accountModes: [ExamAccountMode.TEMPORARY_IMPORT],
   });
+
+  // Set default title if questions are provided
+  useEffect(() => {
+    if (questionIds.length > 0 && !form.title) {
+      setForm(prev => ({
+        ...prev,
+        title: `导入题目考试 (${questionIds.length}题)`
+      }));
+    }
+  }, [questionIds.length, form.title]);
 
   const handleInputChange = (field: string, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -55,8 +69,14 @@ export default function NewExamPage() {
         duration: form.duration,
       };
       console.log('Submitting minimal exam data:', JSON.stringify(minimalData, null, 2));
-      await createExam(minimalData as CreateExamDto);
-      navigate("/exams");
+      const createdExam = await createExam(minimalData as CreateExamDto);
+      
+      // If we have question IDs, navigate to exam detail page with them
+      if (questionIds.length > 0) {
+        navigate(`/exams/${createdExam.id}?addQuestions=${questionIds.join(',')}`);
+      } else {
+        navigate("/exams");
+      }
     } catch (err: unknown) {
       console.error('Create exam error:', err);
       const axiosError = err as any;

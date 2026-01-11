@@ -37,6 +37,7 @@ export default function ImportPage() {
     success: number;
     failed: number;
     errors: { row: number; message: string }[];
+    questionIds?: string[];
   } | null>(null);
 
   const [pdfJobId, setPdfJobId] = useState<string | null>(null);
@@ -783,12 +784,33 @@ export default function ImportPage() {
                   )}
 
                   {pdfStage === "done" && pdfResult?.success > 0 && (
-                    <div className="mt-4 flex justify-center">
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
                       <button
-                        onClick={() => navigate("/questions")}
+                        onClick={() => {
+                          const questionIds = latestPdfEvent?.meta?.questionIds;
+                          if (questionIds && questionIds.length > 0) {
+                            navigate(`/questions?ids=${questionIds.join(',')}`);
+                          } else {
+                            navigate("/questions");
+                          }
+                        }}
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50"
                       >
-                        去题库查看
+                        查看刚刚导入的试题
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const questionIds = latestPdfEvent?.meta?.questionIds;
+                          if (questionIds && questionIds.length > 0) {
+                            navigate(`/exams/create?questionIds=${questionIds.join(',')}`);
+                          } else {
+                            navigate("/exams/create");
+                          }
+                        }}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700"
+                      >
+                        创建考试
                         <ArrowRight className="h-4 w-4" />
                       </button>
                     </div>
@@ -902,12 +924,31 @@ export default function ImportPage() {
             )}
 
             {uploadResult.success > 0 && (
-              <div className="mt-4 flex justify-center">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <button
-                  onClick={() => navigate("/questions")}
+                  onClick={() => {
+                    if (uploadResult.questionIds && uploadResult.questionIds.length > 0) {
+                      navigate(`/questions?ids=${uploadResult.questionIds.join(',')}`);
+                    } else {
+                      navigate("/questions");
+                    }
+                  }}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50"
                 >
-                  去题库查看
+                  查看刚刚导入的试题
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    if (uploadResult.questionIds && uploadResult.questionIds.length > 0) {
+                      navigate(`/exams/create?questionIds=${uploadResult.questionIds.join(',')}`);
+                    } else {
+                      navigate("/exams/create");
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700"
+                >
+                  创建考试
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </div>

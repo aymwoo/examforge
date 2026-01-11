@@ -82,6 +82,9 @@ let ImportController = class ImportController {
     async getImportRecord(jobId, req) {
         return this.importService.getImportRecord(jobId, req.user?.id);
     }
+    async getPdfImages(jobId, req) {
+        return this.importService.getPdfImages(jobId, req.user?.id);
+    }
 };
 exports.ImportController = ImportController;
 __decorate([
@@ -224,6 +227,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], ImportController.prototype, "getImportRecord", null);
+__decorate([
+    (0, common_1.Get)('history/:jobId/pdf-images'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get PDF images from import record' }),
+    __param(0, (0, common_1.Param)('jobId')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ImportController.prototype, "getPdfImages", null);
 exports.ImportController = ImportController = __decorate([
     (0, swagger_1.ApiTags)('import'),
     (0, common_1.Controller)('import'),

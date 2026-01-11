@@ -56,4 +56,10 @@ export declare class ImportController {
         createdAt: Date;
         completedAt: Date | null;
     }>;
+    getPdfImages(jobId: string, req: any): Promise<{
+        images: {
+            index: number;
+            data: string;
+        }[];
+    }>;
 }

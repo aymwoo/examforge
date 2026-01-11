@@ -81,13 +81,14 @@ let ImportService = class ImportService {
             success: 0,
             failed: 0,
             errors: [],
+            questionIds: [],
         };
         for (let i = 0; i < data.length; i++) {
             const row = data[i];
             const rowNum = i + 2;
             try {
                 const dto = this.mapRowToDto(row);
-                await this.prisma.question.create({
+                const question = await this.prisma.question.create({
                     data: {
                         content: dto.content,
                         type: dto.type,
@@ -101,6 +102,7 @@ let ImportService = class ImportService {
                     },
                 });
                 result.success++;
+                result.questionIds.push(question.id);
             }
             catch (error) {
                 result.failed++;
@@ -775,6 +777,24 @@ let ImportService = class ImportService {
             questionIds,
             questions,
         };
+    }
+    async getPdfImages(jobId, userId) {
+        const record = await this.getImportRecord(jobId, userId);
+        if (!record.filePath) {
+            throw new common_1.BadRequestException('PDF file not found');
+        }
+        try {
+            const images = await (0, pdf_to_images_1.convertPdfToPngBuffers)(await fs.readFile(record.filePath), { resolutionDpi: 150 });
+            return {
+                images: images.map((buffer, index) => ({
+                    index,
+                    data: `data:image/png;base64,${buffer.toString('base64')}`,
+                })),
+            };
+        }
+        catch (error) {
+            throw new common_1.BadRequestException('Failed to convert PDF to images');
+        }
     }
 };
 exports.ImportService = ImportService;

@@ -10,8 +10,10 @@ export declare class CreateQuestionDto {
     answer?: string;
     explanation?: string;
     illustration?: string;
+    images?: string[];
     tags?: string[];
     difficulty?: number;
     knowledgePoint?: string;
     isPublic?: boolean;
+    status?: string;
 }

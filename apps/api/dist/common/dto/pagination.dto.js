@@ -21,6 +21,7 @@ class PaginationDto {
     difficulty;
     tags;
     status;
+    ids;
 }
 exports.PaginationDto = PaginationDto;
 __decorate([
@@ -66,4 +67,10 @@ __decorate([
     (0, class_validator_1.IsEnum)(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
     __metadata("design:type", String)
 ], PaginationDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Filter by specific question IDs (comma-separated)' }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], PaginationDto.prototype, "ids", void 0);
 //# sourceMappingURL=pagination.dto.js.map

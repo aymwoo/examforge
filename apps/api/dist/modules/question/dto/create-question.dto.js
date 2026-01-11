@@ -38,10 +38,12 @@ class CreateQuestionDto {
     answer;
     explanation;
     illustration;
+    images;
     tags;
     difficulty;
     knowledgePoint;
     isPublic;
+    status;
 }
 exports.CreateQuestionDto = CreateQuestionDto;
 __decorate([
@@ -83,6 +85,13 @@ __decorate([
     __metadata("design:type", String)
 ], CreateQuestionDto.prototype, "illustration", void 0);
 __decorate([
+    (0, swagger_1.ApiProperty)({ type: [String], required: false, description: 'Question images array' }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateQuestionDto.prototype, "images", void 0);
+__decorate([
     (0, swagger_1.ApiProperty)({ type: [String], required: false, description: 'Question tags' }),
     (0, class_validator_1.IsArray)(),
     (0, class_validator_1.IsString)({ each: true }),
@@ -109,4 +118,10 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], CreateQuestionDto.prototype, "isPublic", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'], required: false, description: 'Question status', default: 'DRAFT' }),
+    (0, class_validator_1.IsEnum)(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateQuestionDto.prototype, "status", void 0);
 //# sourceMappingURL=create-question.dto.js.map

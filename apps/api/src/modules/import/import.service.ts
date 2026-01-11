@@ -16,6 +16,7 @@ export interface ImportResult {
   success: number;
   failed: number;
   errors: { row: number; message: string }[];
+  questionIds?: string[]; // 导入成功的题目ID列表
 }
 
 export interface PdfImportResponse {
@@ -49,6 +50,7 @@ export class ImportService {
       success: 0,
       failed: 0,
       errors: [],
+      questionIds: [],
     };
 
     for (let i = 0; i < data.length; i++) {
@@ -57,7 +59,7 @@ export class ImportService {
 
       try {
         const dto = this.mapRowToDto(row);
-        await this.prisma.question.create({
+        const question = await this.prisma.question.create({
           data: {
             content: dto.content,
             type: dto.type as any,
@@ -72,6 +74,7 @@ export class ImportService {
           },
         });
         result.success++;
+        result.questionIds!.push(question.id);
       } catch (error) {
         result.failed++;
         result.errors.push({
@@ -912,7 +915,7 @@ export class ImportService {
       // 将PDF转换为图片
       const images = await convertPdfToPngBuffers(
         await fs.readFile(record.filePath),
-        { density: 150 }
+        { resolutionDpi: 150 }
       );
 
       // 转换为base64格式返回

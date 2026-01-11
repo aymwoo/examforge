@@ -9,6 +9,7 @@ export interface ImportResult {
         row: number;
         message: string;
     }[];
+    questionIds?: string[];
 }
 export interface PdfImportResponse {
     jobId: string;
@@ -74,5 +75,11 @@ export declare class ImportService {
         errorMessage: string | null;
         createdAt: Date;
         completedAt: Date | null;
+    }>;
+    getPdfImages(jobId: string, userId?: string): Promise<{
+        images: {
+            index: number;
+            data: string;
+        }[];
     }>;
 }

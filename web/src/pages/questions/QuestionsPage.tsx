@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { Plus, Search, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Plus, Search, Trash2, Image } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import {
   listQuestions,
@@ -18,6 +18,7 @@ const typeLabels: Record<string, string> = {
 
 export default function QuestionsPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,12 +36,19 @@ export default function QuestionsPage() {
   const [deleting, setDeleting] = useState(false);
   const [clearing, setClearing] = useState(false);
 
+  // Image modal state
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+
   const [filters, setFilters] = useState({
     type: "",
     difficulty: "",
     tags: "",
     search: "",
   });
+
+  // Get specific question IDs from URL params
+  const specificIds = searchParams.get('ids')?.split(',').filter(Boolean) || null;
 
   const loadQuestions = async (pageNum: number = 1) => {
     setLoading(true);
@@ -52,13 +60,21 @@ export default function QuestionsPage() {
         type?: string;
         difficulty?: number;
         tags?: string;
+        ids?: string;
       } = {
         page: pageNum,
         limit: pageSize,
       };
-      if (filters.type) params.type = filters.type;
-      if (filters.difficulty) params.difficulty = parseInt(filters.difficulty);
-      if (filters.tags) params.tags = filters.tags;
+      
+      // If specific IDs are provided, use them
+      if (specificIds && specificIds.length > 0) {
+        params.ids = specificIds.join(',');
+      } else {
+        // Otherwise use normal filters
+        if (filters.type) params.type = filters.type;
+        if (filters.difficulty) params.difficulty = parseInt(filters.difficulty);
+        if (filters.tags) params.tags = filters.tags;
+      }
 
       const response = await listQuestions(params);
       let filteredData = response.data;
@@ -210,6 +226,12 @@ export default function QuestionsPage() {
     setPage(1);
   };
 
+  const showImages = (images: string[], e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedImages(images);
+    setShowImageModal(true);
+  };
+
   const isAllSelected =
     questions.length > 0 && selectedIds.size === questions.length;
   const isPartialSelected =
@@ -231,6 +253,13 @@ export default function QuestionsPage() {
                 </span>
               )}
             </p>
+            {specificIds && specificIds.length > 0 && (
+              <div className="mt-2 rounded-xl bg-accent-50 border border-accent-200 px-3 py-2">
+                <p className="text-sm text-accent-800">
+                  正在查看刚刚导入的 {specificIds.length} 道题目
+                </p>
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             {selectedIds.size > 0 && (
@@ -433,6 +462,15 @@ export default function QuestionsPage() {
                         <span>{q.knowledgePoint}</span>
                       </span>
                     )}
+                    {(q.images && q.images.length > 0) && (
+                      <span 
+                        className="flex items-center gap-1 cursor-pointer text-blue-600 hover:text-blue-700"
+                        onClick={(e) => showImages(q.images!, e)}
+                      >
+                        <Image className="h-4 w-4" />
+                        <span className="font-semibold">示意图 ({q.images.length})</span>
+                      </span>
+                    )}
                     <span className="flex items-center gap-1">
                       <span className="font-semibold text-ink-900">可见性:</span>
                       <span className={q.isPublic ? "text-green-600" : "text-orange-600"}>
@@ -480,6 +518,37 @@ export default function QuestionsPage() {
           </>
         )}
       </div>
+
+      {/* Image Modal */}
+      {showImageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setShowImageModal(false)}>
+          <div className="max-w-4xl max-h-[90vh] bg-white rounded-2xl p-6 overflow-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-ink-900">题目示意图</h3>
+              <button
+                onClick={() => setShowImageModal(false)}
+                className="text-ink-700 hover:text-ink-900 text-xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <div className="grid gap-4">
+              {selectedImages.map((imagePath, index) => (
+                <div key={index} className="text-center">
+                  <img
+                    src={imagePath.startsWith('data:') ? imagePath : `http://localhost:3000/${imagePath}`}
+                    alt={`示意图 ${index + 1}`}
+                    className="max-w-full h-auto rounded-xl border border-border"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7lm77niYfml6Dms5XliqDovb08L3RleHQ+PC9zdmc+';
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

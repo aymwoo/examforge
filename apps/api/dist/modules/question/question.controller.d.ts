@@ -14,6 +14,7 @@ export declare class QuestionController {
         answer: string | null;
         explanation: string | null;
         illustration: string | null;
+        images: string | null;
         tags: string;
         difficulty: number;
         status: string;
@@ -42,5 +43,16 @@ export declare class QuestionController {
     }>;
     clearAll(dto: ClearQuestionsDto): Promise<{
         deleted: number;
+    }>;
+    uploadImage(id: string, file: Express.Multer.File, req: any): Promise<{
+        imagePath: string;
+    }>;
+    deleteImage(id: string, imageIndex: string, req: any): Promise<{
+        success: boolean;
+    }>;
+    addClipboardImage(id: string, body: {
+        imageData: string;
+    }, req: any): Promise<{
+        imagePath: string;
     }>;
 }

@@ -14,6 +14,7 @@ export declare class QuestionService {
         answer: string | null;
         explanation: string | null;
         illustration: string | null;
+        images: string | null;
         tags: string;
         difficulty: number;
         status: string;
@@ -40,6 +41,16 @@ export declare class QuestionService {
     }>;
     clearAll(): Promise<{
         deleted: number;
+    }>;
+    private safeParseImages;
+    addImage(questionId: string, imageBuffer: Buffer, originalName: string, userId: string): Promise<{
+        imagePath: string;
+    }>;
+    removeImage(questionId: string, imageIndex: number, userId: string): Promise<{
+        success: boolean;
+    }>;
+    addClipboardImage(questionId: string, imageData: string, userId: string): Promise<{
+        imagePath: string;
     }>;
     private transformQuestion;
 }

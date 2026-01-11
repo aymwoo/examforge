@@ -40,4 +40,9 @@ export class PaginationDto {
   @IsOptional()
   @IsEnum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+
+  @ApiPropertyOptional({ description: 'Filter by specific question IDs (comma-separated)' })
+  @IsOptional()
+  @IsString()
+  ids?: string;
 }

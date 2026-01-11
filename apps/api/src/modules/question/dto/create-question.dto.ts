@@ -76,4 +76,9 @@ export class CreateQuestionDto {
   @IsBoolean()
   @IsOptional()
   isPublic?: boolean;
+
+  @ApiProperty({ enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'], required: false, description: 'Question status', default: 'DRAFT' })
+  @IsEnum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
+  @IsOptional()
+  status?: string;
 }

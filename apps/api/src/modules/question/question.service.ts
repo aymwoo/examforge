@@ -38,7 +38,7 @@ export class QuestionService {
         images: imagesStr,
         tags: tagsStr,
         difficulty: dto.difficulty || 1,
-        status: QuestionStatus.DRAFT,
+        status: dto.status || QuestionStatus.DRAFT,
         knowledgePoint: dto.knowledgePoint,
         isPublic: dto.isPublic ?? true,
         createdBy: userId,
@@ -47,17 +47,27 @@ export class QuestionService {
   }
 
   async findAll(paginationDto: PaginationDto, userId?: string, userRole?: string) {
-    const { page = 1, limit = 20, type, difficulty, tags } = paginationDto;
+    const { page = 1, limit = 20, type, difficulty, tags, ids } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    if (type) where.type = type;
-    if (difficulty) where.difficulty = difficulty;
-    if (tags) {
-      const tagArray = Array.isArray(tags) ? tags : [tags];
-      where.tags = {
-        contains: tagArray[0],
-      };
+    
+    // If specific IDs are provided, filter by them
+    if (ids) {
+      const idArray = ids.split(',').filter(Boolean);
+      if (idArray.length > 0) {
+        where.id = { in: idArray };
+      }
+    } else {
+      // Otherwise use normal filters
+      if (type) where.type = type;
+      if (difficulty) where.difficulty = difficulty;
+      if (tags) {
+        const tagArray = Array.isArray(tags) ? tags : [tags];
+        where.tags = {
+          contains: tagArray[0],
+        };
+      }
     }
 
     // 权限过滤：只显示公开题目或自己创建的题目（管理员可以看到所有题目）
@@ -184,6 +194,17 @@ export class QuestionService {
     return { deleted: result.count };
   }
 
+  private safeParseImages(imagesStr: string | null): string[] {
+    if (!imagesStr || typeof imagesStr !== 'string' || !imagesStr.trim()) {
+      return [];
+    }
+    try {
+      return JSON.parse(imagesStr);
+    } catch {
+      return [];
+    }
+  }
+
   async addImage(questionId: string, imageBuffer: Buffer, originalName: string, userId: string): Promise<{ imagePath: string }> {
     const question = await this.findById(questionId, userId, 'ADMIN');
     
@@ -198,7 +219,7 @@ export class QuestionService {
     await fs.writeFile(fullPath, imageBuffer);
     
     // 更新数据库
-    const currentImages = JSON.parse(question.images || '[]');
+    const currentImages = this.safeParseImages(question.images);
     currentImages.push(imagePath);
     
     await this.prisma.question.update({
@@ -212,7 +233,7 @@ export class QuestionService {
   async removeImage(questionId: string, imageIndex: number, userId: string): Promise<{ success: boolean }> {
     const question = await this.findById(questionId, userId, 'ADMIN');
     
-    const currentImages = JSON.parse(question.images || '[]');
+    const currentImages = this.safeParseImages(question.images);
     if (imageIndex < 0 || imageIndex >= currentImages.length) {
       throw new BadRequestException('Invalid image index');
     }
@@ -260,7 +281,7 @@ export class QuestionService {
     await fs.writeFile(fullPath, buffer);
     
     // 更新数据库
-    const currentImages = JSON.parse(question.images || '[]');
+    const currentImages = this.safeParseImages(question.images);
     currentImages.push(imagePath);
     
     await this.prisma.question.update({
@@ -270,7 +291,6 @@ export class QuestionService {
     
     return { imagePath };
   }
-}
 
   private transformQuestion(question: any) {
     return {
@@ -278,7 +298,7 @@ export class QuestionService {
       options: question.options ? JSON.parse(question.options) : undefined,
       answer: question.answer ?? undefined,
       tags: question.tags ? JSON.parse(question.tags) : [],
-      images: question.images ? JSON.parse(question.images) : [],
+      images: question.images ? this.safeParseImages(question.images) : [],
     };
   }
 }

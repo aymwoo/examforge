@@ -6,4 +6,5 @@ export declare class PaginationDto {
     difficulty?: number;
     tags?: string | string[];
     status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+    ids?: string;
 }
