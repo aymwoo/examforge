@@ -1,12 +1,12 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, BarChart3, Users, CheckSquare, Eye, Download, Trash2 } from "lucide-react";
+import { ArrowLeft, BarChart3, Users, CheckSquare, Eye, Download, Trash2, FileText, UserCheck } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { getExamById, deleteExam, type Exam } from "@/services/exams";
 
 interface ExamLayoutProps {
   children: ReactNode;
-  activeTab: 'details' | 'analytics' | 'grading' | 'preview' | 'export' | 'delete';
+  activeTab: 'questions' | 'students' | 'analytics' | 'grading' | 'preview' | 'export' | 'delete';
 }
 
 export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
@@ -127,13 +127,24 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
             <button
               onClick={() => navigate(`/exams/${id}`)}
               className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
-                activeTab === 'details'
+                activeTab === 'questions'
                   ? 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
                   : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
               }`}
             >
-              <Users className="h-4 w-4" />
-              考试详情
+              <FileText className="h-4 w-4" />
+              考试题目
+            </button>
+            <button
+              onClick={() => navigate(`/exams/${id}/students`)}
+              className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
+                activeTab === 'students'
+                  ? 'border-b-2 border-indigo-500 text-indigo-700 bg-indigo-50'
+                  : 'text-gray-600 hover:text-indigo-700 hover:bg-indigo-50'
+              }`}
+            >
+              <UserCheck className="h-4 w-4" />
+              学生管理
             </button>
             <button
               onClick={() => navigate(`/exams/${id}/analytics`)}

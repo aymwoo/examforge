@@ -78,8 +78,9 @@ export default function ExamAnalyticsPage() {
 
   return (
     <ExamLayout activeTab="analytics">
-      {analytics ? (
-        <div className="space-y-8">
+      <div className="space-y-8">
+        {analytics ? (
+          <div className="space-y-8">
           {/* 概览统计卡片 */}
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg">

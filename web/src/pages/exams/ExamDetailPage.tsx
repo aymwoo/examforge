@@ -58,7 +58,7 @@ export default function ExamDetailPage() {
   if (!exam) return null;
 
   return (
-    <ExamLayout activeTab="details">
+    <ExamLayout activeTab="questions">
       <div className="space-y-8">
         {/* 标签页导航 */}
         <div className="flex border-b-2 border-gray-200">
