@@ -49,13 +49,11 @@ export default function ExamDetailPage() {
   });
   const [showFilters, setShowFilters] = useState(false);
   const [addingQuestions, setAddingQuestions] = useState(false);
-  const [activeTab, setActiveTab] = useState<'questions' | 'students' | 'analytics'>('questions');
+  const [activeTab, setActiveTab] = useState<'questions' | 'students'>('questions');
   const [students, setStudents] = useState<any[]>([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [newStudent, setNewStudent] = useState({ username: '', password: '', displayName: '' });
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   const loadExam = async () => {
     if (!id) return;
@@ -258,19 +256,6 @@ export default function ExamDetailPage() {
       console.error("加载学生列表失败:", err);
     } finally {
       setStudentsLoading(false);
-    }
-  };
-
-  const loadAnalytics = async () => {
-    if (!id) return;
-    setAnalyticsLoading(true);
-    try {
-      const response = await api.get(`/api/exams/${id}/analytics`);
-      setAnalytics(response.data);
-    } catch (err) {
-      console.error('加载统计分析失败:', err);
-    } finally {
-      setAnalyticsLoading(false);
     }
   };
 
@@ -494,7 +479,7 @@ export default function ExamDetailPage() {
             </Button>
             
             <Button 
-              onClick={() => setActiveTab('analytics')}
+              onClick={() => navigate(`/exams/${id}/analytics`)}
               className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-xl"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -942,22 +927,6 @@ export default function ExamDetailPage() {
               >
                 <Users className="h-4 w-4" />
                 学生管理 ({students.length})
-              </button>
-              <button
-                onClick={() => {
-                  setActiveTab('analytics');
-                  if (!analytics) loadAnalytics();
-                }}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
-                  activeTab === 'analytics'
-                    ? 'border-b-2 border-green-500 text-green-700 bg-green-100'
-                    : 'text-gray-600 hover:text-green-700 hover:bg-green-50'
-                }`}
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                统计分析
               </button>
             </div>
 
@@ -1421,123 +1390,6 @@ export default function ExamDetailPage() {
                     <p className="text-ink-700">
                       暂无学生，点击右上角"添加学生"或"批量生成"开始添加学生账号
                     </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* 统计分析标签页 */}
-            {activeTab === 'analytics' && (
-              <div>
-                {analyticsLoading ? (
-                  <div className="rounded-2xl border border-border bg-white p-6 text-center">
-                    <p className="text-ink-700">加载统计分析中...</p>
-                  </div>
-                ) : analytics ? (
-                  <div className="space-y-6">
-                    {/* 成绩统计 */}
-                    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6">
-                      <h3 className="mb-4 text-lg font-semibold text-blue-900">成绩统计</h3>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-lg bg-white p-4 text-center">
-                          <div className="text-2xl font-bold text-blue-600">{analytics.scoreStats?.average?.toFixed(1) || 0}</div>
-                          <div className="text-sm text-gray-600">平均分</div>
-                        </div>
-                        <div className="rounded-lg bg-white p-4 text-center">
-                          <div className="text-2xl font-bold text-green-600">{analytics.scoreStats?.highest || 0}</div>
-                          <div className="text-sm text-gray-600">最高分</div>
-                        </div>
-                        <div className="rounded-lg bg-white p-4 text-center">
-                          <div className="text-2xl font-bold text-red-600">{analytics.scoreStats?.lowest || 0}</div>
-                          <div className="text-sm text-gray-600">最低分</div>
-                        </div>
-                        <div className="rounded-lg bg-white p-4 text-center">
-                          <div className="text-2xl font-bold text-purple-600">{analytics.scoreStats?.passRate?.toFixed(1) || 0}%</div>
-                          <div className="text-sm text-gray-600">及格率</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 题目分析 */}
-                    <div className="rounded-2xl border border-green-200 bg-green-50 p-6">
-                      <h3 className="mb-4 text-lg font-semibold text-green-900">题目分析</h3>
-                      <div className="space-y-3">
-                        {analytics.questionStats?.map((question: any, index: number) => (
-                          <div key={question.questionId} className="rounded-lg bg-white p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium">第 {index + 1} 题</span>
-                              <span className="text-sm text-gray-600">{getQuestionTypeName(question.type)}</span>
-                            </div>
-                            <div className="grid gap-2 sm:grid-cols-3">
-                              <div className="text-center">
-                                <div className="text-lg font-semibold text-green-600">{question.correctRate?.toFixed(1) || 0}%</div>
-                                <div className="text-xs text-gray-600">正确率</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-semibold text-blue-600">{question.averageScore?.toFixed(1) || 0}</div>
-                                <div className="text-xs text-gray-600">平均得分</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-semibold text-purple-600">{question.difficulty || 'N/A'}</div>
-                                <div className="text-xs text-gray-600">难度系数</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 知识点分析 */}
-                    <div className="rounded-2xl border border-purple-200 bg-purple-50 p-6">
-                      <h3 className="mb-4 text-lg font-semibold text-purple-900">知识点分析</h3>
-                      <div className="space-y-3">
-                        {analytics.knowledgePointStats?.map((kp: any) => (
-                          <div key={kp.knowledgePoint} className="rounded-lg bg-white p-4">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium">{kp.knowledgePoint || '未分类'}</span>
-                              <span className="text-sm text-gray-600">{kp.questionCount} 道题</span>
-                            </div>
-                            <div className="grid gap-2 sm:grid-cols-2">
-                              <div className="text-center">
-                                <div className="text-lg font-semibold text-purple-600">{kp.averageScore?.toFixed(1) || 0}</div>
-                                <div className="text-xs text-gray-600">平均得分</div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-semibold text-green-600">{kp.masteryRate?.toFixed(1) || 0}%</div>
-                                <div className="text-xs text-gray-600">掌握率</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 参与情况 */}
-                    <div className="rounded-2xl border border-orange-200 bg-orange-50 p-6">
-                      <h3 className="mb-4 text-lg font-semibold text-orange-900">参与情况</h3>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-lg bg-white p-4 text-center">
-                          <div className="text-2xl font-bold text-orange-600">{analytics.participationStats?.totalStudents || 0}</div>
-                          <div className="text-sm text-gray-600">总学生数</div>
-                        </div>
-                        <div className="rounded-lg bg-white p-4 text-center">
-                          <div className="text-2xl font-bold text-blue-600">{analytics.participationStats?.submittedCount || 0}</div>
-                          <div className="text-sm text-gray-600">已提交</div>
-                        </div>
-                        <div className="rounded-lg bg-white p-4 text-center">
-                          <div className="text-2xl font-bold text-gray-600">{analytics.participationStats?.notSubmittedCount || 0}</div>
-                          <div className="text-sm text-gray-600">未提交</div>
-                        </div>
-                        <div className="rounded-lg bg-white p-4 text-center">
-                          <div className="text-2xl font-bold text-green-600">{analytics.participationStats?.participationRate?.toFixed(1) || 0}%</div>
-                          <div className="text-sm text-gray-600">参与率</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-border bg-slate-50 p-8 text-center">
-                    <p className="text-ink-700">暂无统计数据，请确保有学生提交了考试</p>
                   </div>
                 )}
               </div>

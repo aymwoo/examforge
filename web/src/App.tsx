@@ -6,6 +6,7 @@ import QuestionDetailPage from "./pages/questions/QuestionDetailPage";
 import NewQuestionPage from "./pages/questions/NewQuestionPage";
 import ExamsPage from "./pages/exams/ExamsPage";
 import ExamDetailPage from "./pages/exams/ExamDetailPage";
+import ExamAnalyticsPage from "./pages/exams/ExamAnalyticsPage";
 import NewExamPage from "./pages/exams/NewExamPage";
 import ImportPage from "./pages/import/ImportPage";
 import ImportHistoryPage from "./pages/import/ImportHistoryPage";
@@ -53,6 +54,11 @@ function App() {
           <Route path="exams/:id" element={
             <ProtectedRoute requiredRole="TEACHER">
               <ExamDetailPage />
+            </ProtectedRoute>
+          } />
+          <Route path="exams/:id/analytics" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <ExamAnalyticsPage />
             </ProtectedRoute>
           } />
           <Route path="exams/:id/grading" element={
