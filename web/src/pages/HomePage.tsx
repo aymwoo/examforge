@@ -259,7 +259,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2">
             {/* AI智能评分 */}
             <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
               <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6">
@@ -331,56 +331,6 @@ export default function HomePage() {
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   学习效果评估
-                </li>
-              </ul>
-            </div>
-
-            {/* 实时监控 */}
-            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
-              <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6">
-                <Zap className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-ink-900 mb-4">实时监控</h3>
-              <p className="text-ink-600 mb-4">
-                实时监控考试进度，掌握学生参与情况，及时发现和处理考试中的问题。
-              </p>
-              <ul className="space-y-2 text-sm text-ink-600">
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  考试进度实时跟踪
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  学生状态监控
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  异常情况预警
-                </li>
-              </ul>
-            </div>
-
-            {/* 安全可靠 */}
-            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mb-6">
-                <Shield className="h-8 w-8 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-ink-900 mb-4">安全可靠</h3>
-              <p className="text-ink-600 mb-4">
-                企业级安全保障，数据加密存储，权限管理完善，确保考试公平公正。
-              </p>
-              <ul className="space-y-2 text-sm text-ink-600">
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  数据加密保护
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  角色权限管理
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  防作弊机制
                 </li>
               </ul>
             </div>
