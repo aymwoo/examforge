@@ -584,7 +584,12 @@ export default function ExamGradingPage() {
                               </Button>
                             </div>
                           </div>
-                          {selectedSubmission.isAutoGraded && !selectedSubmission.isReviewed && (
+                          {selectedSubmission.isAutoGraded && !selectedSubmission.isReviewed && 
+                           selectedSubmission.answers?.some(answer => 
+                             ['ESSAY', 'FILL_BLANK'].includes(
+                               exam?.examQuestions?.find(eq => eq.question.id === answer.questionId)?.question.type
+                             )
+                           ) && (
                             <div className="mt-2 text-sm text-orange-600 bg-orange-50 p-2 rounded">
                               ⚠️ 此提交包含AI评分，需要教师复核确认
                             </div>
