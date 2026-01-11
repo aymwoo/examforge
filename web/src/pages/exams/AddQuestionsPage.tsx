@@ -201,8 +201,15 @@ export default function AddQuestionsPage() {
           <h1 className="text-3xl font-bold text-gray-900">添加题目到考试</h1>
           <p className="text-gray-600 mt-2">
             为 "{exam?.title}" 选择要添加的题目 
-            <span className="ml-2 text-blue-600 font-medium">
-              (当前已有 {existingQuestionIds.size} 道题目)
+            <span className="ml-2">
+              (当前已有 
+              <button 
+                onClick={() => navigate(`/exams/${id}`)}
+                className="text-blue-600 font-medium hover:text-blue-800 underline mx-1"
+              >
+                {existingQuestionIds.size} 道题目
+              </button>
+              )
             </span>
           </p>
         </div>
