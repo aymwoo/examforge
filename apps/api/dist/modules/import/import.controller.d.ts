@@ -19,41 +19,41 @@ export declare class ImportController {
     }>;
     pdfImportProgress(res: Response, jobId: string, since?: string): Promise<void>;
     getImportHistory(req: any): Promise<{
+        status: string;
         id: string;
+        createdAt: Date;
+        questionIds: string;
         jobId: string;
         fileName: string;
         fileSize: number;
         mode: string;
-        status: string;
-        questionIds: string;
         errorMessage: string;
-        createdAt: Date;
         completedAt: Date;
     }[]>;
     getImportRecord(jobId: string, req: any): Promise<{
         questionIds: any;
         questions: {
-            id: string;
-            status: string;
-            createdAt: Date;
-            content: string;
             type: string;
+            content: string;
+            status: string;
+            id: string;
+            createdAt: Date;
         }[];
         user: {
             id: string;
             name: string;
             username: string;
         };
+        status: string;
         id: string;
+        createdAt: Date;
+        userId: string | null;
         jobId: string;
         fileName: string;
         fileSize: number;
         filePath: string | null;
-        userId: string | null;
         mode: string;
-        status: string;
         errorMessage: string | null;
-        createdAt: Date;
         completedAt: Date | null;
     }>;
     getPdfImages(jobId: string, req: any): Promise<{
@@ -69,16 +69,16 @@ export declare class ImportController {
             name: string;
             username: string;
         };
+        status: string;
         id: string;
+        createdAt: Date;
+        userId: string | null;
         jobId: string;
         fileName: string;
         fileSize: number;
         filePath: string | null;
-        userId: string | null;
         mode: string;
-        status: string;
         errorMessage: string | null;
-        createdAt: Date;
         completedAt: Date | null;
     }[]>;
 }

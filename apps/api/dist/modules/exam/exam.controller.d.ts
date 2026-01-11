@@ -16,17 +16,17 @@ export declare class ExamController {
     }): Promise<import("../ai/ai.service").GenerateExamQuestionsResponse>;
     create(dto: CreateExamDto): Promise<{
         id: string;
-        status: string;
-        createdAt: Date;
-        updatedAt: Date;
-        createdBy: string | null;
         title: string;
         description: string | null;
         duration: number;
         totalScore: number;
+        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        createdBy: string | null;
     }>;
     getDashboardStats(req?: any): Promise<{
         ongoingExams: number;
@@ -57,17 +57,17 @@ export declare class ExamController {
     findById(id: string): Promise<any>;
     update(id: string, dto: UpdateExamDto): Promise<{
         id: string;
-        status: string;
-        createdAt: Date;
-        updatedAt: Date;
-        createdBy: string | null;
         title: string;
         description: string | null;
         duration: number;
         totalScore: number;
+        status: string;
         accountModes: string;
         startTime: Date | null;
         endTime: Date | null;
+        createdAt: Date;
+        updatedAt: Date;
+        createdBy: string | null;
     }>;
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
@@ -91,10 +91,10 @@ export declare class ExamController {
     addStudent(examId: string, dto: CreateExamStudentDto): Promise<{
         id: string;
         createdAt: Date;
-        username: string;
-        password: string;
         updatedAt: Date;
         examId: string;
+        username: string;
+        password: string;
         displayName: string | null;
         accountType: string;
         studentId: string | null;
@@ -117,19 +117,19 @@ export declare class ExamController {
     getExamStudents(examId: string): Promise<{
         id: string;
         createdAt: Date;
-        username: string;
         _count: {
             submissions: number;
         };
+        username: string;
         displayName: string;
     }[]>;
     updateExamStudent(examId: string, studentId: string, dto: Partial<CreateExamStudentDto>): Promise<{
         id: string;
         createdAt: Date;
-        username: string;
-        password: string;
         updatedAt: Date;
         examId: string;
+        username: string;
+        password: string;
         displayName: string | null;
         accountType: string;
         studentId: string | null;
@@ -145,6 +145,7 @@ export declare class ExamController {
             id: string;
             content: string;
             type: string;
+            images: any[];
             options: any;
             score: number;
             order: number;

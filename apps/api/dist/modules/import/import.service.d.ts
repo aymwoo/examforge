@@ -40,41 +40,41 @@ export declare class ImportService {
     private savePdfFile;
     private updateImportRecord;
     getImportHistory(userId?: string): Promise<{
+        status: string;
         id: string;
+        createdAt: Date;
+        questionIds: string;
         jobId: string;
         fileName: string;
         fileSize: number;
         mode: string;
-        status: string;
-        questionIds: string;
         errorMessage: string;
-        createdAt: Date;
         completedAt: Date;
     }[]>;
     getImportRecord(jobId: string, userId?: string): Promise<{
         questionIds: any;
         questions: {
-            id: string;
-            status: string;
-            createdAt: Date;
-            content: string;
             type: string;
+            content: string;
+            status: string;
+            id: string;
+            createdAt: Date;
         }[];
         user: {
             id: string;
             name: string;
             username: string;
         };
+        status: string;
         id: string;
+        createdAt: Date;
+        userId: string | null;
         jobId: string;
         fileName: string;
         fileSize: number;
         filePath: string | null;
-        userId: string | null;
         mode: string;
-        status: string;
         errorMessage: string | null;
-        createdAt: Date;
         completedAt: Date | null;
     }>;
     getPdfImages(jobId: string, userId?: string): Promise<{
@@ -90,16 +90,16 @@ export declare class ImportService {
             name: string;
             username: string;
         };
+        status: string;
         id: string;
+        createdAt: Date;
+        userId: string | null;
         jobId: string;
         fileName: string;
         fileSize: number;
         filePath: string | null;
-        userId: string | null;
         mode: string;
-        status: string;
         errorMessage: string | null;
-        createdAt: Date;
         completedAt: Date | null;
     }[]>;
 }

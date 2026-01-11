@@ -63,25 +63,25 @@ export default function NewExamPage() {
     setSaving(true);
     setError(null);
     try {
-      // 尝试最简化的数据
-      const minimalData = {
+      const examData = {
         title: form.title,
         duration: form.duration,
+        description: form.description,
+        totalScore: form.totalScore,
+        accountModes: form.accountModes,
       };
-      console.log('Submitting minimal exam data:', JSON.stringify(minimalData, null, 2));
-      const createdExam = await createExam(minimalData as CreateExamDto);
+      
+      const createdExam = await createExam(examData as CreateExamDto);
       
       // If we have question IDs, navigate to exam detail page with them
       if (questionIds.length > 0) {
         navigate(`/exams/${createdExam.id}?addQuestions=${questionIds.join(',')}`);
       } else {
-        navigate("/exams");
+        navigate(`/exams/${createdExam.id}`);
       }
     } catch (err: unknown) {
       console.error('Create exam error:', err);
       const axiosError = err as any;
-      console.error('Error response:', axiosError.response);
-      console.error('Error data:', axiosError.response?.data);
       setError(
         axiosError.response?.data?.message || 
         axiosError.response?.data?.error || 
@@ -108,7 +108,7 @@ export default function NewExamPage() {
           </div>
           <Button onClick={handleSubmit} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
-            {saving ? "新增中..." : "新增"}
+            {saving ? "创建中..." : "创建考试"}
           </Button>
         </div>
 
@@ -193,12 +193,10 @@ export default function NewExamPage() {
                         const currentModes = form.accountModes || [];
                         const isSelected = currentModes.includes(mode.value);
                         if (isSelected) {
-                          // 取消选择，但至少保留一个
                           if (currentModes.length > 1) {
                             handleInputChange("accountModes", currentModes.filter(m => m !== mode.value));
                           }
                         } else {
-                          // 添加选择
                           handleInputChange("accountModes", [...currentModes, mode.value]);
                         }
                       }}
@@ -220,18 +218,10 @@ export default function NewExamPage() {
                 说明
               </h3>
               <ul className="ml-4 list-decimal space-y-2 text-sm text-ink-700">
-                <li>
-                  创建考试后，可以进入考试详情页添加题目
-                </li>
-                <li>
-                  从题库中选择题目添加到考试，并设置每题的分值和顺序
-                </li>
-                <li>
-                  支持删除考试中的题目，或调整题目顺序和分值
-                </li>
-                <li>
-                  考试创建后状态为"草稿"，可以在详情页修改状态为"已发布"
-                </li>
+                <li>创建考试后，将跳转到考试详情页面</li>
+                <li>在考试详情页面可以添加题目和管理学生</li>
+                <li>从题库中选择题目添加到考试，并设置每题的分值和顺序</li>
+                <li>考试创建后状态为"草稿"，可以修改状态为"已发布"</li>
               </ul>
             </div>
           </div>

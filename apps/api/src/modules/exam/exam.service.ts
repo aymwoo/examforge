@@ -435,24 +435,41 @@ export class ExamService {
       description: exam.description,
       duration: exam.duration,
       totalScore: exam.totalScore,
-      questions: exam.examQuestions.map(eq => ({
-        id: eq.question.id,
-        content: eq.question.content,
-        type: eq.question.type,
-        options: eq.question.options ? (() => {
-          try {
-            const parsed = JSON.parse(eq.question.options);
-            // 如果是对象数组，提取content字段；如果是字符串数组，直接返回
-            return Array.isArray(parsed) 
-              ? parsed.map(opt => typeof opt === 'string' ? opt : opt.content || opt.label || String(opt))
-              : parsed;
-          } catch {
-            return null;
-          }
-        })() : null,
-        score: eq.score,
-        order: eq.order,
-      })),
+      questions: exam.examQuestions.map(eq => {
+        console.log('Processing question:', eq.question.id, 'images field:', eq.question.images);
+        return {
+          id: eq.question.id,
+          content: eq.question.content,
+          type: eq.question.type,
+          images: (() => {
+            if (!eq.question.images) {
+              console.log('No images field for question', eq.question.id);
+              return [];
+            }
+            try {
+              const parsed = JSON.parse(eq.question.images);
+              console.log('Parsed images for question', eq.question.id, ':', parsed);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+              console.log('Failed to parse images for question', eq.question.id, ':', eq.question.images);
+              return [];
+            }
+          })(),
+          options: eq.question.options ? (() => {
+            try {
+              const parsed = JSON.parse(eq.question.options);
+              // 如果是对象数组，提取content字段；如果是字符串数组，直接返回
+              return Array.isArray(parsed) 
+                ? parsed.map(opt => typeof opt === 'string' ? opt : opt.content || opt.label || String(opt))
+                : parsed;
+            } catch {
+              return null;
+            }
+          })() : null,
+          score: eq.score,
+          order: eq.order,
+        };
+      }),
     };
   }
 

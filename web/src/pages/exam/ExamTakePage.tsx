@@ -427,6 +427,54 @@ export default function ExamTakePage() {
                 <div className="prose max-w-none">
                   <p className="text-ink-900">{currentQuestion.content}</p>
                 </div>
+                
+                {/* 调试信息 */}
+                {console.log('Current question:', currentQuestion)}
+                {console.log('Images:', currentQuestion.images)}
+                
+                {/* 示例图展示 */}
+                {currentQuestion.images && currentQuestion.images.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold text-ink-900 mb-2">示例图：</h4>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {currentQuestion.images.map((image, index) => (
+                        <div key={index} className="relative">
+                          <img
+                            src={image.startsWith('data:') ? image : `http://localhost:3000/${image}`}
+                            alt={`题目示例图 ${index + 1}`}
+                            className="w-full max-h-64 object-contain rounded-lg border border-border bg-slate-50 cursor-pointer hover:shadow-md transition-shadow"
+                            onClick={() => {
+                              // 点击图片放大查看
+                              const modal = document.createElement('div');
+                              modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4';
+                              modal.onclick = () => modal.remove();
+                              
+                              const img = document.createElement('img');
+                              img.src = image.startsWith('data:') ? image : `http://localhost:3000/${image}`;
+                              img.className = 'max-w-full max-h-full object-contain rounded-lg';
+                              img.onclick = (e) => e.stopPropagation();
+                              
+                              modal.appendChild(img);
+                              document.body.appendChild(modal);
+                            }}
+                          />
+                          {currentQuestion.images.length > 1 && (
+                            <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                              {index + 1}/{currentQuestion.images.length}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* 临时调试显示 */}
+                {currentQuestion.images && (
+                  <div className="mt-2 p-2 bg-yellow-100 text-xs">
+                    调试：发现 {currentQuestion.images.length} 张图片
+                  </div>
+                )}
               </div>
 
               {/* 答题区域 */}
