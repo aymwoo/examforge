@@ -1464,4 +1464,110 @@ ${studentAnswer}
       participationStats,
     };
   }
+
+  async generateAIReport(examId: string, data: any, userId?: string) {
+    try {
+      // 获取用户的默认AI Provider设置
+      const aiProvider = await this.prisma.aIProvider.findFirst({
+        where: {
+          OR: [
+            { isGlobal: true },
+            { createdBy: userId }
+          ]
+        },
+        orderBy: [
+          { isGlobal: false },
+          { createdAt: 'desc' }
+        ]
+      });
+
+      if (!aiProvider) {
+        throw new Error('未找到可用的AI Provider，请先配置AI服务');
+      }
+
+      // 构建分析报告的提示词
+      const prompt = this.buildAnalysisPrompt(data.exam, data.analytics);
+
+      // 调用AI服务生成报告
+      const report = await this.callAIService(aiProvider, prompt);
+
+      return { report };
+    } catch (error) {
+      throw new Error(`生成AI分析报告失败: ${error.message}`);
+    }
+  }
+
+  private buildAnalysisPrompt(exam: any, analytics: any): string {
+    return `请基于以下考试数据生成一份详细的分析报告：
+
+考试信息：
+- 考试名称：${exam.title}
+- 考试描述：${exam.description || '无'}
+- 考试时长：${exam.duration}分钟
+- 总分：${exam.totalScore}分
+- 题目数量：${exam.examQuestions?.length || 0}道
+
+统计数据：
+- 平均分：${analytics.scoreStats?.average?.toFixed(1) || 0}分
+- 最高分：${analytics.scoreStats?.highest || 0}分
+- 最低分：${analytics.scoreStats?.lowest || 0}分
+- 及格率：${analytics.scoreStats?.passRate?.toFixed(1) || 0}%
+- 参与学生：${analytics.participationStats?.submittedCount || 0}人
+- 参与率：${analytics.participationStats?.participationRate?.toFixed(1) || 0}%
+
+题目分析：
+${analytics.questionStats?.map((q: any, index: number) => 
+  `第${index + 1}题 - 正确率：${q.correctRate?.toFixed(1) || 0}%，平均得分：${q.averageScore?.toFixed(1) || 0}分`
+).join('\n') || '无题目数据'}
+
+知识点分析：
+${analytics.knowledgePointStats?.map((kp: any) => 
+  `${kp.knowledgePoint || '未分类'} - 掌握率：${kp.masteryRate?.toFixed(1) || 0}%，平均得分：${kp.averageScore?.toFixed(1) || 0}分`
+).join('\n') || '无知识点数据'}
+
+请从以下几个方面进行分析：
+1. 整体考试表现评价
+2. 学生掌握情况分析
+3. 题目难度和区分度分析
+4. 知识点掌握情况分析
+5. 教学建议和改进方向
+
+请用中文回答，内容要专业、详细、有针对性。`;
+  }
+
+  private async callAIService(aiProvider: any, prompt: string): Promise<string> {
+    const apiKey = aiProvider.apiKey;
+    const baseUrl = aiProvider.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    const model = aiProvider.model || 'qwen-turbo';
+
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2000
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI服务调用失败: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      return result.choices?.[0]?.message?.content || '生成报告失败';
+    } catch (error) {
+      throw new Error(`AI服务调用失败: ${error.message}`);
+    }
+  }
 }

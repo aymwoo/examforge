@@ -366,29 +366,6 @@ export default function HomePage() {
             </div>
           )}
         </div>
-
-        {/* CTA区域 */}
-        <div className="bg-gradient-to-br from-blue-600 to-purple-700 rounded-3xl p-12 text-center text-white mb-16">
-          <h2 className="text-3xl font-bold mb-4">开始使用 ExamForge</h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            立即体验AI驱动的智能考试平台，让考试管理变得更加高效便捷
-          </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Button 
-              onClick={() => navigate('/exams')}
-              className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg font-semibold"
-            >
-              创建考试
-            </Button>
-            <Button 
-              onClick={() => navigate('/docs')}
-              variant="outline"
-              className="border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 text-lg font-semibold"
-            >
-              查看文档
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );

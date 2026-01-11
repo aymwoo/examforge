@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { BarChart3, TrendingUp, Users, Target } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Target, FileText, Sparkles } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import Button from "@/components/ui/Button";
 import ExamLayout from "@/components/ExamLayout";
@@ -14,6 +14,8 @@ export default function ExamAnalyticsPage() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aiReport, setAiReport] = useState<string>('');
+  const [generatingReport, setGeneratingReport] = useState(false);
 
   const getQuestionTypeName = (type: string) => {
     const typeMap: Record<string, string> = {
@@ -268,6 +270,24 @@ export default function ExamAnalyticsPage() {
     }
   };
 
+  const generateAIReport = async () => {
+    if (!analytics || !exam) return;
+    
+    setGeneratingReport(true);
+    try {
+      const response = await api.post(`/api/exams/${id}/ai-report`, {
+        analytics: analytics,
+        exam: exam
+      });
+      setAiReport(response.data.report);
+    } catch (error) {
+      console.error('生成AI报告失败:', error);
+      alert('生成AI报告失败，请检查AI Provider配置');
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-slatebg text-ink-900 antialiased min-h-screen flex items-center justify-center">
@@ -297,6 +317,35 @@ export default function ExamAnalyticsPage() {
       <div className="space-y-8">
         {analytics ? (
           <div className="space-y-8">
+            {/* AI分析报告按钮 */}
+            <div className="flex justify-end">
+              <Button
+                onClick={generateAIReport}
+                disabled={generatingReport}
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3"
+              >
+                <Sparkles className="h-4 w-4" />
+                {generatingReport ? '生成中...' : '生成AI分析报告'}
+              </Button>
+            </div>
+
+            {/* AI分析报告展示 */}
+            {aiReport && (
+              <div className="rounded-3xl border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-white p-8 shadow-lg">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="rounded-full bg-purple-500 p-2">
+                    <FileText className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-purple-900">AI智能分析报告</h2>
+                </div>
+                <div className="prose max-w-none">
+                  <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
+                    {aiReport}
+                  </div>
+                </div>
+              </div>
+            )}
+
           {/* 概览统计卡片 */}
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg">

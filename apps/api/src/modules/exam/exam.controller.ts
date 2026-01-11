@@ -339,4 +339,13 @@ export class ExamController {
   getExamAnalytics(@Param('id') examId: string) {
     return this.examService.getExamAnalytics(examId);
   }
+
+  @Post(':id/ai-report')
+  @ApiOperation({ summary: 'Generate AI analysis report for exam' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiResponse({ status: 200, description: 'AI report generated successfully' })
+  async generateAIReport(@Param('id') examId: string, @Body() data: any, @Request() req?: any) {
+    const userId = req?.user?.id;
+    return this.examService.generateAIReport(examId, data, userId);
+  }
 }
