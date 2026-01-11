@@ -151,7 +151,12 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
           <div className="rounded-3xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white p-8 shadow-lg mb-8">
             <div className="flex items-start justify-between mb-6">
               <div>
-                <h1 className="text-3xl font-bold text-blue-900 mb-2">{exam.title}</h1>
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-3xl font-bold text-blue-900">{exam.title}</h1>
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(exam.status)}`}>
+                    {getStatusText(exam.status)}
+                  </span>
+                </div>
                 <p className="text-blue-700 mb-4">{exam.description}</p>
                 <div className="flex items-center gap-4 text-sm text-blue-600">
                   <span>时长: {exam.duration} 分钟</span>
@@ -161,9 +166,6 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
               </div>
               <div className="text-right">
                 <div className="flex items-center gap-3 mb-3">
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(exam.status)}`}>
-                    {getStatusText(exam.status)}
-                  </span>
                   {exam.status === 'PUBLISHED' ? (
                     <Button
                       onClick={handleWithdrawExam}
