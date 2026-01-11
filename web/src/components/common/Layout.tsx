@@ -55,7 +55,7 @@ export default function Layout() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="text-xl font-bold flex items-center gap-3">
-              <div className="h-10 w-10 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200 flex items-center justify-center">
+              <div className="h-16 w-16 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200 flex items-center justify-center">
                 <img 
                   src="/logo.png" 
                   alt="ExamForge Logo" 
