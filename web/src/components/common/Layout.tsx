@@ -116,7 +116,7 @@ export default function Layout() {
                       className="flex items-center gap-2 hover:text-primary"
                     >
                       <Users className="h-4 w-4" />
-                      用户管理
+                      用户
                     </Link>
                   )}
                   <Link
@@ -124,7 +124,7 @@ export default function Layout() {
                     className="flex items-center gap-2 hover:text-primary"
                   >
                     <HelpCircle className="h-4 w-4" />
-                    使用文档
+                    文档
                   </Link>
                   <div className="relative" ref={dropdownRef}>
                     <button
