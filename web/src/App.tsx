@@ -21,6 +21,7 @@ import ExamGradingPageSimple from "./pages/exams/ExamGradingPageSimple";
 import HomePage from "./pages/HomePage";
 import UsersPage from "./pages/UsersPage";
 import ProfilePage from "./pages/ProfilePage";
+import DocsPage from "./pages/DocsPage";
 
 function App() {
   return (
@@ -84,6 +85,7 @@ function App() {
             </ProtectedRoute>
           } />
           <Route path="profile" element={<ProfilePage />} />
+          <Route path="docs" element={<DocsPage />} />
           <Route path="import" element={
             <ProtectedRoute requiredRole="TEACHER">
               <ImportPage />

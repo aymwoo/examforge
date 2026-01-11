@@ -10,6 +10,7 @@ import {
   User,
   ChevronDown,
   Home,
+  HelpCircle,
 } from "lucide-react";
 import { getCurrentUser, hasRole, logout } from "../../utils/auth";
 
@@ -118,6 +119,13 @@ export default function Layout() {
                       用户管理
                     </Link>
                   )}
+                  <Link
+                    to="/docs"
+                    className="flex items-center gap-2 hover:text-primary"
+                  >
+                    <HelpCircle className="h-4 w-4" />
+                    使用文档
+                  </Link>
                   <div className="relative" ref={dropdownRef}>
                     <button
                       onClick={() => setShowProfileDropdown(!showProfileDropdown)}
