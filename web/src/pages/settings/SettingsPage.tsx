@@ -52,6 +52,47 @@ export default function SettingsPage() {
         getProviders(),
       ]);
       setSettings(userSettingsData); // Use user-specific settings
+      
+      // 如果分析提示词为空，设置系统默认值
+      if (!userSettingsData.analysisPromptTemplate) {
+        const defaultAnalysisPrompt = `请基于以下考试数据生成一份详细的分析报告：
+
+考试信息：
+- 考试名称：{examTitle}
+- 考试描述：{examDescription}
+- 考试时长：{duration}分钟
+- 总分：{totalScore}分
+- 题目数量：{questionCount}道
+
+统计数据：
+- 平均分：{averageScore}分
+- 最高分：{highestScore}分
+- 最低分：{lowestScore}分
+- 及格率：{passRate}%
+- 参与学生：{submittedCount}人
+- 参与率：{participationRate}%
+
+题目分析：
+{questionStats}
+
+知识点分析：
+{knowledgePointStats}
+
+请从以下几个方面进行分析：
+1. 整体考试表现评价
+2. 学生掌握情况分析
+3. 题目难度和区分度分析
+4. 知识点掌握情况分析
+5. 教学建议和改进方向
+
+请用中文回答，内容要专业、详细、有针对性。`;
+
+        setSettings(prev => ({
+          ...prev,
+          analysisPromptTemplate: defaultAnalysisPrompt
+        }));
+      }
+      
       setProviders(providersData);
       setSelectedProvider(settingsData.aiProvider); // System AI provider
       
