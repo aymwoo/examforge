@@ -1470,19 +1470,20 @@ ${studentAnswer}
       // 获取用户的默认AI Provider设置
       const aiProvider = await this.prisma.aIProvider.findFirst({
         where: {
+          isActive: true,
           OR: [
             { isGlobal: true },
             { createdBy: userId }
           ]
         },
         orderBy: [
-          { isGlobal: false },
+          { isGlobal: 'asc' }, // 优先使用用户自己的配置
           { createdAt: 'desc' }
         ]
       });
 
       if (!aiProvider) {
-        throw new Error('未找到可用的AI Provider，请先配置AI服务');
+        throw new Error('未找到可用的AI Provider，请先在设置页面配置AI服务');
       }
 
       // 构建分析报告的提示词
@@ -1493,6 +1494,7 @@ ${studentAnswer}
 
       return { report };
     } catch (error) {
+      console.error('生成AI报告失败:', error);
       throw new Error(`生成AI分析报告失败: ${error.message}`);
     }
   }
@@ -1540,6 +1542,8 @@ ${analytics.knowledgePointStats?.map((kp: any) =>
     const baseUrl = aiProvider.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     const model = aiProvider.model || 'qwen-turbo';
 
+    console.log('调用AI服务:', { baseUrl, model, hasApiKey: !!apiKey });
+
     try {
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
@@ -1560,13 +1564,20 @@ ${analytics.knowledgePointStats?.map((kp: any) =>
         })
       });
 
+      console.log('AI服务响应状态:', response.status);
+
       if (!response.ok) {
-        throw new Error(`AI服务调用失败: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('AI服务错误响应:', errorText);
+        throw new Error(`AI服务调用失败: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('AI服务响应:', result);
+      
       return result.choices?.[0]?.message?.content || '生成报告失败';
     } catch (error) {
+      console.error('AI服务调用异常:', error);
       throw new Error(`AI服务调用失败: ${error.message}`);
     }
   }
