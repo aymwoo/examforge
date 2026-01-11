@@ -30,6 +30,7 @@ export default function SettingsPage() {
     aiModel: "",
     promptTemplate: "",
     gradingPromptTemplate: "",
+    analysisPromptTemplate: "",
   });
   const [providers, setProviders] = useState<AIModelConfig[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
@@ -185,6 +186,7 @@ export default function SettingsPage() {
     try {
       await updateUserSetting("PROMPT_TEMPLATE", settings.promptTemplate);
       await updateUserSetting("GRADING_PROMPT_TEMPLATE", settings.gradingPromptTemplate);
+      await updateUserSetting("ANALYSIS_PROMPT_TEMPLATE", settings.analysisPromptTemplate);
       setError("提示词设置保存成功");
     } catch (err: unknown) {
       const axiosError = err as {
@@ -291,6 +293,28 @@ export default function SettingsPage() {
     setSettings((prev) => ({
       ...prev,
       gradingPromptTemplate: prev.gradingPromptTemplate + variables,
+    }));
+  };
+
+  const handleInsertAnalysisVariables = () => {
+    const variables = `
+支持的变量：
+- {examTitle} - 考试标题
+- {examDescription} - 考试描述
+- {duration} - 考试时长
+- {totalScore} - 总分
+- {questionCount} - 题目数量
+- {averageScore} - 平均分
+- {highestScore} - 最高分
+- {lowestScore} - 最低分
+- {passRate} - 及格率
+- {participationRate} - 参与率
+- {questionStats} - 题目统计数据
+- {knowledgePointStats} - 知识点统计数据`;
+    
+    setSettings((prev) => ({
+      ...prev,
+      analysisPromptTemplate: prev.analysisPromptTemplate + variables,
     }));
   };
 
@@ -709,6 +733,48 @@ export default function SettingsPage() {
                 >
                   <Save className="h-4 w-4 mr-2" />
                   {saving ? "保存中..." : "保存评分提示词设置"}
+                </Button>
+              </div>
+
+              {/* 分析报告提示词配置 */}
+              <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1 mt-6">
+                <div className="mb-6 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-ink-900">
+                    分析报告提示词配置
+                  </h2>
+                  <Button
+                    onClick={handleInsertAnalysisVariables}
+                    variant="outline"
+                    size="sm"
+                  >
+                    插入支持变量
+                  </Button>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-ink-900">
+                    分析报告提示词模板
+                  </label>
+                  <textarea
+                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
+                    value={settings.analysisPromptTemplate}
+                    onChange={(e) =>
+                      handleInputChange("analysisPromptTemplate", e.target.value)
+                    }
+                    placeholder="输入AI分析报告提示词模板..."
+                  />
+                  <p className="mt-1 text-xs text-ink-700">
+                    分析报告提示词模板用于指导AI如何生成考试分析报告。支持变量：{"{examTitle}"}, {"{examDescription}"}, {"{scoreStats}"}, {"{questionStats}"}, {"{knowledgePointStats}"}等。此为您的个人设置。
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleSavePrompts}
+                  disabled={saving}
+                  className="mt-4 w-full"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {saving ? "保存中..." : "保存分析提示词设置"}
                 </Button>
               </div>
             </div>

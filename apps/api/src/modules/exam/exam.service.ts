@@ -1517,7 +1517,7 @@ ${studentAnswer}
 
       // 构建分析报告的提示词
       res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在构建分析提示词...' })}\n\n`);
-      const prompt = this.buildAnalysisPrompt(exam, analytics);
+      const prompt = await this.buildAnalysisPrompt(exam, analytics, userId);
 
       // 调用AI服务生成报告
       res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在调用AI服务生成报告...' })}\n\n`);
@@ -1534,33 +1534,44 @@ ${studentAnswer}
     }
   }
 
-  private buildAnalysisPrompt(exam: any, analytics: any): string {
-    return `请基于以下考试数据生成一份详细的分析报告：
+  private async buildAnalysisPrompt(exam: any, analytics: any, userId?: string): Promise<string> {
+    // 获取用户自定义的分析提示词模板
+    let promptTemplate = '';
+    
+    if (userId) {
+      const userSetting = await this.prisma.userSetting.findFirst({
+        where: {
+          userId: userId,
+          key: 'ANALYSIS_PROMPT_TEMPLATE'
+        }
+      });
+      promptTemplate = userSetting?.value || '';
+    }
+    
+    // 如果用户没有自定义模板，使用系统默认模板
+    if (!promptTemplate) {
+      promptTemplate = `请基于以下考试数据生成一份详细的分析报告：
 
 考试信息：
-- 考试名称：${exam.title}
-- 考试描述：${exam.description || '无'}
-- 考试时长：${exam.duration}分钟
-- 总分：${exam.totalScore}分
-- 题目数量：${exam.examQuestions?.length || 0}道
+- 考试名称：{examTitle}
+- 考试描述：{examDescription}
+- 考试时长：{duration}分钟
+- 总分：{totalScore}分
+- 题目数量：{questionCount}道
 
 统计数据：
-- 平均分：${analytics.scoreStats?.average?.toFixed(1) || 0}分
-- 最高分：${analytics.scoreStats?.highest || 0}分
-- 最低分：${analytics.scoreStats?.lowest || 0}分
-- 及格率：${analytics.scoreStats?.passRate?.toFixed(1) || 0}%
-- 参与学生：${analytics.participationStats?.submittedCount || 0}人
-- 参与率：${analytics.participationStats?.participationRate?.toFixed(1) || 0}%
+- 平均分：{averageScore}分
+- 最高分：{highestScore}分
+- 最低分：{lowestScore}分
+- 及格率：{passRate}%
+- 参与学生：{submittedCount}人
+- 参与率：{participationRate}%
 
 题目分析：
-${analytics.questionStats?.map((q: any, index: number) => 
-  `第${index + 1}题 - 正确率：${q.correctRate?.toFixed(1) || 0}%，平均得分：${q.averageScore?.toFixed(1) || 0}分`
-).join('\n') || '无题目数据'}
+{questionStats}
 
 知识点分析：
-${analytics.knowledgePointStats?.map((kp: any) => 
-  `${kp.knowledgePoint || '未分类'} - 掌握率：${kp.masteryRate?.toFixed(1) || 0}%，平均得分：${kp.averageScore?.toFixed(1) || 0}分`
-).join('\n') || '无知识点数据'}
+{knowledgePointStats}
 
 请从以下几个方面进行分析：
 1. 整体考试表现评价
@@ -1570,6 +1581,31 @@ ${analytics.knowledgePointStats?.map((kp: any) =>
 5. 教学建议和改进方向
 
 请用中文回答，内容要专业、详细、有针对性。`;
+    }
+
+    // 替换变量
+    const questionStatsText = analytics.questionStats?.map((q: any, index: number) => 
+      `第${index + 1}题 - 正确率：${q.correctRate?.toFixed(1) || 0}%，平均得分：${q.averageScore?.toFixed(1) || 0}分`
+    ).join('\n') || '无题目数据';
+
+    const knowledgePointStatsText = analytics.knowledgePointStats?.map((kp: any) => 
+      `${kp.knowledgePoint || '未分类'} - 掌握率：${kp.masteryRate?.toFixed(1) || 0}%，平均得分：${kp.averageScore?.toFixed(1) || 0}分`
+    ).join('\n') || '无知识点数据';
+
+    return promptTemplate
+      .replace(/{examTitle}/g, exam.title || '')
+      .replace(/{examDescription}/g, exam.description || '无')
+      .replace(/{duration}/g, exam.duration?.toString() || '0')
+      .replace(/{totalScore}/g, exam.totalScore?.toString() || '0')
+      .replace(/{questionCount}/g, exam.examQuestions?.length?.toString() || '0')
+      .replace(/{averageScore}/g, analytics.scoreStats?.average?.toFixed(1) || '0')
+      .replace(/{highestScore}/g, analytics.scoreStats?.highest?.toString() || '0')
+      .replace(/{lowestScore}/g, analytics.scoreStats?.lowest?.toString() || '0')
+      .replace(/{passRate}/g, analytics.scoreStats?.passRate?.toFixed(1) || '0')
+      .replace(/{submittedCount}/g, analytics.participationStats?.submittedCount?.toString() || '0')
+      .replace(/{participationRate}/g, analytics.participationStats?.participationRate?.toFixed(1) || '0')
+      .replace(/{questionStats}/g, questionStatsText)
+      .replace(/{knowledgePointStats}/g, knowledgePointStatsText);
   }
 
   private async callAIServiceStream(aiProvider: any, prompt: string, res: any): Promise<string> {
