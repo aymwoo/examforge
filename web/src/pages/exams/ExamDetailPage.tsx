@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { BookOpen, Users } from "lucide-react";
 import Button from "@/components/ui/Button";
 import ExamLayout from "@/components/ExamLayout";
 import { getExamById, type Exam } from "@/services/exams";
@@ -11,7 +10,6 @@ export default function ExamDetailPage() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'questions' | 'students'>('questions');
 
   useEffect(() => {
     if (id) {
@@ -60,71 +58,59 @@ export default function ExamDetailPage() {
   return (
     <ExamLayout activeTab="questions">
       <div className="space-y-8">
-        {/* 标签页导航 */}
-        <div className="flex border-b-2 border-gray-200">
-          <button
-            onClick={() => setActiveTab('questions')}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
-              activeTab === 'questions'
-                ? 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
-                : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
-            }`}
-          >
-            <BookOpen className="h-4 w-4" />
-            考试题目 ({exam.examQuestions?.length || 0})
-          </button>
-          <button
-            onClick={() => setActiveTab('students')}
-            className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
-              activeTab === 'students'
-                ? 'border-b-2 border-blue-500 text-blue-700 bg-blue-50'
-                : 'text-gray-600 hover:text-blue-700 hover:bg-blue-50'
-            }`}
-          >
-            <Users className="h-4 w-4" />
-            学生管理
-          </button>
-        </div>
-
         {/* 题目管理 */}
-        {activeTab === 'questions' && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6">
-            <h3 className="text-lg font-semibold mb-4">考试题目</h3>
-            {exam.examQuestions && exam.examQuestions.length > 0 ? (
-              <div className="space-y-3">
-                {exam.examQuestions.map((examQuestion: any, index: number) => (
-                  <div key={examQuestion.id} className="border border-gray-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-medium">第 {index + 1} 题</span>
-                        <span className="ml-2 text-sm text-gray-600">
-                          {examQuestion.question?.content?.substring(0, 50)}...
+        <div className="rounded-3xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white p-8 shadow-lg">
+          <h2 className="text-2xl font-bold text-blue-900 mb-6">考试题目</h2>
+          {exam.examQuestions && exam.examQuestions.length > 0 ? (
+            <div className="space-y-4">
+              {exam.examQuestions.map((examQuestion: any, index: number) => (
+                <div key={examQuestion.id} className="bg-white border border-blue-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                          第 {index + 1} 题
+                        </span>
+                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                          {examQuestion.question?.type || '未知类型'}
                         </span>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-gray-800 mb-2">
+                        {examQuestion.question?.content}
+                      </div>
+                      {examQuestion.question?.options && examQuestion.question.options.length > 0 && (
+                        <div className="text-sm text-gray-600 space-y-1">
+                          {examQuestion.question.options.map((option: any, optIndex: number) => (
+                            <div key={optIndex}>
+                              {option.label}: {option.content}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right ml-4">
+                      <div className="text-lg font-bold text-blue-600">
                         {examQuestion.score} 分
                       </div>
+                      {examQuestion.question?.difficulty && (
+                        <div className="text-sm text-gray-500">
+                          难度: {examQuestion.question.difficulty}
+                        </div>
+                      )}
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                暂无题目，请添加题目
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 学生管理 */}
-        {activeTab === 'students' && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-6">
-            <h3 className="text-lg font-semibold mb-4">学生管理</h3>
-            <div className="text-center py-8 text-gray-500">
-              学生管理功能开发中...
+                </div>
+              ))}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-blue-700 mb-4">暂无题目，请添加题目</p>
+              <Button className="bg-blue-500 hover:bg-blue-600 text-white">
+                添加题目
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </ExamLayout>
   );
