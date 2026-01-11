@@ -411,7 +411,7 @@ export default function QuestionDetailPage() {
                         key={index}
                         src={image.startsWith('data:') ? image : `http://localhost:3000/${image}`}
                         alt={`示例图 ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg border border-border"
+                        className="w-full max-h-48 object-contain rounded-lg border border-border bg-slate-50"
                       />
                     ))}
                   </div>

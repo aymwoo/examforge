@@ -102,7 +102,7 @@ export default function Layout() {
           </div>
         </div>
       </nav>
-      <main className="container mx-auto px-4 py-8 pt-20">
+      <main className="container mx-auto px-4 py-8 pt-16">
         <Outlet />
       </main>
     </div>
