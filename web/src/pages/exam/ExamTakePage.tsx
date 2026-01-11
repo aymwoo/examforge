@@ -78,7 +78,20 @@ export default function ExamTakePage() {
           Authorization: `Bearer ${localStorage.getItem('examToken')}`
         }
       });
-      setExam(response.data);
+      console.log('Received exam data:', response.data);
+      console.log('Questions with images:', response.data.questions?.filter(q => q.images && q.images.length > 0));
+      
+      // 确保images数据不被修改
+      const examData = {
+        ...response.data,
+        questions: response.data.questions?.map(q => ({
+          ...q,
+          images: q.images || []
+        }))
+      };
+      
+      console.log('Setting exam data:', examData);
+      setExam(examData);
       setTimeLeft(response.data.duration * 60); // 转换为秒
       
       // 检查是否已提交
@@ -315,6 +328,13 @@ export default function ExamTakePage() {
   }
 
   const currentQuestion = exam?.questions?.[currentQuestionIndex];
+  
+  // 调试当前题目
+  console.log('Current question index:', currentQuestionIndex);
+  console.log('Total questions:', exam?.questions?.length);
+  console.log('All questions:', exam?.questions?.map((q, i) => ({ index: i, id: q.id, hasImages: q.images?.length > 0 })));
+  console.log('Current question:', currentQuestion);
+  console.log('Current question images:', currentQuestion?.images);
 
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen">
@@ -428,10 +448,6 @@ export default function ExamTakePage() {
                   <p className="text-ink-900">{currentQuestion.content}</p>
                 </div>
                 
-                {/* 调试信息 */}
-                {console.log('Current question:', currentQuestion)}
-                {console.log('Images:', currentQuestion.images)}
-                
                 {/* 示例图展示 */}
                 {currentQuestion.images && currentQuestion.images.length > 0 && (
                   <div className="mt-4">
@@ -466,13 +482,6 @@ export default function ExamTakePage() {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
-                
-                {/* 临时调试显示 */}
-                {currentQuestion.images && (
-                  <div className="mt-2 p-2 bg-yellow-100 text-xs">
-                    调试：发现 {currentQuestion.images.length} 张图片
                   </div>
                 )}
               </div>
