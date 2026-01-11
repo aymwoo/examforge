@@ -56,7 +56,10 @@ export default function Layout() {
           <div className="flex items-center justify-between">
             <Link to="/" className="text-xl font-bold flex items-center gap-2">
               <BookOpen className="h-6 w-6" />
-              ExamForge
+              <div className="flex flex-col">
+                <span>ExamForge</span>
+                <span className="text-xs text-gray-500 font-normal">智考工坊</span>
+              </div>
             </Link>
             <div className="flex items-center gap-6">
               {user && (
