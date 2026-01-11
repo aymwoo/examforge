@@ -77,64 +77,85 @@ export default function HomePage() {
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* 页面标题 */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-ink-900 mb-4">实时监控正在进行的考试</h1>
-          <p className="text-lg text-ink-600">监控考试进度，实时查看参与情况和提交状态</p>
-        </div>
-
         {/* 统计卡片 */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-soft">
-            <div className="flex items-center gap-4">
-              <div className="rounded-full bg-blue-100 p-3">
-                <Clock className="h-6 w-6 text-blue-600" />
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 to-blue-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
+            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <Clock className="h-6 w-6 text-white" />
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-white">{dashboardData?.ongoingExams || 0}</p>
+                  <p className="text-blue-100 text-sm font-medium">正在进行</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-ink-600">正在进行</p>
-                <p className="text-2xl font-bold text-ink-900">{dashboardData?.ongoingExams || 0}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-soft">
-            <div className="flex items-center gap-4">
-              <div className="rounded-full bg-green-100 p-3">
-                <Users className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-ink-600">参与学生</p>
-                <p className="text-2xl font-bold text-ink-900">{dashboardData?.totalStudents || 0}</p>
+              <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                <div className="h-full bg-white/40 rounded-full w-3/4 animate-pulse"></div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-soft">
-            <div className="flex items-center gap-4">
-              <div className="rounded-full bg-orange-100 p-3">
-                <FileText className="h-6 w-6 text-orange-600" />
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-green-500 to-green-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
+            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-white">{dashboardData?.totalStudents || 0}</p>
+                  <p className="text-green-100 text-sm font-medium">参与学生</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-ink-600">已提交</p>
-                <p className="text-2xl font-bold text-ink-900">{dashboardData?.totalSubmissions || 0}</p>
+              <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                <div className="h-full bg-white/40 rounded-full w-4/5 animate-pulse"></div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-soft">
-            <div className="flex items-center gap-4">
-              <div className="rounded-full bg-purple-100 p-3">
-                <Calendar className="h-6 w-6 text-purple-600" />
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 to-orange-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
+            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <FileText className="h-6 w-6 text-white" />
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-white">{dashboardData?.totalSubmissions || 0}</p>
+                  <p className="text-orange-100 text-sm font-medium">已提交</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium text-ink-600">总考试</p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate('/exams')}
-                  className="text-sm"
-                >
-                  查看全部
-                </Button>
+              <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                <div className="h-full bg-white/40 rounded-full w-2/3 animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-purple-500 to-purple-600 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10"></div>
+            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
+                  <Calendar className="h-6 w-6 text-white" />
+                </div>
+                <div className="text-right">
+                  <Button 
+                    onClick={() => navigate('/exams')}
+                    className="bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-sm text-sm px-4 py-2"
+                  >
+                    查看全部
+                  </Button>
+                  <p className="text-purple-100 text-sm font-medium mt-2">总考试</p>
+                </div>
+              </div>
+              <div className="h-1 bg-white/20 rounded-full overflow-hidden">
+                <div className="h-full bg-white/40 rounded-full w-full animate-pulse"></div>
               </div>
             </div>
           </div>
