@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, BarChart3, Users, CheckSquare, Eye, Download, Trash2, FileText, UserCheck, Play, Square } from "lucide-react";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { getExamById, deleteExam, updateExam, type Exam } from "@/services/exams";
 import api from "@/services/api";
 
@@ -18,6 +19,17 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
   const [loading, setLoading] = useState(true);
   const [submissionCount, setSubmissionCount] = useState(0);
   const [updating, setUpdating] = useState(false);
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    type: 'publish' | 'withdraw' | 'delete' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'publish',
+    title: '',
+    message: ''
+  });
 
   useEffect(() => {
     if (id) {
@@ -45,15 +57,26 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
   const handleDeleteExam = async () => {
     if (!id || !exam) return;
     
-    if (!confirm(`确定要删除考试"${exam.title}"吗？此操作不可撤销。`)) {
-      return;
-    }
+    setModal({
+      isOpen: true,
+      type: 'delete',
+      title: '删除考试',
+      message: `确定要删除考试"${exam.title}"吗？此操作不可撤销。`
+    });
+  };
 
+  const confirmDelete = async () => {
+    if (!id) return;
     try {
       await deleteExam(id);
       navigate('/exams');
     } catch (err) {
-      alert('删除失败，请重试');
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: '删除失败',
+        message: '删除失败，请重试'
+      });
     }
   };
 
@@ -61,21 +84,42 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
     if (!exam || !id) return;
     
     if (exam.examQuestions?.length === 0) {
-      alert('请先添加题目再发布考试');
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: '无法发布',
+        message: '请先添加题目再发布考试'
+      });
       return;
     }
 
-    if (!confirm('确定要发布这个考试吗？发布后学生就可以参加考试了。')) {
-      return;
-    }
+    setModal({
+      isOpen: true,
+      type: 'publish',
+      title: '发布考试',
+      message: '确定要发布这个考试吗？发布后学生就可以参加考试了。'
+    });
+  };
 
+  const confirmPublish = async () => {
+    if (!id) return;
     setUpdating(true);
     try {
       const updatedExam = await updateExam(id, { status: 'PUBLISHED' });
       setExam(updatedExam);
-      alert('考试发布成功！');
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: '发布成功',
+        message: '考试发布成功！'
+      });
     } catch (err: any) {
-      alert(err.response?.data?.message || '发布失败，请重试');
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: '发布失败',
+        message: err.response?.data?.message || '发布失败，请重试'
+      });
     } finally {
       setUpdating(false);
     }
@@ -84,19 +128,48 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
   const handleWithdrawExam = async () => {
     if (!exam || !id) return;
 
-    if (!confirm('确定要撤回这个考试吗？撤回后学生将无法继续参加考试。')) {
-      return;
-    }
+    setModal({
+      isOpen: true,
+      type: 'withdraw',
+      title: '撤回考试',
+      message: '确定要撤回这个考试吗？撤回后学生将无法继续参加考试。'
+    });
+  };
 
+  const confirmWithdraw = async () => {
+    if (!id) return;
     setUpdating(true);
     try {
       const updatedExam = await updateExam(id, { status: 'DRAFT' });
       setExam(updatedExam);
-      alert('考试已撤回！');
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: '撤回成功',
+        message: '考试已撤回！'
+      });
     } catch (err: any) {
-      alert(err.response?.data?.message || '撤回失败，请重试');
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: '撤回失败',
+        message: err.response?.data?.message || '撤回失败，请重试'
+      });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const closeModal = () => {
+    setModal({ isOpen: false, type: 'publish', title: '', message: '' });
+  };
+
+  const getModalAction = () => {
+    switch (modal.type) {
+      case 'publish': return confirmPublish;
+      case 'withdraw': return confirmWithdraw;
+      case 'delete': return confirmDelete;
+      default: return undefined;
     }
   };
 
@@ -290,6 +363,18 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
 
         {/* 页面内容 */}
         {children}
+
+        {/* Modal */}
+        <Modal
+          isOpen={modal.isOpen}
+          onClose={closeModal}
+          title={modal.title}
+          onConfirm={getModalAction()}
+          confirmText={modal.type === 'delete' ? '删除' : modal.type === 'publish' ? '发布' : modal.type === 'withdraw' ? '撤回' : undefined}
+          confirmVariant={modal.type === 'delete' ? 'danger' : 'primary'}
+        >
+          <p>{modal.message}</p>
+        </Modal>
       </div>
     </div>
   );
