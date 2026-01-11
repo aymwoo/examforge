@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, User, Clock, CheckCircle, AlertCircle, Bot, Save, Eye } from "lucide-react";
+import { User, Clock, CheckCircle, AlertCircle, Bot, Save, Eye } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import ExamLayout from "@/components/ExamLayout";
 import api from "@/services/api";
 
 interface Student {
@@ -137,15 +138,7 @@ export default function ExamGradingPage() {
   }
 
   return (
-    <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-      <div style={{ marginBottom: '20px' }}>
-        <Button onClick={() => navigate(`/exams/${examId}`)}>
-          ← 返回
-        </Button>
-        <h1 style={{ margin: '10px 0' }}>{exam?.title} - 评分管理</h1>
-        <p>共 {submissions.length} 份提交</p>
-      </div>
-
+    <ExamLayout activeTab="grading">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px' }}>
         {/* 提交列表 */}
         <div style={{ backgroundColor: 'white', padding: '15px', borderRadius: '8px' }}>
@@ -309,6 +302,6 @@ export default function ExamGradingPage() {
           )}
         </div>
       </div>
-    </div>
+    </ExamLayout>
   );
 }

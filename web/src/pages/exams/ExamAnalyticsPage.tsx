@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, BarChart3, TrendingUp, Users, Target } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Target } from "lucide-react";
 import Button from "@/components/ui/Button";
+import ExamLayout from "@/components/ExamLayout";
 import { getExamById, type Exam } from "@/services/exams";
 import api from "@/services/api";
 
@@ -76,44 +77,11 @@ export default function ExamAnalyticsPage() {
   if (!exam) return null;
 
   return (
-    <div className="bg-slatebg text-ink-900 antialiased min-h-screen">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        {/* 页面头部 */}
-        <div className="mb-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/exams/${id}`)}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              返回考试详情
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-ink-900">{exam.title} - 统计分析</h1>
-              <p className="text-ink-600 mt-1">考试数据统计与分析报告</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              onClick={() => navigate(`/exams/${id}/grading`)}
-              className="bg-blue-500 hover:bg-blue-600"
-            >
-              评分管理
-            </Button>
-            <Button 
-              onClick={() => window.open(`/exam/${id}/login`, '_blank')}
-              className="bg-green-500 hover:bg-green-600"
-            >
-              预览考试
-            </Button>
-          </div>
-        </div>
-
-        {analytics ? (
-          <div className="space-y-8">
-            {/* 概览统计卡片 */}
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    <ExamLayout activeTab="analytics">
+      {analytics ? (
+        <div className="space-y-8">
+          {/* 概览统计卡片 */}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-white p-6 shadow-lg">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="rounded-full bg-blue-500 p-2">
@@ -273,6 +241,6 @@ export default function ExamAnalyticsPage() {
           </div>
         )}
       </div>
-    </div>
+    </ExamLayout>
   );
 }

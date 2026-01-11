@@ -2,11 +2,116 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Trash2, Plus, Check, Users, BookOpen, CheckCircle, Filter, Clock } from "lucide-react";
 import Button from "@/components/ui/Button";
+import ExamLayout from "@/components/ExamLayout";
 import { getExamById, deleteExam, addQuestionToExam, getExamStudents, addExamStudent, generateExamStudents, deleteExamStudent, type Exam } from "@/services/exams";
 import { listQuestions, type Question } from "@/services/questions";
 import api from "@/services/api";
 
 export default function ExamDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [exam, setExam] = useState<Exam | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{
+    title?: string;
+    description?: string;
+    duration?: number;
+    totalScore?: number;
+    startTime?: string;
+    endTime?: string;
+    status?: string;
+  }>({});
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
+
+  // 题型映射函数
+  const getQuestionTypeName = (type: string) => {
+    const typeMap: Record<string, string> = {
+      'SINGLE_CHOICE': '单选题',
+      'MULTIPLE_CHOICE': '多选题',
+      'TRUE_FALSE': '判断题',
+      'FILL_BLANK': '填空题',
+      'SHORT_ANSWER': '简答题',
+      'ESSAY': '论述题'
+    };
+    return typeMap[type] || type;
+  };
+  const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filters, setFilters] = useState({
+    type: '',
+    difficulty: '',
+    knowledgePoint: '',
+    tags: '',
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [addingQuestions, setAddingQuestions] = useState(false);
+  const [activeTab, setActiveTab] = useState<'questions' | 'students'>('questions');
+  const [students, setStudents] = useState<any[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [showAddStudent, setShowAddStudent] = useState(false);
+  const [newStudent, setNewStudent] = useState({ username: '', password: '', displayName: '' });
+
+  const loadExam = async () => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getExamById(id);
+      setExam(data);
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      setError(
+        axiosError.response?.data?.message || axiosError.message || "加载失败",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ... 其他函数保持不变 ...
+
+  if (loading) {
+    return (
+      <div className="bg-slatebg text-ink-900 antialiased min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-600 mx-auto mb-4"></div>
+          <p className="text-ink-700">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-slatebg text-ink-900 antialiased min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <Button onClick={() => navigate('/exams')}>返回考试列表</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!exam) return null;
+
+  return (
+    <ExamLayout activeTab="details">
+      {/* 页面内容简化版本 */}
+      <div className="text-center py-8">
+        <p className="text-gray-600">考试详情页面内容正在重构中...</p>
+        <p className="text-sm text-gray-500 mt-2">请使用上方的标签页导航到其他功能</p>
+      </div>
+    </ExamLayout>
+  );
+}
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
