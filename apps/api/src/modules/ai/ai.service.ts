@@ -31,6 +31,20 @@ export class AIService {
     private readonly prisma: PrismaService,
   ) {}
 
+  private async getEffectivePrompt(customPrompt?: string, userPrompt?: string, userId?: string): Promise<string> {
+    // 三级优先级：导入页面编辑的提示词 > 教师设置的提示词 > 系统默认提示词
+    if (customPrompt && customPrompt.trim()) {
+      return customPrompt;
+    }
+    
+    if (userPrompt && userPrompt.trim()) {
+      return userPrompt;
+    }
+    
+    // 返回系统默认提示词
+    return this.settingsService.getDefaultPromptTemplate();
+  }
+
   private buildApiUrl(baseUrl: string): string {
     const defaultUrl = 'https://api.openai.com/v1/chat/completions';
     const url = baseUrl || defaultUrl;
@@ -44,7 +58,9 @@ export class AIService {
     const settings = opts?.userId 
       ? await this.settingsService.getUserSettings(opts.userId)
       : await this.settingsService.getSettings();
-    const promptTemplate = opts?.customPrompt || settings.promptTemplate;
+    
+    // 三级优先级：导入页面编辑的提示词 > 教师设置的提示词 > 系统默认提示词
+    const promptTemplate = await this.getEffectivePrompt(opts?.customPrompt, settings.promptTemplate, opts?.userId);
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(
@@ -248,7 +264,9 @@ export class AIService {
     const settings = userId 
       ? await this.settingsService.getUserSettings(userId)
       : await this.settingsService.getSettings();
-    const promptTemplate = customPrompt || settings.promptTemplate;
+    
+    // 三级优先级：导入页面编辑的提示词 > 教师设置的提示词 > 系统默认提示词
+    const promptTemplate = await this.getEffectivePrompt(customPrompt, settings.promptTemplate, userId);
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(

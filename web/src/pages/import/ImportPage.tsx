@@ -28,9 +28,9 @@ const PROVIDER_LABELS: Record<string, string> = {
 export default function ImportPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"excel" | "pdf">("excel");
-  const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
+  const [fileType, setFileType] = useState<"pdf" | "image" | null>(null);
   const [pdfMode, setPdfMode] = useState<"vision" | "text">("vision");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{
@@ -47,6 +47,7 @@ export default function ImportPage() {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [tempPrompt, setTempPrompt] = useState<string>("");
   const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -81,7 +82,19 @@ export default function ImportPage() {
   const handlePdfSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      setSelectedPdf(files[0]);
+      const file = files[0];
+      setSelectedPdf(file);
+
+      // 检测文件类型
+      if (file.type.startsWith("image/")) {
+        setFileType("image");
+        setPdfMode("vision"); // 图片只能用视觉识别
+      } else if (file.type === "application/pdf") {
+        setFileType("pdf");
+      } else {
+        setFileType(null);
+      }
+
       setPdfJobId(null);
       setPdfEvents([]);
       setPdfError(null);
@@ -197,7 +210,9 @@ export default function ImportPage() {
           latestPdfEvent?.total
         ? `保存题目（${latestPdfEvent.current}/${latestPdfEvent.total}）`
         : pdfStage === "converting_pdf_to_images"
-          ? "PDF 转图片中"
+          ? fileType === "image"
+            ? "准备图片识别"
+            : "PDF 转图片中"
           : undefined;
 
   useEffect(() => {
@@ -205,7 +220,7 @@ export default function ImportPage() {
     void (async () => {
       try {
         const [settingsData, providersData] = await Promise.all([
-          getSettings(),
+          getUserSettings(),
           getProviders(),
         ]);
         const preferredId =
@@ -215,11 +230,26 @@ export default function ImportPage() {
           "";
         setAiProvider(preferredId);
         setProviderOptions(providersData);
-        
-        // Load default prompt template
-        setTempPrompt(settingsData.promptTemplate || "");
-      } catch {
-        // ignore settings load errors on import page
+
+        // Load user's prompt template (includes user customizations)
+        const promptTemplate = settingsData.promptTemplate || "";
+        setTempPrompt(promptTemplate);
+
+        // If still empty, try to get default template
+        if (!promptTemplate.trim()) {
+          try {
+            const defaultTemplate = await getPromptTemplate();
+            setTempPrompt(defaultTemplate);
+          } catch (error) {
+            console.warn("Failed to load default prompt template:", error);
+            // Set a basic fallback
+            setTempPrompt("请根据提供的内容生成考试题目。");
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load settings:", error);
+        // Set basic fallback values
+        setTempPrompt("请根据提供的内容生成考试题目。");
       }
     })();
   }, []);
@@ -260,6 +290,80 @@ export default function ImportPage() {
     };
   }, [pdfJobId]);
 
+  const handleClipboardPaste = async () => {
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          const file = new File([blob], "clipboard-image.png", {
+            type: imageType,
+          });
+          setSelectedPdf(file);
+          setFileType("image");
+          setPdfMode("vision");
+          setPdfJobId(null);
+          setPdfEvents([]);
+          setPdfError(null);
+          break;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to read clipboard:", error);
+      alert("无法读取剪贴板内容，请确保剪贴板中有图片");
+    }
+  };
+
+  const handleAiDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleAiDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type.startsWith("image/") || file.type === "application/pdf") {
+        setSelectedPdf(file);
+
+        if (file.type.startsWith("image/")) {
+          setFileType("image");
+          setPdfMode("vision");
+        } else if (file.type === "application/pdf") {
+          setFileType("pdf");
+        }
+
+        setPdfJobId(null);
+        setPdfEvents([]);
+        setPdfError(null);
+      }
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (activeTab === "pdf" && e.ctrlKey && e.key === "v") {
+      e.preventDefault();
+      handleClipboardPaste();
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [activeTab]);
+
   const handlePdfUpload = async () => {
     if (!selectedPdf) return;
 
@@ -273,11 +377,11 @@ export default function ImportPage() {
 
     try {
       const params = new URLSearchParams();
-      params.append('mode', pdfMode);
+      params.append("mode", pdfMode);
       if (tempPrompt.trim()) {
-        params.append('prompt', tempPrompt.trim());
+        params.append("prompt", tempPrompt.trim());
       }
-      
+
       const response = await api.post(
         `/api/import/pdf?${params.toString()}`,
         formData,
@@ -303,7 +407,7 @@ export default function ImportPage() {
               题目导入
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-700">
-              批量导入题目到题库。支持 Excel/CSV 或 PDF+AI 导入。
+              批量导入题目到题库。支持 Excel/CSV 或 AI 智能导入。
             </p>
           </div>
           {activeTab === "excel" && (
@@ -336,7 +440,7 @@ export default function ImportPage() {
                 : "border border-border bg-white text-ink-900 hover:bg-slate-50"
             }`}
           >
-            PDF + AI
+            AI导入
           </button>
         </div>
 
@@ -526,13 +630,28 @@ export default function ImportPage() {
         {activeTab === "pdf" && (
           <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-ink-900 mb-4">
-              PDF + AI 导入
+              AI 智能导入
             </h2>
 
             <div className="rounded-2xl border border-border bg-slate-50 p-4">
               <p className="text-sm text-ink-700">
-                上传 PDF 后，系统会按所选模式调用 AI 生成题目，最后保存到题库。
+                上传 PDF 或图片后，系统会调用 AI
+                识别内容并生成题目，最后保存到题库。
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-ink-600">
+                <span className="flex items-center gap-1">
+                  <span>💡</span>
+                  <span>支持拖拽上传</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span>⌨️</span>
+                  <span>快捷键 Ctrl+V 粘贴图片</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span>📁</span>
+                  <span>支持 PDF、JPG、PNG 等格式</span>
+                </span>
+              </div>
 
               <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs font-semibold text-ink-900">
@@ -554,11 +673,20 @@ export default function ImportPage() {
                       await updateSetting("AI_PROVIDER", selectedId);
 
                       // For built-in providers, also save their settings to system_settings
-                      const isBuiltInProvider = ['gpt-4', 'gpt-3.5-turbo', 'qwen-turbo', 'qwen-plus', 'qwen-max'].includes(selectedId);
-                      
+                      const isBuiltInProvider = [
+                        "gpt-4",
+                        "gpt-3.5-turbo",
+                        "qwen-turbo",
+                        "qwen-plus",
+                        "qwen-max",
+                      ].includes(selectedId);
+
                       if (isBuiltInProvider) {
                         if (model.defaultBaseUrl) {
-                          await updateSetting("AI_BASE_URL", model.defaultBaseUrl);
+                          await updateSetting(
+                            "AI_BASE_URL",
+                            model.defaultBaseUrl,
+                          );
                         }
                         if (model.defaultModel) {
                           await updateSetting("AI_MODEL", model.defaultModel);
@@ -582,40 +710,248 @@ export default function ImportPage() {
                 </select>
               </div>
 
-              <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <input
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    onChange={handlePdfSelect}
-                    className="block w-full text-sm text-ink-900 file:mr-4 file:rounded-xl file:border-0 file:bg-white file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-ink-900 file:shadow-sm"
-                  />
+              <div className="mt-4">
+                {!selectedPdf ? (
+                  <div
+                    className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-colors ${
+                      dragActive
+                        ? "border-accent-600 bg-accent-600/5"
+                        : "border-border hover:border-accent-600 hover:bg-accent-600/5"
+                    }`}
+                    onDragEnter={handleAiDrag}
+                    onDragLeave={handleAiDrag}
+                    onDragOver={handleAiDrag}
+                    onDrop={handleAiDrop}
+                    onClick={() =>
+                      document.getElementById("ai-file-upload")?.click()
+                    }
+                  >
+                    <input
+                      type="file"
+                      id="ai-file-upload"
+                      className="hidden"
+                      accept="application/pdf,.pdf,image/*"
+                      onChange={handlePdfSelect}
+                    />
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent-100">
+                      <svg
+                        className="h-8 w-8 text-accent-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="mb-2 text-lg font-semibold text-ink-900">
+                      上传文件或拖拽到此处
+                    </h3>
+                    <p className="mb-4 text-sm text-ink-700">
+                      支持 PDF 和图片格式 (JPG, PNG, GIF, WebP)
+                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
+                        </svg>
+                        选择文件
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleClipboardPaste();
+                        }}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                        粘贴图片 (Ctrl+V)
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-border bg-white p-4">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-100">
+                        {fileType === "image" ? (
+                          <svg
+                            className="h-6 w-6 text-accent-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            className="h-6 w-6 text-accent-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-ink-900">
+                          {selectedPdf.name}
+                        </h4>
+                        <p className="text-sm text-ink-700">
+                          {(selectedPdf.size / 1024).toFixed(2)} KB •{" "}
+                          {fileType === "image" ? "图片文件" : "PDF文件"}
+                        </p>
+                        {fileType === "image" && (
+                          <p className="text-xs text-accent-600 mt-1">
+                            仅支持图片识别模式
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedPdf(null);
+                          setFileType(null);
+                          setPdfJobId(null);
+                          setPdfEvents([]);
+                          setPdfError(null);
+                        }}
+                        className="rounded-lg p-2 text-ink-700 hover:bg-slate-100 hover:text-ink-900"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
+              {selectedPdf && fileType !== "image" && (
+                <div className="mt-4">
+                  <label className="block text-sm font-semibold text-ink-900 mb-2">
+                    识别模式
+                  </label>
                   <select
                     value={pdfMode}
                     onChange={(e) => setPdfMode(e.target.value as any)}
-                    className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-ink-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:w-64"
+                    className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-semibold text-ink-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                   >
                     <option value="vision">图片识别（推荐）</option>
                     <option value="text">文本解析（可复制 PDF）</option>
                   </select>
                 </div>
+              )}
 
-                <button
-                  onClick={handlePdfUpload}
-                  disabled={!selectedPdf || isUploading}
-                  className="inline-flex h-10 items-center justify-center rounded-xl bg-accent-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUploading ? "上传中..." : "开始导入"}
-                </button>
-              </div>
+              {selectedPdf && (
+                <div className="mt-4">
+                  <button
+                    onClick={handlePdfUpload}
+                    disabled={isUploading}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isUploading ? (
+                      <>
+                        <svg
+                          className="h-4 w-4 animate-spin"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        处理中...
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                          />
+                        </svg>
+                        开始 AI 识别
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
 
               {/* Prompt Editor - moved below the import button */}
               <div className="mt-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-semibold text-ink-900">
-                    AI 提示词
-                  </label>
+                  <div>
+                    <label className="text-sm font-semibold text-ink-900">
+                      AI 提示词
+                    </label>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowPromptEditor(!showPromptEditor)}
@@ -624,7 +960,7 @@ export default function ImportPage() {
                     {showPromptEditor ? "收起" : "展开编辑"}
                   </button>
                 </div>
-                
+
                 {showPromptEditor && (
                   <div className="mt-2">
                     <textarea
@@ -638,10 +974,18 @@ export default function ImportPage() {
                     </p>
                   </div>
                 )}
-                
-                {!showPromptEditor && tempPrompt && (
-                  <div className="mt-1 p-2 bg-gray-50 rounded text-xs text-ink-600 max-h-24 overflow-y-auto">
-                    {tempPrompt}
+
+                {!showPromptEditor && (
+                  <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-border">
+                    {tempPrompt ? (
+                      <div className="text-xs text-ink-700 max-h-24 overflow-y-auto whitespace-pre-wrap">
+                        {tempPrompt}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-ink-500 italic">
+                        正在加载提示词...
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -655,7 +999,10 @@ export default function ImportPage() {
               {(pdfMessage || pdfProgress !== undefined) && (
                 <div className="mt-4 rounded-xl border border-border bg-white p-4">
                   <p className="text-sm font-semibold text-ink-900">进度</p>
-                  <p className="mt-1 text-xs text-ink-700">模式：{pdfMode}</p>
+                  <p className="mt-1 text-xs text-ink-700">
+                    文件类型：{fileType === "image" ? "图片" : "PDF"} |
+                    识别模式：{pdfMode === "vision" ? "图片识别" : "文本解析"}
+                  </p>
 
                   {pdfProgressLabel && (
                     <p className="mt-1 text-sm font-semibold text-ink-900">
@@ -678,81 +1025,86 @@ export default function ImportPage() {
                       </p>
                     </div>
                   )}
-                  {pdfStage === "chunked_text" && latestPdfEvent?.meta && pdfMode === "text" && (
-                    <div className="mt-4 rounded-2xl border border-border bg-slate-50 p-4">
-                      <p className="text-sm font-semibold text-ink-900">
-                        分块信息
-                      </p>
-                      <div className="mt-2 grid gap-2 text-xs text-ink-700 sm:grid-cols-2">
-                        <div>
-                          总块数：
-                          {String(
-                            (latestPdfEvent.meta as any).totalChunks ?? "-",
-                          )}
-                        </div>
-                        <div>
-                          原文长度：
-                          {String(
-                            (latestPdfEvent.meta as any).totalTextLength ?? "-",
-                          )}
-                        </div>
-                        <div>
-                          单块上限：
-                          {String(
-                            (latestPdfEvent.meta as any).maxChunkChars ?? "-",
-                          )}
-                        </div>
-                        <div>
-                          overlap：
-                          {String(
-                            (latestPdfEvent.meta as any).overlapChars ?? "-",
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {pdfStage === "calling_ai" && latestPdfEvent?.meta && pdfMode === "text" && (
-                    <div className="mt-4 rounded-2xl border border-border bg-slate-50 p-4">
-                      <p className="text-sm font-semibold text-ink-900">
-                        当前分块
-                      </p>
-                      <div className="mt-2 grid gap-2 text-xs text-ink-700 sm:grid-cols-2">
-                        <div>
-                          块序号：
-                          {String(
-                            (latestPdfEvent.meta as any).chunkIndex ?? "-",
-                          )}
-                        </div>
-                        <div>
-                          块长度：
-                          {String(
-                            (latestPdfEvent.meta as any).chunkLength ?? "-",
-                          )}
-                        </div>
-                        <div>
-                          疑似半题：
-                          {String(
-                            (latestPdfEvent.meta as any).looksIncomplete ??
-                              false,
-                          )}
-                        </div>
-                        <div>
-                          补全拼接：
-                          {String(
-                            (latestPdfEvent.meta as any).mergedNextHeadChars ??
-                              0,
-                          )}
-                        </div>
-                      </div>
-                      {(latestPdfEvent.meta as any).chunkPreview && (
-                        <p className="mt-2 text-xs text-ink-700">
-                          预览：
-                          {String((latestPdfEvent.meta as any).chunkPreview)}
+                  {pdfStage === "chunked_text" &&
+                    latestPdfEvent?.meta &&
+                    pdfMode === "text" && (
+                      <div className="mt-4 rounded-2xl border border-border bg-slate-50 p-4">
+                        <p className="text-sm font-semibold text-ink-900">
+                          分块信息
                         </p>
-                      )}
-                    </div>
-                  )}
+                        <div className="mt-2 grid gap-2 text-xs text-ink-700 sm:grid-cols-2">
+                          <div>
+                            总块数：
+                            {String(
+                              (latestPdfEvent.meta as any).totalChunks ?? "-",
+                            )}
+                          </div>
+                          <div>
+                            原文长度：
+                            {String(
+                              (latestPdfEvent.meta as any).totalTextLength ??
+                                "-",
+                            )}
+                          </div>
+                          <div>
+                            单块上限：
+                            {String(
+                              (latestPdfEvent.meta as any).maxChunkChars ?? "-",
+                            )}
+                          </div>
+                          <div>
+                            overlap：
+                            {String(
+                              (latestPdfEvent.meta as any).overlapChars ?? "-",
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                  {pdfStage === "calling_ai" &&
+                    latestPdfEvent?.meta &&
+                    pdfMode === "text" && (
+                      <div className="mt-4 rounded-2xl border border-border bg-slate-50 p-4">
+                        <p className="text-sm font-semibold text-ink-900">
+                          当前分块
+                        </p>
+                        <div className="mt-2 grid gap-2 text-xs text-ink-700 sm:grid-cols-2">
+                          <div>
+                            块序号：
+                            {String(
+                              (latestPdfEvent.meta as any).chunkIndex ?? "-",
+                            )}
+                          </div>
+                          <div>
+                            块长度：
+                            {String(
+                              (latestPdfEvent.meta as any).chunkLength ?? "-",
+                            )}
+                          </div>
+                          <div>
+                            疑似半题：
+                            {String(
+                              (latestPdfEvent.meta as any).looksIncomplete ??
+                                false,
+                            )}
+                          </div>
+                          <div>
+                            补全拼接：
+                            {String(
+                              (latestPdfEvent.meta as any)
+                                .mergedNextHeadChars ?? 0,
+                            )}
+                          </div>
+                        </div>
+                        {(latestPdfEvent.meta as any).chunkPreview && (
+                          <p className="mt-2 text-xs text-ink-700">
+                            预览：
+                            {String((latestPdfEvent.meta as any).chunkPreview)}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                   {pdfStage === "done" && pdfResult && (
                     <div className="mt-4 grid gap-4 sm:grid-cols-3">
@@ -789,7 +1141,7 @@ export default function ImportPage() {
                         onClick={() => {
                           const questionIds = latestPdfEvent?.meta?.questionIds;
                           if (questionIds && questionIds.length > 0) {
-                            navigate(`/questions?ids=${questionIds.join(',')}`);
+                            navigate(`/questions?ids=${questionIds.join(",")}`);
                           } else {
                             navigate("/questions");
                           }
@@ -803,7 +1155,9 @@ export default function ImportPage() {
                         onClick={() => {
                           const questionIds = latestPdfEvent?.meta?.questionIds;
                           if (questionIds && questionIds.length > 0) {
-                            navigate(`/exams/create?questionIds=${questionIds.join(',')}`);
+                            navigate(
+                              `/exams/create?questionIds=${questionIds.join(",")}`,
+                            );
                           } else {
                             navigate("/exams/create");
                           }
@@ -927,8 +1281,13 @@ export default function ImportPage() {
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <button
                   onClick={() => {
-                    if (uploadResult.questionIds && uploadResult.questionIds.length > 0) {
-                      navigate(`/questions?ids=${uploadResult.questionIds.join(',')}`);
+                    if (
+                      uploadResult.questionIds &&
+                      uploadResult.questionIds.length > 0
+                    ) {
+                      navigate(
+                        `/questions?ids=${uploadResult.questionIds.join(",")}`,
+                      );
                     } else {
                       navigate("/questions");
                     }
@@ -940,8 +1299,13 @@ export default function ImportPage() {
                 </button>
                 <button
                   onClick={() => {
-                    if (uploadResult.questionIds && uploadResult.questionIds.length > 0) {
-                      navigate(`/exams/create?questionIds=${uploadResult.questionIds.join(',')}`);
+                    if (
+                      uploadResult.questionIds &&
+                      uploadResult.questionIds.length > 0
+                    ) {
+                      navigate(
+                        `/exams/create?questionIds=${uploadResult.questionIds.join(",")}`,
+                      );
                     } else {
                       navigate("/exams/create");
                     }

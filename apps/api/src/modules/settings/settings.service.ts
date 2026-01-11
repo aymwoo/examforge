@@ -228,7 +228,7 @@ export class SettingsService {
     return this.getSetting(SettingKey.PROMPT_TEMPLATE);
   }
 
-  private getDefaultPromptTemplate(): string {
+  getDefaultPromptTemplate(): string {
     return `你是一个专业的题目生成AI助手。
 根据用户提供的试卷图像和约束条件，生成一次线上考试。
 

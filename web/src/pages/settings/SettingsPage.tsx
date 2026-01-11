@@ -362,8 +362,9 @@ export default function SettingsPage() {
 
         {!loading && (
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-6">
-              <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+            {/* 左侧：AI Provider 配置 */}
+            <div className="flex flex-col">
+              <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1">
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-ink-900">AI Provider 配置</h2>
                   <Button
@@ -616,8 +617,11 @@ export default function SettingsPage() {
                   </div>
                 )}
               </div>
+            </div>
 
-              <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+            {/* 右侧：提示词配置 */}
+            <div className="flex flex-col space-y-6">
+              <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1">
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-ink-900">
                     试卷生成提示词配置
@@ -645,7 +649,7 @@ export default function SettingsPage() {
                     提示词模板
                   </label>
                   <textarea
-                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[300px] font-mono"
+                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
                     value={settings.promptTemplate}
                     onChange={(e) =>
                       handleInputChange("promptTemplate", e.target.value)
@@ -667,7 +671,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
 
-              <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+              <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1">
                 <div className="mb-6 flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-ink-900">
                     AI评分提示词配置
@@ -686,7 +690,7 @@ export default function SettingsPage() {
                     评分提示词模板
                   </label>
                   <textarea
-                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[300px] font-mono"
+                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
                     value={settings.gradingPromptTemplate}
                     onChange={(e) =>
                       handleInputChange("gradingPromptTemplate", e.target.value)
