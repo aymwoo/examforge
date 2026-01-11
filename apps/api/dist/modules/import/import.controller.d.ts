@@ -62,4 +62,23 @@ export declare class ImportController {
             data: string;
         }[];
     }>;
+    getQuestionImportRecord(questionId: string, req: any): Promise<{
+        questionIds: any;
+        user: {
+            id: string;
+            name: string;
+            username: string;
+        };
+        id: string;
+        jobId: string;
+        fileName: string;
+        fileSize: number;
+        filePath: string | null;
+        userId: string | null;
+        mode: string;
+        status: string;
+        errorMessage: string | null;
+        createdAt: Date;
+        completedAt: Date | null;
+    }[]>;
 }

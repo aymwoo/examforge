@@ -208,8 +208,11 @@ export class QuestionService {
   async addImage(questionId: string, imageBuffer: Buffer, originalName: string, userId: string): Promise<{ imagePath: string }> {
     const question = await this.findById(questionId, userId, 'ADMIN');
     
+    // 处理文件名编码问题
+    const decodedName = Buffer.from(originalName, 'latin1').toString('utf8');
+    
     // 生成唯一文件名
-    const ext = path.extname(originalName);
+    const ext = path.extname(decodedName);
     const fileName = `${uuidv4()}${ext}`;
     const imagePath = path.join('uploads', 'images', 'questions', fileName);
     const fullPath = path.join(process.cwd(), imagePath);

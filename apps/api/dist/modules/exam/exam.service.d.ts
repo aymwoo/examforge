@@ -16,8 +16,8 @@ export declare class ExamService {
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
-        description: string | null;
         title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
         accountModes: string;
@@ -57,8 +57,8 @@ export declare class ExamService {
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
-        description: string | null;
         title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
         accountModes: string;
@@ -68,17 +68,17 @@ export declare class ExamService {
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
-        order: number;
-        score: number;
         examId: string;
+        score: number;
+        order: number;
         questionId: string;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
     updateQuestionOrder(examId: string, questionId: string, order: number, score?: number): Promise<{
         id: string;
-        order: number;
-        score: number;
         examId: string;
+        score: number;
+        order: number;
         questionId: string;
     }>;
     private transformExam;

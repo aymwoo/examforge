@@ -92,16 +92,22 @@ export class ImportService {
     const settings = userId 
       ? await this.settingsService.getUserSettings(userId)
       : await this.settingsService.getSettings();
-    const effectiveMode = resolvedMode || (settings.aiProvider === 'qwen' ? 'vision' : 'text');
-
-    // 保存PDF文件
-    const filePath = await this.savePdfFile(buffer, fileName || `${jobId}.pdf`);
+    
+    // 处理文件名编码问题
+    const decodedFileName = fileName ? Buffer.from(fileName, 'latin1').toString('utf8') : `${jobId}.pdf`;
+    
+    // 检测文件类型
+    const isImageFile = /\.(jpg|jpeg|png|gif|webp)$/i.test(decodedFileName);
+    const effectiveMode = isImageFile ? 'vision' : (resolvedMode || (settings.aiProvider === 'qwen' ? 'vision' : 'text'));
+    
+    // 保存文件
+    const filePath = await this.savePdfFile(buffer, decodedFileName);
     
     // 创建导入记录
     await this.prisma.importRecord.create({
       data: {
         jobId,
-        fileName: fileName || `${jobId}.pdf`,
+        fileName: decodedFileName,
         fileSize: buffer.length,
         filePath,
         userId,
@@ -112,11 +118,17 @@ export class ImportService {
 
     this.progressStore.append(jobId, {
       stage: 'received',
-      message: '已收到 PDF，开始解析',
+      message: isImageFile ? '已收到图片，开始识别' : '已收到 PDF，开始解析',
       meta: {
         mode: effectiveMode,
+        fileType: isImageFile ? 'image' : 'pdf',
       },
     });
+
+    if (isImageFile) {
+      // 对于图片文件，直接使用图片识别模式
+      return this.importFromImageFile(jobId, buffer, userId, customPrompt);
+    }
 
     if (effectiveMode === 'vision') {
       return this.importFromPdfVision(jobId, buffer, userId, customPrompt);
@@ -127,6 +139,100 @@ export class ImportService {
     }
 
     return this.importFromPdfText(jobId, buffer, userId, customPrompt);
+  }
+
+  private async importFromImageFile(jobId: string, buffer: Buffer, userId?: string, customPrompt?: string): Promise<void> {
+    const questionIds: string[] = [];
+
+    try {
+      this.progressStore.append(jobId, {
+        stage: 'calling_ai',
+        message: '正在使用 AI 识别图片内容',
+        current: 1,
+        total: 1,
+      });
+
+      const result: ImportResult = { success: 0, failed: 0, errors: [], questionIds: [] };
+
+      // 将图片转换为base64
+      const base64Image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+
+      // 调用AI识别
+      const aiResponse = await this.aiService.generateExamQuestionsFromImage(
+        base64Image,
+        userId,
+        customPrompt
+      );
+
+      // 处理AI返回的题目
+      for (let i = 0; i < aiResponse.questions.length; i++) {
+        const q = aiResponse.questions[i];
+        
+        try {
+          if (!q.content || !q.content.trim()) {
+            throw new Error('题目内容不能为空');
+          }
+          
+          const createdQuestion = await this.prisma.question.create({
+            data: {
+              content: q.content,
+              type: q.type as any,
+              options: q.options ? JSON.stringify(q.options) : null,
+              answer: serializeQuestionAnswer(q.answer),
+              explanation: q.explanation,
+              tags: q.tags ? JSON.stringify(q.tags) : '[]',
+              difficulty: q.difficulty || 1,
+              status: QuestionStatus.DRAFT,
+              knowledgePoint: q.knowledgePoint,
+              createdBy: userId,
+            },
+          });
+
+          questionIds.push(createdQuestion.id);
+          result.success++;
+        } catch (error) {
+          result.failed++;
+          result.errors.push({
+            row: i + 1,
+            message: (error as any).message || 'Unknown error',
+          });
+        }
+
+        this.progressStore.append(jobId, {
+          stage: 'saving_questions',
+          message: '正在保存题目到题库',
+          current: i + 1,
+          total: aiResponse.questions.length,
+        });
+      }
+
+      this.progressStore.append(jobId, {
+        stage: 'done',
+        message: '导入完成',
+        result: { ...result, questionIds },
+        meta: {
+          questionIds,
+        },
+      });
+
+      // 更新导入记录
+      await this.updateImportRecord(jobId, {
+        status: 'completed',
+        questionIds,
+      });
+    } catch (error: unknown) {
+      const errorMessage = (error as any)?.message || '导入失败';
+      
+      this.progressStore.append(jobId, {
+        stage: 'error',
+        message: errorMessage,
+      });
+
+      await this.updateImportRecord(jobId, {
+        status: 'failed',
+        errorMessage,
+      });
+    }
   }
 
   private async importFromPdfVision(jobId: string, buffer: Buffer, userId?: string, customPrompt?: string): Promise<void> {
@@ -928,5 +1034,38 @@ export class ImportService {
     } catch (error) {
       throw new BadRequestException('Failed to convert PDF to images');
     }
+  }
+
+  async getQuestionImportRecord(questionId: string, userId?: string) {
+    // Find import records that contain this question ID
+    const records = await this.prisma.importRecord.findMany({
+      where: {
+        questionIds: {
+          contains: questionId,
+        },
+        ...(userId && { userId }),
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: { id: true, name: true, username: true },
+        },
+      },
+    });
+
+    // Filter records to ensure the question ID is actually in the array
+    const filteredRecords = records.filter(record => {
+      try {
+        const questionIds = JSON.parse(record.questionIds || '[]');
+        return questionIds.includes(questionId);
+      } catch {
+        return false;
+      }
+    });
+
+    return filteredRecords.map(record => ({
+      ...record,
+      questionIds: JSON.parse(record.questionIds || '[]'),
+    }));
   }
 }

@@ -228,7 +228,8 @@ let QuestionService = class QuestionService {
     }
     async addImage(questionId, imageBuffer, originalName, userId) {
         const question = await this.findById(questionId, userId, 'ADMIN');
-        const ext = path.extname(originalName);
+        const decodedName = Buffer.from(originalName, 'latin1').toString('utf8');
+        const ext = path.extname(decodedName);
         const fileName = `${(0, uuid_1.v4)()}${ext}`;
         const imagePath = path.join('uploads', 'images', 'questions', fileName);
         const fullPath = path.join(process.cwd(), imagePath);

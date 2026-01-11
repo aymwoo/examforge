@@ -23,6 +23,7 @@ export declare class ImportService {
     private get question();
     importFromExcel(buffer: Buffer): Promise<ImportResult>;
     importFromPdf(jobId: string, buffer: Buffer, mode?: string, userId?: string, customPrompt?: string, fileName?: string): Promise<void>;
+    private importFromImageFile;
     private importFromPdfVision;
     private importFromPdfFile;
     private importFromPdfText;
@@ -82,4 +83,23 @@ export declare class ImportService {
             data: string;
         }[];
     }>;
+    getQuestionImportRecord(questionId: string, userId?: string): Promise<{
+        questionIds: any;
+        user: {
+            id: string;
+            name: string;
+            username: string;
+        };
+        id: string;
+        jobId: string;
+        fileName: string;
+        fileSize: number;
+        filePath: string | null;
+        userId: string | null;
+        mode: string;
+        status: string;
+        errorMessage: string | null;
+        createdAt: Date;
+        completedAt: Date | null;
+    }[]>;
 }

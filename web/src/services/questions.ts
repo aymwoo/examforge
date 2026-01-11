@@ -123,3 +123,13 @@ export const deleteQuestionImage = async (
   );
   return response.data;
 };
+
+export const getQuestionImportRecord = async (questionId: string) => {
+  const response = await api.get(`/api/import/question/${questionId}/import-record`);
+  return response.data;
+};
+
+export const getImportRecordImages = async (jobId: string) => {
+  const response = await api.get(`/api/import/history/${jobId}/pdf-images`);
+  return response.data;
+};

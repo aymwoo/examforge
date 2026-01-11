@@ -15,6 +15,8 @@ import api from "@/services/api";
 import {
   getProviders,
   getSettings,
+  getUserSettings,
+  getPromptTemplate,
   updateSetting,
   type AIModelConfig,
 } from "@/services/settings";
@@ -233,10 +235,12 @@ export default function ImportPage() {
 
         // Load user's prompt template (includes user customizations)
         const promptTemplate = settingsData.promptTemplate || "";
-        setTempPrompt(promptTemplate);
-
-        // If still empty, try to get default template
-        if (!promptTemplate.trim()) {
+        console.log('Loaded prompt template:', promptTemplate);
+        
+        if (promptTemplate.trim()) {
+          setTempPrompt(promptTemplate);
+        } else {
+          // If no user template, try to get default template
           try {
             const defaultTemplate = await getPromptTemplate();
             setTempPrompt(defaultTemplate);
@@ -297,7 +301,11 @@ export default function ImportPage() {
         const imageType = item.types.find((type) => type.startsWith("image/"));
         if (imageType) {
           const blob = await item.getType(imageType);
-          const file = new File([blob], "clipboard-image.png", {
+          // 根据实际的MIME类型确定文件扩展名，并添加时间戳避免重名
+          const extension = imageType.split('/')[1] || 'png';
+          const timestamp = Date.now();
+          const fileName = `clipboard-image-${timestamp}.${extension}`;
+          const file = new File([blob], fileName, {
             type: imageType,
           });
           setSelectedPdf(file);
@@ -392,7 +400,7 @@ export default function ImportPage() {
       const axiosError = error as {
         response?: { data?: { message?: string } };
       };
-      setPdfError(axiosError.response?.data?.message || "PDF 上传失败");
+      setPdfError(axiosError.response?.data?.message || `${fileType === "image" ? "图片" : "PDF"} 上传失败`);
     } finally {
       setIsUploading(false);
     }
@@ -653,61 +661,58 @@ export default function ImportPage() {
                 </span>
               </div>
 
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs font-semibold text-ink-900">
-                  AI Provider（全局设置）
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-ink-900 mb-3">
+                  选择 AI Provider
                 </p>
-                <select
-                  value={aiProvider}
-                  onChange={async (e) => {
-                    const selectedId = e.target.value;
-                    const model = providerOptions.find(
-                      (p) => p.id === selectedId,
-                    );
-                    if (!model) return;
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {providerOptions.map((provider) => (
+                    <button
+                      key={provider.id}
+                      onClick={async () => {
+                        setAiProvider(provider.id);
+                        try {
+                          // Always save the selected provider ID
+                          await updateSetting("AI_PROVIDER", provider.id);
 
-                    setAiProvider(selectedId);
+                          // For built-in providers, also save their settings to system_settings
+                          const isBuiltInProvider = [
+                            "gpt-4",
+                            "gpt-3.5-turbo",
+                            "qwen-turbo",
+                            "qwen-plus",
+                            "qwen-max",
+                          ].includes(provider.id);
 
-                    try {
-                      // Always save the selected provider ID
-                      await updateSetting("AI_PROVIDER", selectedId);
-
-                      // For built-in providers, also save their settings to system_settings
-                      const isBuiltInProvider = [
-                        "gpt-4",
-                        "gpt-3.5-turbo",
-                        "qwen-turbo",
-                        "qwen-plus",
-                        "qwen-max",
-                      ].includes(selectedId);
-
-                      if (isBuiltInProvider) {
-                        if (model.defaultBaseUrl) {
-                          await updateSetting(
-                            "AI_BASE_URL",
-                            model.defaultBaseUrl,
-                          );
+                          if (isBuiltInProvider) {
+                            if (provider.defaultBaseUrl) {
+                              await updateSetting("AI_BASE_URL", provider.defaultBaseUrl);
+                            }
+                            if (provider.defaultModel) {
+                              await updateSetting("AI_MODEL", provider.defaultModel);
+                            }
+                          } else {
+                            // For custom providers, clear system settings as they're stored in ai_providers table
+                            await updateSetting("AI_BASE_URL", "");
+                            await updateSetting("AI_MODEL", "");
+                          }
+                        } catch {
+                          // ignore update errors here (Settings page is source of truth)
                         }
-                        if (model.defaultModel) {
-                          await updateSetting("AI_MODEL", model.defaultModel);
-                        }
-                      } else {
-                        // For custom providers, clear system settings as they're stored in ai_providers table
-                        await updateSetting("AI_BASE_URL", "");
-                        await updateSetting("AI_MODEL", "");
-                      }
-                    } catch {
-                      // ignore update errors here (Settings page is source of truth)
-                    }
-                  }}
-                  className="h-10 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-ink-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:w-72"
-                >
-                  {providerOptions.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}（{PROVIDER_LABELS[p.provider] || p.provider}）
-                    </option>
+                      }}
+                      className={`p-3 rounded-xl border text-left transition-colors ${
+                        aiProvider === provider.id
+                          ? "border-accent-600 bg-accent-50 text-accent-900"
+                          : "border-border bg-white text-ink-900 hover:border-accent-300 hover:bg-accent-50"
+                      }`}
+                    >
+                      <div className="font-medium text-sm">{provider.name}</div>
+                      <div className="text-xs text-ink-600 mt-1">
+                        {PROVIDER_LABELS[provider.provider] || provider.provider}
+                      </div>
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
 
               <div className="mt-4">

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, Trash2, Save, X } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Save, X, FileText, Image, Calendar } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import QuestionImageManager from '@/components/QuestionImageManager';
-import { getQuestionById, updateQuestion, deleteQuestion, type Question } from '@/services/questions';
+import { getQuestionById, updateQuestion, deleteQuestion, getQuestionImportRecord, getImportRecordImages, type Question } from '@/services/questions';
 
 const typeLabels: Record<string, string> = {
   SINGLE_CHOICE: '单选题',
@@ -22,6 +22,9 @@ export default function QuestionDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Question>>({});
+  const [importRecords, setImportRecords] = useState<any[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedImportImages, setSelectedImportImages] = useState<any[]>([]);
 
   const loadQuestion = async () => {
     if (!id) return;
@@ -40,6 +43,14 @@ export default function QuestionDetailPage() {
         knowledgePoint: data.knowledgePoint,
         options: data.options,
       });
+      
+      // Load import records for this question
+      try {
+        const records = await getQuestionImportRecord(id);
+        setImportRecords(records);
+      } catch (err) {
+        console.warn('Failed to load import records:', err);
+      }
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
       setError(axiosError.response?.data?.message || axiosError.message || '加载失败');
@@ -108,6 +119,23 @@ export default function QuestionDetailPage() {
   const handleTagsChange = (value: string) => {
     const tags = value.split(',').map((t) => t.trim()).filter(Boolean);
     setEditForm((prev) => ({ ...prev, tags }));
+  };
+
+  const handleViewImportRecord = async (record: any) => {
+    try {
+      const images = await getImportRecordImages(record.jobId);
+      setSelectedImportImages(images.images || []);
+      setShowImportModal(true);
+    } catch (err) {
+      console.error('Failed to load import images:', err);
+      setError('加载导入图片失败');
+    }
+  };
+
+  const handleViewAllImportQuestions = (record: any) => {
+    if (record.questionIds && record.questionIds.length > 0) {
+      navigate(`/questions?ids=${record.questionIds.join(',')}`);
+    }
   };
 
   if (loading) {
@@ -435,9 +463,88 @@ export default function QuestionDetailPage() {
                     ` · 更新于 ${new Date(question.updatedAt).toLocaleString('zh-CN')}`}
                 </p>
               </div>
+
+              {/* 导入记录 */}
+              {importRecords.length > 0 && (
+                <div className="border-t border-border pt-6">
+                  <h3 className="mb-4 text-lg font-semibold text-ink-900">导入记录</h3>
+                  <div className="space-y-3">
+                    {importRecords.map((record) => (
+                      <div
+                        key={record.id}
+                        className="rounded-xl border border-border bg-slate-50 p-4"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <FileText className="h-4 w-4 text-ink-700" />
+                              <span className="font-medium text-ink-900">{record.fileName}</span>
+                              <span className="text-xs text-ink-600 bg-white px-2 py-1 rounded">
+                                {record.mode === 'vision' ? '图片识别' : '文本解析'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs text-ink-600">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {new Date(record.createdAt).toLocaleString('zh-CN')}
+                              </span>
+                              <span>共 {record.questionIds.length} 道题目</span>
+                              {record.user && <span>导入者：{record.user.name}</span>}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleViewImportRecord(record)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-ink-900 border border-border hover:bg-slate-50"
+                            >
+                              <Image className="h-3 w-3" />
+                              查看原图
+                            </button>
+                            <button
+                              onClick={() => handleViewAllImportQuestions(record)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-700"
+                            >
+                              查看所有题目
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
+
+        {/* 导入图片查看模态框 */}
+        {showImportModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setShowImportModal(false)}>
+            <div className="max-w-6xl max-h-[90vh] bg-white rounded-2xl p-6 overflow-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-ink-900">导入原始图像</h3>
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  className="text-ink-700 hover:text-ink-900 text-xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="grid gap-4">
+                {selectedImportImages.map((image, index) => (
+                  <div key={index} className="text-center">
+                    <p className="text-sm text-ink-600 mb-2">第 {index + 1} 页</p>
+                    <img
+                      src={image.data}
+                      alt={`导入图像 ${index + 1}`}
+                      className="max-w-full h-auto rounded-xl border border-border mx-auto"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

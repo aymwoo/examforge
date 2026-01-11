@@ -119,12 +119,14 @@ let ImportService = class ImportService {
         const settings = userId
             ? await this.settingsService.getUserSettings(userId)
             : await this.settingsService.getSettings();
-        const effectiveMode = resolvedMode || (settings.aiProvider === 'qwen' ? 'vision' : 'text');
-        const filePath = await this.savePdfFile(buffer, fileName || `${jobId}.pdf`);
+        const decodedFileName = fileName ? Buffer.from(fileName, 'latin1').toString('utf8') : `${jobId}.pdf`;
+        const isImageFile = /\.(jpg|jpeg|png|gif|webp)$/i.test(decodedFileName);
+        const effectiveMode = isImageFile ? 'vision' : (resolvedMode || (settings.aiProvider === 'qwen' ? 'vision' : 'text'));
+        const filePath = await this.savePdfFile(buffer, decodedFileName);
         await this.prisma.importRecord.create({
             data: {
                 jobId,
-                fileName: fileName || `${jobId}.pdf`,
+                fileName: decodedFileName,
                 fileSize: buffer.length,
                 filePath,
                 userId,
@@ -134,11 +136,15 @@ let ImportService = class ImportService {
         });
         this.progressStore.append(jobId, {
             stage: 'received',
-            message: '已收到 PDF，开始解析',
+            message: isImageFile ? '已收到图片，开始识别' : '已收到 PDF，开始解析',
             meta: {
                 mode: effectiveMode,
+                fileType: isImageFile ? 'image' : 'pdf',
             },
         });
+        if (isImageFile) {
+            return this.importFromImageFile(jobId, buffer, userId, customPrompt);
+        }
         if (effectiveMode === 'vision') {
             return this.importFromPdfVision(jobId, buffer, userId, customPrompt);
         }
@@ -146,6 +152,80 @@ let ImportService = class ImportService {
             return this.importFromPdfFile(jobId, buffer, userId, customPrompt);
         }
         return this.importFromPdfText(jobId, buffer, userId, customPrompt);
+    }
+    async importFromImageFile(jobId, buffer, userId, customPrompt) {
+        const questionIds = [];
+        try {
+            this.progressStore.append(jobId, {
+                stage: 'calling_ai',
+                message: '正在使用 AI 识别图片内容',
+                current: 1,
+                total: 1,
+            });
+            const result = { success: 0, failed: 0, errors: [], questionIds: [] };
+            const base64Image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+            const aiResponse = await this.aiService.generateExamQuestionsFromImage(base64Image, userId, customPrompt);
+            for (let i = 0; i < aiResponse.questions.length; i++) {
+                const q = aiResponse.questions[i];
+                try {
+                    if (!q.content || !q.content.trim()) {
+                        throw new Error('题目内容不能为空');
+                    }
+                    const createdQuestion = await this.prisma.question.create({
+                        data: {
+                            content: q.content,
+                            type: q.type,
+                            options: q.options ? JSON.stringify(q.options) : null,
+                            answer: (0, question_answer_1.serializeQuestionAnswer)(q.answer),
+                            explanation: q.explanation,
+                            tags: q.tags ? JSON.stringify(q.tags) : '[]',
+                            difficulty: q.difficulty || 1,
+                            status: question_enum_1.QuestionStatus.DRAFT,
+                            knowledgePoint: q.knowledgePoint,
+                            createdBy: userId,
+                        },
+                    });
+                    questionIds.push(createdQuestion.id);
+                    result.success++;
+                }
+                catch (error) {
+                    result.failed++;
+                    result.errors.push({
+                        row: i + 1,
+                        message: error.message || 'Unknown error',
+                    });
+                }
+                this.progressStore.append(jobId, {
+                    stage: 'saving_questions',
+                    message: '正在保存题目到题库',
+                    current: i + 1,
+                    total: aiResponse.questions.length,
+                });
+            }
+            this.progressStore.append(jobId, {
+                stage: 'done',
+                message: '导入完成',
+                result: { ...result, questionIds },
+                meta: {
+                    questionIds,
+                },
+            });
+            await this.updateImportRecord(jobId, {
+                status: 'completed',
+                questionIds,
+            });
+        }
+        catch (error) {
+            const errorMessage = error?.message || '导入失败';
+            this.progressStore.append(jobId, {
+                stage: 'error',
+                message: errorMessage,
+            });
+            await this.updateImportRecord(jobId, {
+                status: 'failed',
+                errorMessage,
+            });
+        }
     }
     async importFromPdfVision(jobId, buffer, userId, customPrompt) {
         const questionIds = [];
@@ -795,6 +875,35 @@ let ImportService = class ImportService {
         catch (error) {
             throw new common_1.BadRequestException('Failed to convert PDF to images');
         }
+    }
+    async getQuestionImportRecord(questionId, userId) {
+        const records = await this.prisma.importRecord.findMany({
+            where: {
+                questionIds: {
+                    contains: questionId,
+                },
+                ...(userId && { userId }),
+            },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                user: {
+                    select: { id: true, name: true, username: true },
+                },
+            },
+        });
+        const filteredRecords = records.filter(record => {
+            try {
+                const questionIds = JSON.parse(record.questionIds || '[]');
+                return questionIds.includes(questionId);
+            }
+            catch {
+                return false;
+            }
+        });
+        return filteredRecords.map(record => ({
+            ...record,
+            questionIds: JSON.parse(record.questionIds || '[]'),
+        }));
     }
 };
 exports.ImportService = ImportService;

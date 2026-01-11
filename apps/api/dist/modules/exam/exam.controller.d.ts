@@ -20,8 +20,8 @@ export declare class ExamController {
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
-        description: string | null;
         title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
         accountModes: string;
@@ -61,8 +61,8 @@ export declare class ExamController {
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
-        description: string | null;
         title: string;
+        description: string | null;
         duration: number;
         totalScore: number;
         accountModes: string;
@@ -72,9 +72,9 @@ export declare class ExamController {
     delete(id: string): Promise<void>;
     addQuestion(examId: string, dto: AddQuestionDto): Promise<{
         id: string;
-        order: number;
-        score: number;
         examId: string;
+        score: number;
+        order: number;
         questionId: string;
     }>;
     removeQuestion(examId: string, questionId: string): Promise<void>;
@@ -83,9 +83,9 @@ export declare class ExamController {
         score?: number;
     }): Promise<{
         id: string;
-        order: number;
-        score: number;
         examId: string;
+        score: number;
+        order: number;
         questionId: string;
     }>;
     addStudent(examId: string, dto: CreateExamStudentDto): Promise<{

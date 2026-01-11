@@ -307,7 +307,7 @@ export class AIService {
                 {
                   type: 'image_url',
                   image_url: {
-                    url: `data:image/png;base64,${imageBase64}`,
+                    url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/png;base64,${imageBase64}`,
                   },
                 },
               ],

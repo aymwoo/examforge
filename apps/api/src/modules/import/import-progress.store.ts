@@ -22,6 +22,7 @@ export interface PdfImportProgressEvent {
     success: number;
     failed: number;
     errors: { row: number; message: string }[];
+    questionIds?: string[];
   };
   questionIds?: string[];
 }

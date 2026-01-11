@@ -85,6 +85,9 @@ let ImportController = class ImportController {
     async getPdfImages(jobId, req) {
         return this.importService.getPdfImages(jobId, req.user?.id);
     }
+    async getQuestionImportRecord(questionId, req) {
+        return this.importService.getQuestionImportRecord(questionId, req.user?.id);
+    }
 };
 exports.ImportController = ImportController;
 __decorate([
@@ -173,13 +176,21 @@ __decorate([
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
         storage: (0, multer_1.memoryStorage)(),
         fileFilter: (_req, file, cb) => {
-            const allowedMimes = ['application/pdf'];
+            const allowedMimes = [
+                'application/pdf',
+                'image/jpeg',
+                'image/jpg',
+                'image/png',
+                'image/gif',
+                'image/webp'
+            ];
             const fileExt = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
-            if (allowedMimes.includes(file.mimetype) || fileExt === '.pdf') {
+            const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
+            if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
                 cb(null, true);
             }
             else {
-                cb(new common_1.BadRequestException('Only PDF files are allowed'), false);
+                cb(new common_1.BadRequestException('Only PDF and image files (JPG, PNG, GIF, WebP) are allowed'), false);
             }
         },
         limits: {
@@ -236,6 +247,15 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], ImportController.prototype, "getPdfImages", null);
+__decorate([
+    (0, common_1.Get)('question/:questionId/import-record'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get import record for a specific question' }),
+    __param(0, (0, common_1.Param)('questionId')),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], ImportController.prototype, "getQuestionImportRecord", null);
 exports.ImportController = ImportController = __decorate([
     (0, swagger_1.ApiTags)('import'),
     (0, common_1.Controller)('import'),

@@ -134,13 +134,21 @@ export class ImportController {
     FileInterceptor('file', {
       storage: memoryStorage(),
       fileFilter: (_req, file, cb) => {
-        const allowedMimes = ['application/pdf'];
+        const allowedMimes = [
+          'application/pdf',
+          'image/jpeg',
+          'image/jpg', 
+          'image/png',
+          'image/gif',
+          'image/webp'
+        ];
         const fileExt = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
+        const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
 
-        if (allowedMimes.includes(file.mimetype) || fileExt === '.pdf') {
+        if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
           cb(null, true);
         } else {
-          cb(new BadRequestException('Only PDF files are allowed'), false);
+          cb(new BadRequestException('Only PDF and image files (JPG, PNG, GIF, WebP) are allowed'), false);
         }
       },
       limits: {
@@ -225,5 +233,11 @@ export class ImportController {
   @ApiOperation({ summary: 'Get PDF images from import record' })
   async getPdfImages(@Param('jobId') jobId: string, @Req() req: any) {
     return this.importService.getPdfImages(jobId, req.user?.id);
+  }
+
+  @Get('question/:questionId/import-record')
+  @ApiOperation({ summary: 'Get import record for a specific question' })
+  async getQuestionImportRecord(@Param('questionId') questionId: string, @Req() req: any) {
+    return this.importService.getQuestionImportRecord(questionId, req.user?.id);
   }
 }

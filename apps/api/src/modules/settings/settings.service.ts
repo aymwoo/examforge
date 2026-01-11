@@ -225,7 +225,8 @@ export class SettingsService {
   }
 
   async getPromptTemplate(): Promise<string> {
-    return this.getSetting(SettingKey.PROMPT_TEMPLATE);
+    const template = await this.getSetting(SettingKey.PROMPT_TEMPLATE);
+    return template || this.getDefaultPromptTemplate();
   }
 
   getDefaultPromptTemplate(): string {
