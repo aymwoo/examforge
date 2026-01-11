@@ -1,8 +1,8 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, BarChart3, Users, CheckSquare, Eye, Download, Trash2, FileText, UserCheck } from "lucide-react";
+import { ArrowLeft, BarChart3, Users, CheckSquare, Eye, Download, Trash2, FileText, UserCheck, Play, Square } from "lucide-react";
 import Button from "@/components/ui/Button";
-import { getExamById, deleteExam, type Exam } from "@/services/exams";
+import { getExamById, deleteExam, updateExam, type Exam } from "@/services/exams";
 import api from "@/services/api";
 
 interface ExamLayoutProps {
@@ -17,6 +17,7 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
   const [exam, setExam] = useState<Exam | null>(null);
   const [loading, setLoading] = useState(true);
   const [submissionCount, setSubmissionCount] = useState(0);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -53,6 +54,49 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
       navigate('/exams');
     } catch (err) {
       alert('删除失败，请重试');
+    }
+  };
+
+  const handlePublishExam = async () => {
+    if (!exam || !id) return;
+    
+    if (exam.examQuestions?.length === 0) {
+      alert('请先添加题目再发布考试');
+      return;
+    }
+
+    if (!confirm('确定要发布这个考试吗？发布后学生就可以参加考试了。')) {
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const updatedExam = await updateExam(id, { status: 'PUBLISHED' });
+      setExam(updatedExam);
+      alert('考试发布成功！');
+    } catch (err: any) {
+      alert(err.response?.data?.message || '发布失败，请重试');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleWithdrawExam = async () => {
+    if (!exam || !id) return;
+
+    if (!confirm('确定要撤回这个考试吗？撤回后学生将无法继续参加考试。')) {
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const updatedExam = await updateExam(id, { status: 'DRAFT' });
+      setExam(updatedExam);
+      alert('考试已撤回！');
+    } catch (err: any) {
+      alert(err.response?.data?.message || '撤回失败，请重试');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -116,10 +160,33 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
                 </div>
               </div>
               <div className="text-right">
-                <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(exam.status)}`}>
-                  {getStatusText(exam.status)}
-                </span>
-                <div className="mt-2 text-sm text-blue-600">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(exam.status)}`}>
+                    {getStatusText(exam.status)}
+                  </span>
+                  {exam.status === 'PUBLISHED' ? (
+                    <Button
+                      onClick={handleWithdrawExam}
+                      disabled={updating}
+                      size="sm"
+                      className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      <Square className="h-4 w-4" />
+                      {updating ? '撤回中...' : '撤回考试'}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handlePublishExam}
+                      disabled={updating || (exam.examQuestions?.length || 0) === 0}
+                      size="sm"
+                      className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white"
+                    >
+                      <Play className="h-4 w-4" />
+                      {updating ? '发布中...' : '发布考试'}
+                    </Button>
+                  )}
+                </div>
+                <div className="text-sm text-blue-600">
                   创建时间: {new Date(exam.createdAt).toLocaleDateString('zh-CN')}
                 </div>
               </div>
