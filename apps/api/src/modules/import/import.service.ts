@@ -1014,25 +1014,41 @@ export class ImportService {
     const record = await this.getImportRecord(jobId, userId);
     
     if (!record.filePath) {
-      throw new BadRequestException('PDF file not found');
+      throw new BadRequestException('File not found');
     }
 
     try {
-      // 将PDF转换为图片
-      const images = await convertPdfToPngBuffers(
-        await fs.readFile(record.filePath),
-        { resolutionDpi: 150 }
-      );
-
-      // 转换为base64格式返回
-      return {
-        images: images.map((buffer, index) => ({
-          index,
-          data: `data:image/png;base64,${buffer.toString('base64')}`,
-        })),
-      };
+      const fileBuffer = await fs.readFile(record.filePath);
+      
+      // 检查文件类型
+      const isImageFile = /\.(jpg|jpeg|png|gif|webp)$/i.test(record.fileName);
+      
+      if (isImageFile) {
+        // 对于图片文件，直接返回base64编码
+        const mimeType = record.fileName.toLowerCase().endsWith('.png') ? 'image/png' :
+                        record.fileName.toLowerCase().endsWith('.jpg') || record.fileName.toLowerCase().endsWith('.jpeg') ? 'image/jpeg' :
+                        record.fileName.toLowerCase().endsWith('.gif') ? 'image/gif' :
+                        record.fileName.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/png';
+        
+        return {
+          images: [{
+            index: 0,
+            data: `data:${mimeType};base64,${fileBuffer.toString('base64')}`,
+          }],
+        };
+      } else {
+        // 对于PDF文件，转换为图片
+        const images = await convertPdfToPngBuffers(fileBuffer, { resolutionDpi: 150 });
+        
+        return {
+          images: images.map((buffer, index) => ({
+            index,
+            data: `data:image/png;base64,${buffer.toString('base64')}`,
+          })),
+        };
+      }
     } catch (error) {
-      throw new BadRequestException('Failed to convert PDF to images');
+      throw new BadRequestException('Failed to process file');
     }
   }
 

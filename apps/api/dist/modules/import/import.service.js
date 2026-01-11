@@ -861,19 +861,35 @@ let ImportService = class ImportService {
     async getPdfImages(jobId, userId) {
         const record = await this.getImportRecord(jobId, userId);
         if (!record.filePath) {
-            throw new common_1.BadRequestException('PDF file not found');
+            throw new common_1.BadRequestException('File not found');
         }
         try {
-            const images = await (0, pdf_to_images_1.convertPdfToPngBuffers)(await fs.readFile(record.filePath), { resolutionDpi: 150 });
-            return {
-                images: images.map((buffer, index) => ({
-                    index,
-                    data: `data:image/png;base64,${buffer.toString('base64')}`,
-                })),
-            };
+            const fileBuffer = await fs.readFile(record.filePath);
+            const isImageFile = /\.(jpg|jpeg|png|gif|webp)$/i.test(record.fileName);
+            if (isImageFile) {
+                const mimeType = record.fileName.toLowerCase().endsWith('.png') ? 'image/png' :
+                    record.fileName.toLowerCase().endsWith('.jpg') || record.fileName.toLowerCase().endsWith('.jpeg') ? 'image/jpeg' :
+                        record.fileName.toLowerCase().endsWith('.gif') ? 'image/gif' :
+                            record.fileName.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/png';
+                return {
+                    images: [{
+                            index: 0,
+                            data: `data:${mimeType};base64,${fileBuffer.toString('base64')}`,
+                        }],
+                };
+            }
+            else {
+                const images = await (0, pdf_to_images_1.convertPdfToPngBuffers)(fileBuffer, { resolutionDpi: 150 });
+                return {
+                    images: images.map((buffer, index) => ({
+                        index,
+                        data: `data:image/png;base64,${buffer.toString('base64')}`,
+                    })),
+                };
+            }
         }
         catch (error) {
-            throw new common_1.BadRequestException('Failed to convert PDF to images');
+            throw new common_1.BadRequestException('Failed to process file');
         }
     }
     async getQuestionImportRecord(questionId, userId) {

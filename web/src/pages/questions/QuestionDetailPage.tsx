@@ -463,59 +463,59 @@ export default function QuestionDetailPage() {
                     ` · 更新于 ${new Date(question.updatedAt).toLocaleString('zh-CN')}`}
                 </p>
               </div>
-
-              {/* 导入记录 */}
-              {importRecords.length > 0 && (
-                <div className="border-t border-border pt-6">
-                  <h3 className="mb-4 text-lg font-semibold text-ink-900">导入记录</h3>
-                  <div className="space-y-3">
-                    {importRecords.map((record) => (
-                      <div
-                        key={record.id}
-                        className="rounded-xl border border-border bg-slate-50 p-4"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <FileText className="h-4 w-4 text-ink-700" />
-                              <span className="font-medium text-ink-900">{record.fileName}</span>
-                              <span className="text-xs text-ink-600 bg-white px-2 py-1 rounded">
-                                {record.mode === 'vision' ? '图片识别' : '文本解析'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-4 text-xs text-ink-600">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {new Date(record.createdAt).toLocaleString('zh-CN')}
-                              </span>
-                              <span>共 {record.questionIds.length} 道题目</span>
-                              {record.user && <span>导入者：{record.user.name}</span>}
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleViewImportRecord(record)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-ink-900 border border-border hover:bg-slate-50"
-                            >
-                              <Image className="h-3 w-3" />
-                              查看原图
-                            </button>
-                            <button
-                              onClick={() => handleViewAllImportQuestions(record)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-700"
-                            >
-                              查看所有题目
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
+
+        {/* 导入记录 - 在编辑和查看模式下都显示 */}
+        {importRecords.length > 0 && (
+          <div className="mt-6 rounded-3xl border border-border bg-white p-6 shadow-soft">
+            <h3 className="mb-4 text-lg font-semibold text-ink-900">导入记录</h3>
+            <div className="space-y-3">
+              {importRecords.map((record) => (
+                <div
+                  key={record.id}
+                  className="rounded-xl border border-border bg-slate-50 p-4"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="h-4 w-4 text-ink-700" />
+                        <span className="font-medium text-ink-900">{record.fileName}</span>
+                        <span className="text-xs text-ink-600 bg-white px-2 py-1 rounded">
+                          {record.mode === 'vision' ? '图片识别' : '文本解析'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-ink-600">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(record.createdAt).toLocaleString('zh-CN')}
+                        </span>
+                        <span>共 {record.questionIds.length} 道题目</span>
+                        {record.user && <span>导入者：{record.user.name}</span>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleViewImportRecord(record)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-medium text-ink-900 border border-border hover:bg-slate-50"
+                      >
+                        <Image className="h-3 w-3" />
+                        查看原图
+                      </button>
+                      <button
+                        onClick={() => handleViewAllImportQuestions(record)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-700"
+                      >
+                        查看所有题目
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* 导入图片查看模态框 */}
         {showImportModal && (
