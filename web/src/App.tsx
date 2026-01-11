@@ -22,6 +22,7 @@ import HomePage from "./pages/HomePage";
 import UsersPage from "./pages/UsersPage";
 import ProfilePage from "./pages/ProfilePage";
 import DocsPage from "./pages/DocsPage";
+import AddQuestionsPage from "./pages/exams/AddQuestionsPage";
 
 function App() {
   return (
@@ -72,6 +73,11 @@ function App() {
           <Route path="exams/:id/grading" element={
             <ProtectedRoute requiredRole="TEACHER">
               <ExamGradingPageSimple />
+            </ProtectedRoute>
+          } />
+          <Route path="exams/:id/add-questions" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <AddQuestionsPage />
             </ProtectedRoute>
           } />
           <Route path="settings" element={

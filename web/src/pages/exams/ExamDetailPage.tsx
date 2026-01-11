@@ -60,7 +60,15 @@ export default function ExamDetailPage() {
       <div className="space-y-8">
         {/* 题目管理 */}
         <div className="rounded-3xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-blue-900 mb-6">考试题目</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-blue-900">考试题目</h2>
+            <Button 
+              onClick={() => navigate(`/exams/${id}/add-questions`)}
+              className="bg-blue-500 hover:bg-blue-600 text-white"
+            >
+              添加题目
+            </Button>
+          </div>
           {exam.examQuestions && exam.examQuestions.length > 0 ? (
             <div className="space-y-4">
               {exam.examQuestions.map((examQuestion: any, index: number) => (
@@ -105,9 +113,6 @@ export default function ExamDetailPage() {
           ) : (
             <div className="text-center py-12">
               <p className="text-blue-700 mb-4">暂无题目，请添加题目</p>
-              <Button className="bg-blue-500 hover:bg-blue-600 text-white">
-                添加题目
-              </Button>
             </div>
           )}
         </div>
