@@ -1465,9 +1465,36 @@ ${studentAnswer}
     };
   }
 
-  async generateAIReport(examId: string, data: any, userId?: string) {
+  async generateAIReportStream(examId: string, data: any, userId?: string, res?: any) {
     try {
+      // 发送开始信号
+      res.write(`data: ${JSON.stringify({ type: 'start', message: '开始生成AI分析报告...' })}\n\n`);
+
+      // 获取考试数据和分析数据
+      res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在获取考试数据...' })}\n\n`);
+      
+      const exam = await this.prisma.exam.findUnique({
+        where: { id: examId },
+        include: {
+          examQuestions: {
+            include: {
+              question: true
+            }
+          }
+        }
+      });
+
+      if (!exam) {
+        res.write(`data: ${JSON.stringify({ type: 'error', message: '考试不存在' })}\n\n`);
+        res.end();
+        return;
+      }
+
+      const analytics = await this.getExamAnalytics(examId);
+
       // 获取用户的默认AI Provider设置
+      res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在获取AI配置...' })}\n\n`);
+      
       const aiProvider = await this.prisma.aIProvider.findFirst({
         where: {
           isActive: true,
@@ -1477,25 +1504,33 @@ ${studentAnswer}
           ]
         },
         orderBy: [
-          { isGlobal: 'asc' }, // 优先使用用户自己的配置
+          { isGlobal: 'asc' },
           { createdAt: 'desc' }
         ]
       });
 
       if (!aiProvider) {
-        throw new Error('未找到可用的AI Provider，请先在设置页面配置AI服务');
+        res.write(`data: ${JSON.stringify({ type: 'error', message: '未找到可用的AI Provider，请先在设置页面配置AI服务' })}\n\n`);
+        res.end();
+        return;
       }
 
       // 构建分析报告的提示词
-      const prompt = this.buildAnalysisPrompt(data.exam, data.analytics);
+      res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在构建分析提示词...' })}\n\n`);
+      const prompt = this.buildAnalysisPrompt(exam, analytics);
 
       // 调用AI服务生成报告
-      const report = await this.callAIService(aiProvider, prompt);
+      res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在调用AI服务生成报告...' })}\n\n`);
+      const report = await this.callAIServiceStream(aiProvider, prompt, res);
 
-      return { report };
+      // 发送完成信号
+      res.write(`data: ${JSON.stringify({ type: 'complete', report: report })}\n\n`);
+      res.end();
+
     } catch (error) {
       console.error('生成AI报告失败:', error);
-      throw new Error(`生成AI分析报告失败: ${error.message}`);
+      res.write(`data: ${JSON.stringify({ type: 'error', message: `生成AI分析报告失败: ${error.message}` })}\n\n`);
+      res.end();
     }
   }
 
@@ -1537,7 +1572,7 @@ ${analytics.knowledgePointStats?.map((kp: any) =>
 请用中文回答，内容要专业、详细、有针对性。`;
   }
 
-  private async callAIService(aiProvider: any, prompt: string): Promise<string> {
+  private async callAIServiceStream(aiProvider: any, prompt: string, res: any): Promise<string> {
     const apiKey = aiProvider.apiKey;
     const baseUrl = aiProvider.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     const model = aiProvider.model || 'qwen-turbo';
@@ -1560,7 +1595,8 @@ ${analytics.knowledgePointStats?.map((kp: any) =>
             }
           ],
           temperature: 0.7,
-          max_tokens: 2000
+          max_tokens: 3000,
+          stream: true // 启用流式响应
         })
       });
 
@@ -1572,10 +1608,40 @@ ${analytics.knowledgePointStats?.map((kp: any) =>
         throw new Error(`AI服务调用失败: ${response.status} ${response.statusText}`);
       }
 
-      const result = await response.json();
-      console.log('AI服务响应:', result);
-      
-      return result.choices?.[0]?.message?.content || '生成报告失败';
+      let fullReport = '';
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              
+              try {
+                const parsed = JSON.parse(data);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  fullReport += content;
+                  // 发送流式内容
+                  res.write(`data: ${JSON.stringify({ type: 'stream', content: content })}\n\n`);
+                }
+              } catch (e) {
+                // 忽略解析错误
+              }
+            }
+          }
+        }
+      }
+
+      return fullReport || '生成报告失败';
     } catch (error) {
       console.error('AI服务调用异常:', error);
       throw new Error(`AI服务调用失败: ${error.message}`);

@@ -274,25 +274,56 @@ export default function ExamAnalyticsPage() {
     if (!analytics || !exam) return;
     
     setGeneratingReport(true);
+    setAiReport(''); // 清空之前的报告
+    
     try {
-      const response = await api.post(`/api/exams/${id}/ai-report`, {
-        analytics: analytics,
-        exam: exam
-      });
-      setAiReport(response.data.report);
+      const eventSource = new EventSource(`/api/exams/${id}/ai-report-stream`);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          switch (data.type) {
+            case 'start':
+            case 'progress':
+              console.log(data.message);
+              break;
+            case 'stream':
+              setAiReport(prev => prev + data.content);
+              break;
+            case 'complete':
+              setAiReport(data.report);
+              eventSource.close();
+              setGeneratingReport(false);
+              break;
+            case 'error':
+              eventSource.close();
+              setGeneratingReport(false);
+              if (data.message.includes('未找到可用的AI Provider')) {
+                if (confirm('未找到可用的AI Provider配置。是否前往设置页面配置AI服务？')) {
+                  navigate('/settings');
+                }
+              } else {
+                alert(`生成AI报告失败：${data.message}`);
+              }
+              break;
+          }
+        } catch (error) {
+          console.error('解析SSE数据失败:', error);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('SSE连接错误:', error);
+        eventSource.close();
+        setGeneratingReport(false);
+        alert('生成AI报告时连接中断，请重试');
+      };
+
     } catch (error: any) {
       console.error('生成AI报告失败:', error);
-      const errorMessage = error.response?.data?.message || error.message || '生成AI报告失败';
-      
-      if (errorMessage.includes('未找到可用的AI Provider')) {
-        if (confirm('未找到可用的AI Provider配置。是否前往设置页面配置AI服务？')) {
-          navigate('/settings');
-        }
-      } else {
-        alert(`生成AI报告失败：${errorMessage}`);
-      }
-    } finally {
       setGeneratingReport(false);
+      alert('启动AI报告生成失败，请重试');
     }
   };
 

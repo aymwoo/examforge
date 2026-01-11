@@ -340,12 +340,25 @@ export class ExamController {
     return this.examService.getExamAnalytics(examId);
   }
 
-  @Post(':id/ai-report')
-  @ApiOperation({ summary: 'Generate AI analysis report for exam' })
+  @Get(':id/ai-report-stream')
+  @ApiOperation({ summary: 'Generate AI analysis report stream for exam' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
-  @ApiResponse({ status: 200, description: 'AI report generated successfully' })
-  async generateAIReport(@Param('id') examId: string, @Body() data: any, @Request() req?: any) {
+  async generateAIReportStream(@Param('id') examId: string, @Query() query: any, @Request() req?: any, @Res() res?: any) {
     const userId = req?.user?.id;
-    return this.examService.generateAIReport(examId, data, userId);
+    
+    // 设置SSE响应头
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
+
+    try {
+      // 从查询参数或缓存中获取数据
+      await this.examService.generateAIReportStream(examId, null, userId, res);
+    } catch (error) {
+      res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+      res.end();
+    }
   }
 }
