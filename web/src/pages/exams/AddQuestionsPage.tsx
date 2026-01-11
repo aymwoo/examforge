@@ -19,6 +19,7 @@ export default function AddQuestionsPage() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
+  const [existingQuestionIds, setExistingQuestionIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
@@ -63,6 +64,9 @@ export default function AddQuestionsPage() {
     try {
       const examData = await getExamById(id);
       setExam(examData);
+      // 保存已存在的题目ID
+      const existingIds = new Set(examData.examQuestions?.map((eq: any) => eq.questionId) || []);
+      setExistingQuestionIds(existingIds);
     } catch (error) {
       console.error('加载考试失败:', error);
     }
@@ -92,13 +96,8 @@ export default function AddQuestionsPage() {
         );
       }
 
-      // 过滤掉已经在考试中的题目
-      const existingQuestionIds = new Set(exam.examQuestions?.map((eq: any) => eq.questionId) || []);
-      const availableQuestions = filteredData.filter(
-        (q: Question) => !existingQuestionIds.has(q.id)
-      );
-
-      setQuestions(availableQuestions);
+      // 显示所有题目，不过滤已存在的
+      setQuestions(filteredData);
       setMeta(response.meta);
       setPage(pageNum);
     } catch (error) {
@@ -123,6 +122,11 @@ export default function AddQuestionsPage() {
   };
 
   const handleQuestionToggle = (questionId: string) => {
+    // 如果题目已经在考试中，不允许选择
+    if (existingQuestionIds.has(questionId)) {
+      return;
+    }
+    
     const newSelected = new Set(selectedQuestions);
     if (newSelected.has(questionId)) {
       newSelected.delete(questionId);
@@ -133,10 +137,12 @@ export default function AddQuestionsPage() {
   };
 
   const handleSelectAll = () => {
-    if (selectedQuestions.size === questions.length) {
+    // 只选择未添加的题目
+    const availableQuestions = questions.filter(q => !existingQuestionIds.has(q.id));
+    if (selectedQuestions.size === availableQuestions.length) {
       setSelectedQuestions(new Set());
     } else {
-      setSelectedQuestions(new Set(questions.map((q) => q.id)));
+      setSelectedQuestions(new Set(availableQuestions.map((q) => q.id)));
     }
   };
 
@@ -279,11 +285,12 @@ export default function AddQuestionsPage() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={questions.length > 0 && selectedQuestions.size === questions.length}
+                  checked={questions.filter(q => !existingQuestionIds.has(q.id)).length > 0 && 
+                           selectedQuestions.size === questions.filter(q => !existingQuestionIds.has(q.id)).length}
                   onChange={handleSelectAll}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-gray-700">全选</span>
+                <span className="text-gray-700">全选可用题目</span>
               </label>
               <p className="text-gray-700">
                 已选择 <span className="font-semibold text-blue-600">{selectedQuestions.size}</span> 道题目
@@ -314,66 +321,80 @@ export default function AddQuestionsPage() {
           ) : (
             <>
               <div className="space-y-4 mb-6">
-                {questions.map((question) => (
-                  <div
-                    key={question.id}
-                    className={`border rounded-xl p-6 cursor-pointer transition-all ${
-                      selectedQuestions.has(question.id)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => handleQuestionToggle(question.id)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                            selectedQuestions.has(question.id)
-                              ? 'border-blue-500 bg-blue-500'
-                              : 'border-gray-300'
-                          }`}>
-                            {selectedQuestions.has(question.id) && (
-                              <Check className="h-4 w-4 text-white" />
+                {questions.map((question) => {
+                  const isExisting = existingQuestionIds.has(question.id);
+                  const isSelected = selectedQuestions.has(question.id);
+                  
+                  return (
+                    <div
+                      key={question.id}
+                      className={`border rounded-xl p-6 transition-all ${
+                        isExisting
+                          ? 'border-gray-300 bg-gray-50 opacity-60'
+                          : isSelected
+                          ? 'border-blue-500 bg-blue-50 cursor-pointer'
+                          : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                      }`}
+                      onClick={() => handleQuestionToggle(question.id)}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                              isExisting
+                                ? 'border-gray-400 bg-gray-400'
+                                : isSelected
+                                ? 'border-blue-500 bg-blue-500'
+                                : 'border-gray-300'
+                            }`}>
+                              {(isExisting || isSelected) && (
+                                <Check className="h-4 w-4 text-white" />
+                              )}
+                            </div>
+                            {isExisting && (
+                              <span className="bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs font-medium">
+                                已添加
+                              </span>
+                            )}
+                            <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                              {typeLabels[question.type] || question.type}
+                            </span>
+                            <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                              难度: {question.difficulty}
+                            </span>
+                            {question.knowledgePoint && (
+                              <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
+                                {question.knowledgePoint}
+                              </span>
+                            )}
+                            {question.tags && question.tags.length > 0 && (
+                              <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs">
+                                {question.tags.join(', ')}
+                              </span>
                             )}
                           </div>
-                          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                            {typeLabels[question.type] || question.type}
-                          </span>
-                          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                            难度: {question.difficulty}
-                          </span>
-                          {question.knowledgePoint && (
-                            <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
-                              {question.knowledgePoint}
-                            </span>
+                          <div className={`mb-2 ${isExisting ? 'text-gray-500' : 'text-gray-800'}`}>
+                            {question.content}
+                          </div>
+                          {question.options && Array.isArray(question.options) && question.options.length > 0 && (
+                            <div className={`text-sm space-y-1 ml-8 ${isExisting ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {question.options.map((option: any, optIndex: number) => (
+                                <div key={optIndex}>
+                                  {option.label}: {option.content}
+                                </div>
+                              ))}
+                            </div>
                           )}
-                          {question.tags && question.tags.length > 0 && (
-                            <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs">
-                              {question.tags.join(', ')}
-                            </span>
+                          {question.answer && (
+                            <div className={`text-sm ml-8 mt-2 ${isExisting ? 'text-gray-400' : 'text-green-600'}`}>
+                              答案: {question.answer}
+                            </div>
                           )}
                         </div>
-                        <div className="text-gray-800 mb-2">
-                          {question.content}
-                        </div>
-                        {question.options && Array.isArray(question.options) && question.options.length > 0 && (
-                          <div className="text-sm text-gray-600 space-y-1 ml-8">
-                            {question.options.map((option: any, optIndex: number) => (
-                              <div key={optIndex}>
-                                {option.label}: {option.content}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {question.answer && (
-                          <div className="text-sm text-green-600 ml-8 mt-2">
-                            答案: {question.answer}
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* 分页 */}
