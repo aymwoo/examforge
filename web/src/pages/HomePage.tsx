@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock, Users, FileText, Calendar } from "lucide-react";
+import { Clock, Users, FileText, Calendar, RefreshCw } from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
 
@@ -21,11 +21,13 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const loadDashboardData = async () => {
     try {
       const response = await api.get('/api/exams/dashboard');
       setDashboardData(response.data);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('加载仪表板数据失败:', error);
     } finally {
@@ -35,6 +37,13 @@ export default function HomePage() {
 
   useEffect(() => {
     loadDashboardData();
+    
+    // 设置自动刷新，每30秒更新一次数据
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const getTimeRemaining = (endTime: string) => {
@@ -70,8 +79,8 @@ export default function HomePage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* 页面标题 */}
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-ink-900 mb-4">考试管理系统</h1>
-          <p className="text-lg text-ink-600">实时监控正在进行的考试</p>
+          <h1 className="text-4xl font-bold text-ink-900 mb-4">实时监控正在进行的考试</h1>
+          <p className="text-lg text-ink-600">监控考试进度，实时查看参与情况和提交状态</p>
         </div>
 
         {/* 统计卡片 */}
@@ -133,7 +142,14 @@ export default function HomePage() {
 
         {/* 正在进行的考试列表 */}
         <div className="rounded-3xl border border-border bg-white p-8 shadow-soft">
-          <h2 className="text-2xl font-bold text-ink-900 mb-6">正在进行的考试</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-ink-900">正在进行的考试</h2>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <RefreshCw className="h-4 w-4" />
+              <span>最后更新: {lastUpdated.toLocaleTimeString('zh-CN')}</span>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            </div>
+          </div>
           
           {(dashboardData?.exams?.length || 0) === 0 ? (
             <div className="text-center py-12">
