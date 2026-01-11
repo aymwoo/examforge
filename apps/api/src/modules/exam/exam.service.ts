@@ -49,11 +49,7 @@ export class ExamService {
     }
 
     // Get total questions count
-    const totalQuestions = await this.prisma.question.count({
-      where: {
-        status: 'ACTIVE',
-      },
-    });
+    const totalQuestions = await this.prisma.question.count();
 
     // Get published exams with submission counts
     const publishedExams = await this.prisma.exam.findMany({
