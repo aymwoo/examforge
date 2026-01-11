@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Play, Square } from "lucide-react";
 import Button from "@/components/ui/Button";
 import ExamLayout from "@/components/ExamLayout";
-import { getExamById, type Exam } from "@/services/exams";
+import { getExamById, updateExam, type Exam } from "@/services/exams";
 
 export default function ExamDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -10,6 +11,7 @@ export default function ExamDetailPage() {
   const [exam, setExam] = useState<Exam | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -28,6 +30,49 @@ export default function ExamDetailPage() {
       setError(err.response?.data?.message || err.message || "加载失败");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePublishExam = async () => {
+    if (!exam || !id) return;
+    
+    if (exam.examQuestions?.length === 0) {
+      alert('请先添加题目再发布考试');
+      return;
+    }
+
+    if (!confirm('确定要发布这个考试吗？发布后学生就可以参加考试了。')) {
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const updatedExam = await updateExam(id, { status: 'PUBLISHED' });
+      setExam(updatedExam);
+      alert('考试发布成功！');
+    } catch (err: any) {
+      alert(err.response?.data?.message || '发布失败，请重试');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleWithdrawExam = async () => {
+    if (!exam || !id) return;
+
+    if (!confirm('确定要撤回这个考试吗？撤回后学生将无法继续参加考试。')) {
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const updatedExam = await updateExam(id, { status: 'DRAFT' });
+      setExam(updatedExam);
+      alert('考试已撤回！');
+    } catch (err: any) {
+      alert(err.response?.data?.message || '撤回失败，请重试');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -58,6 +103,48 @@ export default function ExamDetailPage() {
   return (
     <ExamLayout activeTab="questions">
       <div className="space-y-8">
+        {/* 考试状态和操作 */}
+        <div className="rounded-3xl border-2 border-green-100 bg-gradient-to-br from-green-50 to-white p-8 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-green-900 mb-2">考试状态</h2>
+              <div className="flex items-center gap-3">
+                <span className={`px-4 py-2 rounded-full text-sm font-semibold ${
+                  exam.status === 'PUBLISHED' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {exam.status === 'PUBLISHED' ? '已发布' : '草稿'}
+                </span>
+                <span className="text-gray-600">
+                  题目数量: {exam.examQuestions?.length || 0} 道
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              {exam.status === 'PUBLISHED' ? (
+                <Button
+                  onClick={handleWithdrawExam}
+                  disabled={updating}
+                  className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
+                >
+                  <Square className="h-4 w-4" />
+                  {updating ? '撤回中...' : '撤回考试'}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handlePublishExam}
+                  disabled={updating || (exam.examQuestions?.length || 0) === 0}
+                  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white"
+                >
+                  <Play className="h-4 w-4" />
+                  {updating ? '发布中...' : '发布考试'}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* 题目管理 */}
         <div className="rounded-3xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white p-8 shadow-lg">
           <div className="flex items-center justify-between mb-6">
