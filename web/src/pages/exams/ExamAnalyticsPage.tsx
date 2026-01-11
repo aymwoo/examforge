@@ -94,10 +94,6 @@ export default function ExamAnalyticsPage() {
       loadData();
     }
   }, [id]);
-    if (id) {
-      loadData();
-    }
-  }, [id]);
 
   const loadData = async () => {
     if (!id) return;
