@@ -18,7 +18,7 @@ export default function ProfilePage() {
 
   const getRoleName = (role: string) => {
     const roleMap: Record<string, string> = {
-      'ADMIN': '管理员',
+      'ADMIN': '系统管理员',
       'TEACHER': '教师',
       'STUDENT': '学生'
     };
