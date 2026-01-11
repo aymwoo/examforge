@@ -280,9 +280,17 @@ export default function ExamAnalyticsPage() {
         exam: exam
       });
       setAiReport(response.data.report);
-    } catch (error) {
+    } catch (error: any) {
       console.error('生成AI报告失败:', error);
-      alert('生成AI报告失败，请检查AI Provider配置');
+      const errorMessage = error.response?.data?.message || error.message || '生成AI报告失败';
+      
+      if (errorMessage.includes('未找到可用的AI Provider')) {
+        if (confirm('未找到可用的AI Provider配置。是否前往设置页面配置AI服务？')) {
+          navigate('/settings');
+        }
+      } else {
+        alert(`生成AI报告失败：${errorMessage}`);
+      }
     } finally {
       setGeneratingReport(false);
     }
