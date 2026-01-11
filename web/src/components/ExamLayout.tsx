@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, BarChart3, Users, CheckSquare, Eye, Download, Trash2, FileText, UserCheck } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { getExamById, deleteExam, type Exam } from "@/services/exams";
+import api from "@/services/api";
 
 interface ExamLayoutProps {
   children: ReactNode;
@@ -15,6 +16,7 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
   const location = useLocation();
   const [exam, setExam] = useState<Exam | null>(null);
   const [loading, setLoading] = useState(true);
+  const [submissionCount, setSubmissionCount] = useState(0);
 
   useEffect(() => {
     if (id) {
@@ -26,8 +28,12 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await getExamById(id);
-      setExam(data);
+      const [examData, submissionsResponse] = await Promise.all([
+        getExamById(id),
+        api.get(`/api/exams/${id}/submissions`).catch(() => ({ data: [] }))
+      ]);
+      setExam(examData);
+      setSubmissionCount(submissionsResponse.data.length || 0);
     } catch (err) {
       console.error('加载考试信息失败:', err);
     } finally {
@@ -150,6 +156,11 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
             >
               <UserCheck className="h-4 w-4" />
               学生管理
+              {submissionCount > 0 && (
+                <span className="ml-1 bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs">
+                  {submissionCount}
+                </span>
+              )}
             </button>
             <button
               onClick={() => navigate(`/exams/${id}/analytics`)}
