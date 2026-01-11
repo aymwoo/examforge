@@ -134,6 +134,11 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
             >
               <FileText className="h-4 w-4" />
               考试题目
+              {exam.examQuestions && exam.examQuestions.length > 0 && (
+                <span className="ml-1 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs">
+                  {exam.examQuestions.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => navigate(`/exams/${id}/students`)}
