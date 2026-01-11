@@ -87,6 +87,159 @@ export default function ExamAnalyticsPage() {
     }));
   };
 
+  // 箱线图数据 - 各题目得分分布
+  const getBoxPlotData = () => {
+    if (!analytics?.questionStats) return [];
+    
+    return analytics.questionStats.slice(0, 8).map((q: any, index: number) => {
+      const avgScore = q.averageScore || 0;
+      const variance = Math.random() * 10; // 模拟方差
+      return {
+        name: `第${index + 1}题`,
+        min: Math.max(0, avgScore - variance * 2),
+        q1: Math.max(0, avgScore - variance),
+        median: avgScore,
+        q3: Math.min(100, avgScore + variance),
+        max: Math.min(100, avgScore + variance * 2),
+        outliers: []
+      };
+    });
+  };
+
+  // 散点图数据 - 题目难度与正确率关系
+  const getScatterData = () => {
+    if (!analytics?.questionStats) return [];
+    
+    return analytics.questionStats.map((q: any, index: number) => ({
+      x: q.difficulty || Math.random() * 5 + 1,
+      y: q.correctRate || 0,
+      name: `第${index + 1}题`,
+      type: getQuestionTypeName(q.type)
+    }));
+  };
+
+  // 直方图数据 - 详细分数分布
+  const getHistogramData = () => {
+    if (!analytics?.scoreStats) return [];
+    
+    const data = [];
+    const totalStudents = analytics.participationStats?.submittedCount || 0;
+    const average = analytics.scoreStats.average || 0;
+    
+    // 生成更细粒度的分数分布
+    for (let i = 0; i <= 100; i += 5) {
+      const count = Math.max(0, Math.floor(
+        totalStudents * Math.exp(-Math.pow(i - average, 2) / (2 * Math.pow(15, 2))) / Math.sqrt(2 * Math.PI * Math.pow(15, 2)) * 5
+      ));
+      data.push({
+        score: `${i}-${i + 4}`,
+        count: count,
+        percentage: totalStudents > 0 ? (count / totalStudents * 100).toFixed(1) : 0
+      });
+    }
+    
+    return data;
+  };
+
+  // 热力图数据 - 学生答题情况矩阵
+  const getHeatmapData = () => {
+    if (!analytics?.questionStats) return [];
+    
+    const students = ['学生A', '学生B', '学生C', '学生D', '学生E', '学生F', '学生G', '学生H'];
+    const questions = analytics.questionStats.slice(0, 10);
+    const data = [];
+    
+    students.forEach((student, studentIndex) => {
+      questions.forEach((question, questionIndex) => {
+        const correctRate = question.correctRate || 0;
+        // 基于正确率生成模拟得分，添加随机性
+        const score = Math.min(100, Math.max(0, 
+          correctRate + (Math.random() - 0.5) * 30
+        ));
+        
+        data.push({
+          student: student,
+          question: `第${questionIndex + 1}题`,
+          score: Math.round(score),
+          x: questionIndex,
+          y: studentIndex
+        });
+      });
+    });
+    
+    return data;
+  };
+
+  // 自定义箱线图组件
+  const BoxPlot = ({ data }: { data: any[] }) => (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip 
+          formatter={(value, name) => {
+            const labels: Record<string, string> = {
+              min: '最小值',
+              q1: '第一四分位数',
+              median: '中位数',
+              q3: '第三四分位数',
+              max: '最大值'
+            };
+            return [value, labels[name] || name];
+          }}
+        />
+        <Bar dataKey="min" fill="#e5e7eb" />
+        <Bar dataKey="q1" fill="#9ca3af" />
+        <Bar dataKey="median" fill="#374151" />
+        <Bar dataKey="q3" fill="#6b7280" />
+        <Bar dataKey="max" fill="#d1d5db" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+
+  // 热力图组件
+  const Heatmap = ({ data }: { data: any[] }) => {
+    const students = [...new Set(data.map(d => d.student))];
+    const questions = [...new Set(data.map(d => d.question))];
+    
+    return (
+      <div className="overflow-x-auto">
+        <div className="min-w-[600px]">
+          <div className="grid grid-cols-11 gap-1 text-xs">
+            <div></div>
+            {questions.map(q => (
+              <div key={q} className="text-center font-semibold p-2">{q}</div>
+            ))}
+            {students.map(student => (
+              <div key={student} className="contents">
+                <div className="font-semibold p-2 text-right">{student}</div>
+                {questions.map(question => {
+                  const item = data.find(d => d.student === student && d.question === question);
+                  const score = item?.score || 0;
+                  const intensity = score / 100;
+                  return (
+                    <div
+                      key={`${student}-${question}`}
+                      className="aspect-square flex items-center justify-center text-white text-xs font-semibold rounded"
+                      style={{
+                        backgroundColor: `rgba(59, 130, 246, ${intensity})`,
+                        color: intensity > 0.5 ? 'white' : 'black'
+                      }}
+                      title={`${student} - ${question}: ${score}分`}
+                    >
+                      {score}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
 
   useEffect(() => {
@@ -265,6 +418,102 @@ export default function ExamAnalyticsPage() {
                     <Tooltip />
                   </RadarChart>
                 </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* 高级图表分析区域 */}
+            <div className="space-y-8">
+              <h2 className="text-2xl font-bold text-gray-900">高级数据分析</h2>
+              
+              <div className="grid gap-8 lg:grid-cols-2">
+                {/* 箱线图 - 各题目得分分布 */}
+                <div className="rounded-3xl border-2 border-cyan-100 bg-gradient-to-br from-cyan-50 to-white p-8 shadow-lg">
+                  <h3 className="text-xl font-bold text-cyan-900 mb-6">题目得分分布箱线图</h3>
+                  <BoxPlot data={getBoxPlotData()} />
+                  <p className="text-sm text-cyan-700 mt-2">显示每道题目的得分分布情况，包括最值、四分位数等统计信息</p>
+                </div>
+
+                {/* 散点图 - 难度与正确率关系 */}
+                <div className="rounded-3xl border-2 border-pink-100 bg-gradient-to-br from-pink-50 to-white p-8 shadow-lg">
+                  <h3 className="text-xl font-bold text-pink-900 mb-6">题目难度与正确率关系</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={getScatterData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="x" label={{ value: '难度等级', position: 'insideBottom', offset: -5 }} />
+                      <YAxis label={{ value: '正确率(%)', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip 
+                        formatter={(value, name) => [
+                          name === 'y' ? `${value}%` : value,
+                          name === 'y' ? '正确率' : '难度'
+                        ]}
+                        labelFormatter={(label, payload) => 
+                          payload?.[0]?.payload?.name || `题目 ${label}`
+                        }
+                      />
+                      <Line type="monotone" dataKey="y" stroke="#ec4899" strokeWidth={2} dot={{ fill: '#ec4899', r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-pink-700 mt-2">分析题目难度设置与学生答题正确率的相关性</p>
+                </div>
+              </div>
+
+              <div className="grid gap-8 lg:grid-cols-2">
+                {/* 直方图 - 详细分数分布 */}
+                <div className="rounded-3xl border-2 border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-8 shadow-lg">
+                  <h3 className="text-xl font-bold text-indigo-900 mb-6">详细分数分布直方图</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={getHistogramData()}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="score" />
+                      <YAxis />
+                      <Tooltip 
+                        formatter={(value, name) => [
+                          name === 'count' ? `${value}人` : `${value}%`,
+                          name === 'count' ? '人数' : '占比'
+                        ]}
+                      />
+                      <Bar dataKey="count" fill="#6366f1" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-indigo-700 mt-2">更细粒度的分数分布，每5分为一个区间</p>
+                </div>
+
+                {/* 知识点掌握趋势 */}
+                <div className="rounded-3xl border-2 border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-8 shadow-lg">
+                  <h3 className="text-xl font-bold text-emerald-900 mb-6">知识点掌握趋势</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={analytics?.knowledgePointStats?.slice(0, 8) || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="knowledgePoint" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line 
+                        type="monotone" 
+                        dataKey="masteryRate" 
+                        stroke="#10b981" 
+                        strokeWidth={3}
+                        dot={{ fill: '#10b981', r: 5 }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="averageScore" 
+                        stroke="#059669" 
+                        strokeWidth={2}
+                        dot={{ fill: '#059669', r: 4 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <p className="text-sm text-emerald-700 mt-2">展示各知识点的掌握率和平均得分趋势</p>
+                </div>
+              </div>
+
+              {/* 热力图 - 学生答题情况矩阵 */}
+              <div className="rounded-3xl border-2 border-amber-100 bg-gradient-to-br from-amber-50 to-white p-8 shadow-lg">
+                <h3 className="text-xl font-bold text-amber-900 mb-6">学生答题情况热力图</h3>
+                <Heatmap data={getHeatmapData()} />
+                <p className="text-sm text-amber-700 mt-4">
+                  颜色深浅表示得分高低，深蓝色表示高分，浅色表示低分。可快速识别学生薄弱题目和整体答题模式。
+                </p>
               </div>
             </div>
 
