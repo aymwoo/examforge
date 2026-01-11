@@ -54,8 +54,12 @@ export default function Layout() {
       <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/" className="text-xl font-bold flex items-center gap-2">
-              <BookOpen className="h-6 w-6" />
+            <Link to="/" className="text-xl font-bold flex items-center gap-3">
+              <img 
+                src="/logo.png" 
+                alt="ExamForge Logo" 
+                className="h-8 w-8 object-contain"
+              />
               <div className="flex flex-col">
                 <span>ExamForge</span>
                 <span className="text-xs text-gray-500 font-normal">智考工坊</span>
