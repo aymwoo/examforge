@@ -1460,7 +1460,11 @@ ${studentAnswer}
         // 单选题：将选项标识转换为选项文本
         if (answer.length === 1 && /[A-Z]/.test(answer)) {
           const index = answer.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
-          return optionsArray[index] || answer;
+          const option = optionsArray[index];
+          if (option) {
+            // 如果选项是对象，提取content字段；如果是字符串，直接返回
+            return typeof option === 'object' ? option.content : option;
+          }
         }
         return answer;
       } else if (questionType === 'MULTIPLE_CHOICE') {
@@ -1469,8 +1473,10 @@ ${studentAnswer}
           const selectedOptions = [];
           for (let i = 0; i < answer.length; i++) {
             const index = answer.charCodeAt(i) - 65;
-            if (optionsArray[index]) {
-              selectedOptions.push(optionsArray[index]);
+            const option = optionsArray[index];
+            if (option) {
+              // 如果选项是对象，提取content字段；如果是字符串，直接添加
+              selectedOptions.push(typeof option === 'object' ? option.content : option);
             }
           }
           return selectedOptions;
