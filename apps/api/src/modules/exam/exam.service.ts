@@ -743,6 +743,7 @@ export class ExamService {
           score: submission.score,
           isAutoGraded: submission.isAutoGraded,
           submittedAt: submission.submittedAt,
+          answers: answers, // 添加原始答案数据
         }
       });
 
