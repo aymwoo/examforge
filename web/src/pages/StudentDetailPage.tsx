@@ -293,6 +293,19 @@ export default function StudentDetailPage() {
                           </div>
                         </div>
                       )}
+
+                      {!exam.submission && status.text === '进行中' && (
+                        <div className="mt-3 pt-3 border-t">
+                          <div className="flex justify-end">
+                            <Button
+                              onClick={() => navigate(`/exam/${exam.id}/take`)}
+                              className="text-sm"
+                            >
+                              参加考试
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
