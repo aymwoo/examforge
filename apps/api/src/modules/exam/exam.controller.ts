@@ -109,6 +109,7 @@ export class ExamController {
   }
 
   @Post(':id/copy')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Copy an exam' })
   @ApiParam({ name: 'id', description: 'Exam ID to copy' })
   @ApiResponse({ status: 201, description: 'Exam copied successfully' })
