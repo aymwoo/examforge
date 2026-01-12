@@ -543,7 +543,7 @@ export default function ExamStudentsPage() {
                     }`}
                   >
                     <div className="font-medium">{cls.name}</div>
-                    <div className="text-sm opacity-75">{cls.studentCount || 0}人</div>
+                    <div className="text-sm opacity-75">{cls._count?.students || 0}人</div>
                   </button>
                 ))}
               </div>
