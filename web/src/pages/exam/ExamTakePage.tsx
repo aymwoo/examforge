@@ -376,15 +376,8 @@ export default function ExamTakePage() {
               <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
                 {exam?.questions && Array.isArray(exam.questions) ? (
                   <div className="space-y-6">
-                    {/* 调试信息 */}
-                    <div className="bg-yellow-100 p-4 rounded border text-sm">
-                      <div>submissionResult: {JSON.stringify(submissionResult, null, 2)}</div>
-                    </div>
-                    
                     {exam.questions.map((question, index) => {
                       const answer = submissionResult?.answers?.[question.id];
-                      console.log(`题目 ${question.id} 的答案:`, answer);
-                      console.log(`gradingResults:`, submissionResult?.gradingResults);
                       return (
                         <div key={question.id} className="border border-gray-200 rounded-xl p-4">
                           <div className="flex justify-between items-center mb-4">

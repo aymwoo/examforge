@@ -583,10 +583,6 @@ export class ExamService {
   }
 
   async submitExam(examId: string, examStudentId: string, answers: Record<string, any>) {
-    console.log(`开始提交考试: examId=${examId}, examStudentId=${examStudentId}`);
-    console.log(`提交的答案:`, JSON.stringify(answers, null, 2));
-    console.log(`答案对象的keys:`, Object.keys(answers));
-    console.log(`答案对象的类型:`, typeof answers);
     
     // 检查是否已经有正式提交的记录
     const existingSubmission = await this.prisma.submission.findFirst({
@@ -747,6 +743,8 @@ export class ExamService {
           gradingResults: gradingResults, // 添加评分结果
         }
       });
+      
+      console.log('发送完成事件，包含gradingResults:', !!gradingResults);
 
     } catch (error) {
       console.error('异步提交失败:', error);
@@ -850,8 +848,6 @@ export class ExamService {
     answers: Record<string, any>,
     onProgress?: (progress: { current: number; total: number; message: string }) => void
   ) {
-    console.log(`开始自动评分: 考试ID=${exam.id}, 题目数量=${exam.examQuestions.length}`);
-    console.log(`考试题目类型分布:`, exam.examQuestions.map(eq => ({ id: eq.question.id, type: eq.question.type })));
     
     const details: Record<string, any> = {};
     let totalScore = 0;
@@ -872,26 +868,15 @@ export class ExamService {
         message: `正在评分第${currentQuestion}题 (${question.type})`
       });
 
-      console.log(`处理题目 ${currentQuestion}: 类型=${question.type}, ID=${question.id}`);
-      console.log(`从answers对象中获取的学生答案:`, studentAnswer);
-      console.log(`answers对象的所有keys:`, Object.keys(answers));
-      console.log(`当前题目ID是否在answers中:`, answers.hasOwnProperty(question.id));
-
       if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
-        // 客观题自动评分
-        console.log(`题目 ${question.id} 学生答案:`, studentAnswer, '类型:', typeof studentAnswer);
-        
-        // 将正确答案从选项标识转换为选项文本
         const correctAnswerText = this.convertAnswerToText(question.answer, question.options, question.type);
-        console.log(`转换后的正确答案:`, correctAnswerText);
-        
         const isCorrect = this.compareAnswers(studentAnswer, correctAnswerText, question.type);
         const score = isCorrect ? maxScore : 0;
         
         details[question.id] = {
           type: 'objective',
-          studentAnswer: studentAnswer !== undefined ? studentAnswer : '', // 确保显示实际答案
-          correctAnswer: correctAnswerText, // 使用转换后的文本答案
+          studentAnswer: studentAnswer !== undefined ? studentAnswer : '',
+          correctAnswer: correctAnswerText,
           isCorrect,
           score,
           maxScore,
@@ -1449,50 +1434,32 @@ ${studentAnswer}
   }
 
   private convertAnswerToText(answer: string | null, options: string | null, questionType: string): string | string[] {
-    console.log('convertAnswerToText 输入:', { answer, options, questionType });
-    
     if (!answer || !options) return answer || '';
     
     try {
-      // 解析选项
       const optionsArray = JSON.parse(options);
-      console.log('解析后的选项数组:', optionsArray);
-      
       if (!Array.isArray(optionsArray)) return answer;
       
       if (questionType === 'SINGLE_CHOICE') {
-        // 单选题：将选项标识转换为选项文本
         if (answer.length === 1 && /[A-Z]/.test(answer)) {
-          const index = answer.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+          const index = answer.charCodeAt(0) - 65;
           const option = optionsArray[index];
-          console.log(`单选题转换: ${answer} -> 索引${index} -> 选项:`, option);
-          
           if (option) {
-            // 如果选项是对象，提取content字段；如果是字符串，直接返回
-            const result = typeof option === 'object' ? option.content : option;
-            console.log('单选题转换结果:', result);
-            return result;
+            return typeof option === 'object' ? option.content : option;
           }
         }
         return answer;
       } else if (questionType === 'MULTIPLE_CHOICE') {
-        // 多选题：将选项标识字符串转换为选项文本数组
         if (/^[A-Z]+$/.test(answer)) {
-          console.log(`多选题转换: ${answer}`);
           const selectedOptions = [];
           for (let i = 0; i < answer.length; i++) {
             const index = answer.charCodeAt(i) - 65;
             const option = optionsArray[index];
-            console.log(`字母${answer[i]} -> 索引${index} -> 选项:`, option);
-            
             if (option) {
-              // 如果选项是对象，提取content字段；如果是字符串，直接添加
               const content = typeof option === 'object' ? option.content : option;
               selectedOptions.push(content);
-              console.log('添加到结果:', content);
             }
           }
-          console.log('多选题转换结果:', selectedOptions);
           return selectedOptions;
         }
         return answer;
@@ -1500,60 +1467,36 @@ ${studentAnswer}
       
       return answer;
     } catch (error) {
-      console.log('转换答案失败:', error);
       return answer || '';
     }
   }
 
-  private compareAnswers(studentAnswer: any, correctAnswer: string | string[], questionType: string): boolean {
-    console.log(`=== 答案比较 ===`);
-    console.log(`题目类型: ${questionType}`);
-    console.log(`学生答案:`, studentAnswer, `(类型: ${typeof studentAnswer})`);
-    console.log(`正确答案:`, correctAnswer, `(类型: ${typeof correctAnswer})`);
-    
-    if (!correctAnswer) {
-      console.log(`正确答案为空，返回false`);
-      return false;
-    }
+  private compareAnswers(studentAnswer: any, correctAnswer: any, questionType: string): boolean {
+    if (!correctAnswer) return false;
 
     if (questionType === 'SINGLE_CHOICE') {
-      // 单选题：处理对象格式的正确答案
       let correctText = correctAnswer;
-      if (typeof correctAnswer === 'object' && correctAnswer.content) {
+      if (typeof correctAnswer === 'object' && correctAnswer && correctAnswer.content) {
         correctText = correctAnswer.content;
       }
-      
-      const result = studentAnswer === correctText;
-      console.log(`单选题比较结果: ${result} (学生: ${studentAnswer} vs 正确: ${correctText})`);
-      return result;
+      return studentAnswer === correctText;
     } else if (questionType === 'MULTIPLE_CHOICE') {
       try {
-        // 多选题：处理对象数组格式的正确答案
         let correct = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
         
-        // 如果正确答案是对象数组，提取content字段
-        if (correct.length > 0 && typeof correct[0] === 'object' && correct[0].content) {
-          correct = correct.map(item => item.content);
-          console.log(`提取content后的正确答案:`, correct);
+        if (correct.length > 0 && typeof correct[0] === 'object' && correct[0] && correct[0].content) {
+          correct = correct.map((item: any) => item.content);
         }
         
         const student = Array.isArray(studentAnswer) ? studentAnswer : [studentAnswer];
-        console.log(`多选题解析 - 正确答案:`, correct, `学生答案:`, student);
-        
-        // 排序后比较
         const sortedCorrect = JSON.stringify(correct.sort());
         const sortedStudent = JSON.stringify(student.sort());
-        console.log(`排序后比较 - 正确:`, sortedCorrect, `学生:`, sortedStudent);
         
-        const result = sortedCorrect === sortedStudent;
-        console.log(`多选题比较结果: ${result}`);
-        return result;
+        return sortedCorrect === sortedStudent;
       } catch (error) {
-        console.log(`多选题解析失败:`, error);
         return false;
       }
     }
-    console.log(`未知题目类型，返回false`);
     return false;
   }
 

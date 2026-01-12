@@ -200,6 +200,28 @@ export default function ExamGradingPage() {
     }
   };
 
+  const formatAnswerDisplay = (answer: string | string[], question: any) => {
+    if (!question || !question.options) return answer;
+    
+    if (Array.isArray(answer)) {
+      // 多选题：将答案文本数组转换为选项标识数组
+      return answer.map(answerText => {
+        const index = question.options.findIndex((opt: any) => {
+          const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
+          return optionText === answerText;
+        });
+        return index >= 0 ? String.fromCharCode(65 + index) : answerText;
+      }).join(', ');
+    } else {
+      // 单选题：将答案文本转换为选项标识
+      const index = question.options.findIndex((opt: any) => {
+        const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
+        return optionText === answer;
+      });
+      return index >= 0 ? String.fromCharCode(65 + index) : answer;
+    }
+  };
+
   const handleScoreChange = (questionId: string, score: number) => {
     setManualScores(prev => ({
       ...prev,
@@ -517,7 +539,9 @@ export default function ExamGradingPage() {
                               {question.answer && (
                                 <div className="mt-3 pt-3 border-t border-gray-200">
                                   <p className="text-sm font-medium text-green-700 mb-1">参考答案:</p>
-                                  <p className="text-sm text-green-600">{question.answer}</p>
+                                  <p className="text-sm text-green-600">
+                                    {formatAnswerDisplay(question.answer, question)}
+                                  </p>
                                 </div>
                               )}
                             </div>
@@ -539,12 +563,14 @@ export default function ExamGradingPage() {
                                 <div className="text-ink-900">
                                   {question.type === 'MULTIPLE_CHOICE' && Array.isArray(studentAnswer) ? (
                                     <div className="space-y-1">
-                                      {studentAnswer.map((answer: string, idx: number) => (
+                                      {formatAnswerDisplay(studentAnswer, question).split(', ').map((answer: string, idx: number) => (
                                         <div key={idx} className="text-sm">• {answer}</div>
                                       ))}
                                     </div>
                                   ) : (
-                                    <div className="whitespace-pre-wrap">{studentAnswer}</div>
+                                    <div className="whitespace-pre-wrap">
+                                      {formatAnswerDisplay(studentAnswer, question)}
+                                    </div>
                                   )}
                                 </div>
                               ) : (
