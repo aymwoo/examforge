@@ -5,7 +5,7 @@ import Modal from "@/components/ui/Modal";
 import ExamLayout from "@/components/ExamLayout";
 import { getExamById, type Exam } from "@/services/exams";
 import { QuestionTypeLabels } from "@examforge/shared-types";
-import { CheckSquare, Square, GripVertical } from "lucide-react";
+import { CheckSquare, Square, GripVertical, ChevronDown, ChevronUp } from "lucide-react";
 import api from "@/services/api";
 import {
   DndContext,
@@ -28,7 +28,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 // 可拖拽的题型区块组件
-function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionSelect, setSelectedQuestion, setSelectedImage, setShowImageModal, navigate, hasImages, getImages, canEdit, handleBatchSetTypeScore, setBatchScoreType, setBatchScore, setShowBatchScoreModal }: any) {
+function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionSelect, setSelectedQuestion, setSelectedImage, setShowImageModal, navigate, hasImages, getImages, canEdit, handleBatchSetTypeScore, setBatchScoreType, setBatchScore, setShowBatchScoreModal, collapsedTypes, setCollapsedTypes }: any) {
   const {
     attributes,
     listeners,
@@ -42,6 +42,18 @@ function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionS
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  };
+
+  const isCollapsed = collapsedTypes.has(type);
+
+  const toggleCollapse = () => {
+    const newCollapsed = new Set(collapsedTypes);
+    if (isCollapsed) {
+      newCollapsed.delete(type);
+    } else {
+      newCollapsed.add(type);
+    }
+    setCollapsedTypes(newCollapsed);
   };
 
   return (
@@ -76,31 +88,43 @@ function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionS
         >
           批量设分
         </button>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleCollapse();
+          }}
+          className="ml-2 p-1 text-blue-600 hover:text-blue-800"
+        >
+          {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+        </button>
       </div>
-      <SortableContext items={questions.map((q: any) => q.id)} strategy={verticalListSortingStrategy}>
-        <div className="divide-y divide-gray-200">
-          {questions.map((examQuestion: any) => (
-            <SortableQuestion
-              key={examQuestion.id}
-              examQuestion={examQuestion}
-              isSelected={selectedQuestions.has(examQuestion.question.id)}
-              onSelect={handleQuestionSelect}
-              onDetailClick={setSelectedQuestion}
-              onImageClick={(question: any) => {
-                const images = getImages(question);
-                if (images.length > 0) {
-                  setSelectedImage(images[0]);
-                  setShowImageModal(true);
-                }
-              }}
-              onEditClick={(questionId: string) => navigate(`/questions/${questionId}/edit`)}
-              hasImages={hasImages}
-              getImages={getImages}
-              canEdit={canEdit}
-            />
-          ))}
-        </div>
-      </SortableContext>
+      {!isCollapsed && (
+        <SortableContext items={questions.map((q: any) => q.id)} strategy={verticalListSortingStrategy}>
+          <div className="divide-y divide-gray-200">
+            {questions.map((examQuestion: any) => (
+              <SortableQuestion
+                key={examQuestion.id}
+                examQuestion={examQuestion}
+                isSelected={selectedQuestions.has(examQuestion.question.id)}
+                onSelect={handleQuestionSelect}
+                onDetailClick={setSelectedQuestion}
+                onImageClick={(question: any) => {
+                  const images = getImages(question);
+                  if (images.length > 0) {
+                    setSelectedImage(images[0]);
+                    setShowImageModal(true);
+                  }
+                }}
+                onEditClick={(questionId: string) => navigate(`/questions/${questionId}/edit`)}
+                hasImages={hasImages}
+                getImages={getImages}
+                canEdit={canEdit}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      )}
     </div>
   );
 }
@@ -221,6 +245,7 @@ export default function ExamDetailPage() {
   const [typeOrder, setTypeOrder] = useState<string[]>([]);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [warningMessage, setWarningMessage] = useState("");
+  const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(new Set());
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -547,6 +572,8 @@ export default function ExamDetailPage() {
                         setBatchScoreType={setBatchScoreType}
                         setBatchScore={setBatchScore}
                         setShowBatchScoreModal={setShowBatchScoreModal}
+                        collapsedTypes={collapsedTypes}
+                        setCollapsedTypes={setCollapsedTypes}
                       />
                     );
                   })}
