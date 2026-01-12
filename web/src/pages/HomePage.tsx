@@ -46,6 +46,23 @@ export default function HomePage() {
     const token = localStorage.getItem('token');
     setIsLoggedIn(!!token);
     
+    // Check URL parameter for login
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('login') === 'true' && !token) {
+      setShowLoginModal(true);
+      // Clean up URL
+      window.history.replaceState({}, '', '/');
+    }
+    
+    // Listen for login modal event from navigation
+    const handleOpenLoginModal = () => {
+      if (!localStorage.getItem('token')) {
+        setShowLoginModal(true);
+      }
+    };
+    
+    window.addEventListener('openLoginModal', handleOpenLoginModal);
+    
     loadDashboardData();
     
     // 设置自动刷新，每30秒更新一次数据
@@ -53,7 +70,10 @@ export default function HomePage() {
       loadDashboardData();
     }, 30000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('openLoginModal', handleOpenLoginModal);
+    };
   }, []);
 
   const getTimeRemaining = (endTime: string) => {

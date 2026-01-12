@@ -193,12 +193,20 @@ export default function Layout() {
                 </>
               )}
               {!user && (
-                <Link
-                  to="/login"
+                <button
+                  onClick={() => {
+                    // 如果在首页，触发登录模态框
+                    if (window.location.pathname === '/') {
+                      window.dispatchEvent(new CustomEvent('openLoginModal'));
+                    } else {
+                      // 否则跳转到首页并打开登录模态框
+                      window.location.href = '/?login=true';
+                    }
+                  }}
                   className="flex items-center gap-2 hover:text-primary"
                 >
                   登录
-                </Link>
+                </button>
               )}
             </div>
           </div>
