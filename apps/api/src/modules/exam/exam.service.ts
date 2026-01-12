@@ -121,6 +121,14 @@ export class ExamService {
             },
             orderBy: { order: 'asc' },
           },
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              username: true,
+              role: true,
+            },
+          },
           _count: {
             select: { 
               submissions: true,
@@ -152,6 +160,14 @@ export class ExamService {
             question: true,
           },
           orderBy: { order: 'asc' },
+        },
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+            role: true,
+          },
         },
         _count: {
           select: { 

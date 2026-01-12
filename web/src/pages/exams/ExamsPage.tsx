@@ -193,6 +193,10 @@ export default function ExamsPage() {
                       </span>
                     </span>
                     <span className="flex items-center gap-1 text-ink-700">
+                      <span>创建者:</span>
+                      <span>{exam.creator?.name || exam.creator?.username || '未知'}</span>
+                    </span>
+                    <span className="flex items-center gap-1 text-ink-700">
                       <span>创建于:</span>
                       <span>{new Date(exam.createdAt).toLocaleDateString("zh-CN")}</span>
                     </span>
