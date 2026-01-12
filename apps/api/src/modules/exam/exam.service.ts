@@ -573,9 +573,13 @@ export class ExamService {
     console.log(`开始提交考试: examId=${examId}, examStudentId=${examStudentId}`);
     console.log(`提交的答案:`, JSON.stringify(answers, null, 2));
     
-    // 检查是否已经提交过
+    // 检查是否已经有正式提交的记录
     const existingSubmission = await this.prisma.submission.findFirst({
-      where: { examId, examStudentId },
+      where: { 
+        examId, 
+        examStudentId,
+        isAutoGraded: true // 只检查正式提交的记录
+      },
     });
 
     if (existingSubmission) {
@@ -604,23 +608,52 @@ export class ExamService {
       console.log(`评分进度: ${progress.current}/${progress.total} - ${progress.message}`);
     });
     
-    // 创建提交记录，包含详细评分信息
-    const submission = await this.prisma.submission.create({
-      data: {
-        examId,
+    // 检查是否有草稿记录，如果有则更新，否则创建新记录
+    const draftSubmission = await this.prisma.submission.findFirst({
+      where: { 
+        examId, 
         examStudentId,
-        answers: JSON.stringify(answers),
-        score: gradingResults.totalScore,
-        isAutoGraded: gradingResults.isFullyAutoGraded,
-        // 存储详细评分结果，确保可以安全序列化
-        gradingDetails: JSON.stringify({
-          details: gradingResults.details,
-          totalScore: gradingResults.totalScore,
-          maxTotalScore: gradingResults.maxTotalScore,
-          isFullyAutoGraded: gradingResults.isFullyAutoGraded,
-        }),
+        isAutoGraded: false // 草稿记录
       },
     });
+
+    let submission;
+    if (draftSubmission) {
+      // 更新草稿为正式提交
+      submission = await this.prisma.submission.update({
+        where: { id: draftSubmission.id },
+        data: {
+          answers: JSON.stringify(answers),
+          score: gradingResults.totalScore,
+          isAutoGraded: gradingResults.isFullyAutoGraded,
+          gradingDetails: JSON.stringify({
+            totalScore: gradingResults.totalScore,
+            maxTotalScore: gradingResults.maxTotalScore,
+            details: gradingResults.details,
+            isFullyAutoGraded: gradingResults.isFullyAutoGraded,
+          }),
+          submittedAt: new Date(),
+        },
+      });
+    } else {
+      // 创建新的提交记录
+      submission = await this.prisma.submission.create({
+        data: {
+          examId,
+          examStudentId,
+          answers: JSON.stringify(answers),
+          score: gradingResults.totalScore,
+          isAutoGraded: gradingResults.isFullyAutoGraded,
+          gradingDetails: JSON.stringify({
+            totalScore: gradingResults.totalScore,
+            maxTotalScore: gradingResults.maxTotalScore,
+            details: gradingResults.details,
+            isFullyAutoGraded: gradingResults.isFullyAutoGraded,
+          }),
+          submittedAt: new Date(),
+        },
+      });
+    }
 
     return {
       id: submission.id,
@@ -1109,23 +1142,56 @@ ${studentAnswer}
       throw new NotFoundException('考试不存在');
     }
 
-    // 检查是否已经提交过（只有正式提交才不允许保存）
+    // 检查考试时间
+    const now = new Date();
+    if (exam.endTime && now > exam.endTime) {
+      throw new ConflictException('考试已结束，不能保存答案');
+    }
+
+    // 检查是否已经有正式提交的记录
     const existingSubmission = await this.prisma.submission.findFirst({
-      where: { examId, examStudentId },
+      where: { 
+        examId, 
+        examStudentId,
+        isAutoGraded: true // 正式提交的记录会被标记为已评分
+      },
     });
 
     if (existingSubmission) {
       throw new ConflictException('考试已提交，不能再保存答案');
     }
 
-    // 检查考试时间
-    const now = new Date();
-    if (now > exam.endTime) {
-      throw new ConflictException('考试已结束，不能保存答案');
+    // 保存或更新草稿答案
+    const existingDraft = await this.prisma.submission.findFirst({
+      where: {
+        examId,
+        examStudentId,
+        isAutoGraded: false, // 草稿状态
+      },
+    });
+
+    if (existingDraft) {
+      // 更新现有草稿
+      await this.prisma.submission.update({
+        where: { id: existingDraft.id },
+        data: {
+          answers: JSON.stringify(answers),
+          submittedAt: new Date(),
+        },
+      });
+    } else {
+      // 创建新的草稿记录
+      await this.prisma.submission.create({
+        data: {
+          examId,
+          examStudentId,
+          answers: JSON.stringify(answers),
+          isAutoGraded: false, // 标记为草稿
+          isReviewed: false,
+        },
+      });
     }
 
-    // 这里可以实现临时保存逻辑，比如保存到缓存或临时表
-    // 暂时返回成功状态
     return { message: '答案保存成功', timestamp: new Date() };
   }
 
