@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Clock, Users, FileText, BookOpen, Award, ArrowLeft } from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
+import { isAuthenticated } from "@/utils/auth";
 
 interface StudentExam {
   id: string;
@@ -42,6 +43,12 @@ export default function StudentDetailPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!isAuthenticated()) {
+      setError('请先登录后再查看学生信息');
+      setLoading(false);
+      return;
+    }
+    
     if (id) {
       loadStudentData(id);
     }
@@ -109,10 +116,19 @@ export default function StudentDetailPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-lg mb-4">{error}</div>
-          <Button onClick={() => navigate(-1)} variant="outline">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            返回
-          </Button>
+          {error.includes('登录') ? (
+            <Button 
+              onClick={() => window.dispatchEvent(new CustomEvent('show401Login'))}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              立即登录
+            </Button>
+          ) : (
+            <Button onClick={() => navigate(-1)} variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              返回
+            </Button>
+          )}
         </div>
       </div>
     );
