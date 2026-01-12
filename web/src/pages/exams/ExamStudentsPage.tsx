@@ -43,7 +43,7 @@ export default function ExamStudentsPage() {
   const [importMode, setImportMode] = useState<'text' | 'file'>('text');
   const [showClassModal, setShowClassModal] = useState(false);
   const [classes, setClasses] = useState<any[]>([]);
-  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
   const [classStudents, setClassStudents] = useState<any[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 
@@ -52,6 +52,16 @@ export default function ExamStudentsPage() {
       loadData();
     }
   }, [id]);
+
+  // 当选中的班级改变时，重新加载学生
+  useEffect(() => {
+    if (selectedClasses.size > 0) {
+      loadClassStudents();
+    } else {
+      setClassStudents([]);
+      setSelectedStudents(new Set());
+    }
+  }, [selectedClasses]);
 
   const loadData = async () => {
     if (!id) return;
@@ -146,10 +156,26 @@ export default function ExamStudentsPage() {
     }
   };
 
-  const loadClassStudents = async (classId: string) => {
+  const loadClassStudents = async () => {
+    if (selectedClasses.size === 0) {
+      setClassStudents([]);
+      return;
+    }
+
     try {
-      const response = await api.get(`/api/classes/${classId}/students`);
-      setClassStudents(response.data || []);
+      const classIds = Array.from(selectedClasses);
+      const promises = classIds.map(classId => 
+        api.get(`/api/classes/${classId}/students`)
+      );
+      const responses = await Promise.all(promises);
+      
+      // 合并所有班级的学生，去重
+      const allStudents = responses.flatMap(response => response.data || []);
+      const uniqueStudents = allStudents.filter((student, index, self) => 
+        index === self.findIndex(s => s.id === student.id)
+      );
+      
+      setClassStudents(uniqueStudents);
     } catch (err) {
       console.error('加载班级学生失败:', err);
     }
@@ -161,13 +187,25 @@ export default function ExamStudentsPage() {
     setImporting(true);
     try {
       const studentIds = Array.from(selectedStudents);
-      await api.post(`/api/exams/${id}/students/import-from-class`, {
-        classId: selectedClass,
-        studentIds
-      });
+      const classIds = Array.from(selectedClasses);
+      
+      // 为每个班级分别导入选中的学生
+      for (const classId of classIds) {
+        const classStudentIds = classStudents
+          .filter(s => selectedStudents.has(s.id))
+          .filter(s => s.classId === classId)
+          .map(s => s.id);
+          
+        if (classStudentIds.length > 0) {
+          await api.post(`/api/exams/${id}/students/import-from-class`, {
+            classId,
+            studentIds: classStudentIds
+          });
+        }
+      }
 
       setShowClassModal(false);
-      setSelectedClass("");
+      setSelectedClasses(new Set());
       setClassStudents([]);
       setSelectedStudents(new Set());
       loadData();
@@ -463,7 +501,7 @@ export default function ExamStudentsPage() {
           isOpen={showClassModal}
           onClose={() => {
             setShowClassModal(false);
-            setSelectedClass("");
+            setSelectedClasses(new Set());
             setClassStudents([]);
             setSelectedStudents(new Set());
           }}
@@ -475,34 +513,42 @@ export default function ExamStudentsPage() {
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                <strong>说明：</strong>从现有班级导入固定学生账号到考试中。
+                <strong>说明：</strong>从您创建的班级中导入固定学生账号到考试中。
               </p>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                选择班级
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                选择班级 ({selectedClasses.size}个已选择)
               </label>
-              <select
-                value={selectedClass}
-                onChange={(e) => {
-                  setSelectedClass(e.target.value);
-                  if (e.target.value) {
-                    loadClassStudents(e.target.value);
-                  } else {
-                    setClassStudents([]);
-                  }
-                  setSelectedStudents(new Set());
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="">请选择班级</option>
+              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
                 {classes.map((cls) => (
-                  <option key={cls.id} value={cls.id}>
-                    {cls.name} ({cls.studentCount || 0}人)
-                  </option>
+                  <button
+                    key={cls.id}
+                    onClick={() => {
+                      const newSelected = new Set(selectedClasses);
+                      if (newSelected.has(cls.id)) {
+                        newSelected.delete(cls.id);
+                      } else {
+                        newSelected.add(cls.id);
+                      }
+                      setSelectedClasses(newSelected);
+                      setSelectedStudents(new Set());
+                    }}
+                    className={`p-3 rounded-lg border text-left transition-colors ${
+                      selectedClasses.has(cls.id)
+                        ? 'bg-indigo-500 text-white border-indigo-500'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="font-medium">{cls.name}</div>
+                    <div className="text-sm opacity-75">{cls.studentCount || 0}人</div>
+                  </button>
                 ))}
-              </select>
+              </div>
+              {classes.length === 0 && (
+                <p className="text-gray-500 text-center py-4">暂无可用班级</p>
+              )}
             </div>
 
             {classStudents.length > 0 && (
