@@ -206,7 +206,7 @@ export class ExamService {
         duration: originalExam.duration,
         totalScore: originalExam.totalScore,
         status: 'DRAFT', // 新考试默认为草稿状态
-        accountModes: originalExam.accountModes, // 已经是JSON字符串格式
+        accountModes: JSON.stringify(originalExam.accountModes), // 转换数组为JSON字符串
         createdBy: userId, // 设置为当前用户
       }
     });
