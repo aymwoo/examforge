@@ -80,6 +80,14 @@ export class ClassController {
     return this.classService.remove(id, req.user.id, req.user.role);
   }
 
+  @Get(':id/students')
+  @Roles('TEACHER', 'ADMIN')
+  @ApiOperation({ summary: '获取班级学生列表' })
+  @ApiResponse({ status: 200, description: '获取成功' })
+  getStudents(@Param('id') id: string, @Request() req) {
+    return this.classService.getStudents(id, req.user.id, req.user.role);
+  }
+
   @Post(':id/students')
   @Roles('TEACHER', 'ADMIN')
   @ApiOperation({ summary: '添加学生到班级' })

@@ -304,4 +304,21 @@ export class ClassService {
       data: updateData
     });
   }
+
+  async getStudents(classId: string, userId: string, userRole: string) {
+    // 检查权限
+    if (userRole !== 'ADMIN') {
+      const classItem = await this.prisma.class.findFirst({
+        where: { id: classId, createdBy: userId }
+      });
+      if (!classItem) {
+        throw new ForbiddenException('无权访问此班级');
+      }
+    }
+
+    return this.prisma.student.findMany({
+      where: { classId },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
 }
