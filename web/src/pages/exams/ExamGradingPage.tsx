@@ -561,7 +561,11 @@ export default function ExamGradingPage() {
                                 <div className="mt-3 pt-3 border-t border-gray-200">
                                   <p className="text-sm font-medium text-green-700 mb-1">参考答案:</p>
                                   <p className="text-sm text-green-600">
-                                    {convertAnswerToText(question.answer, question)}
+                                    {(() => {
+                                      const converted = convertAnswerToText(question.answer, question);
+                                      console.log('转换参考答案:', question.answer, '->', converted, '选项:', question.options);
+                                      return converted;
+                                    })()}
                                   </p>
                                 </div>
                               )}

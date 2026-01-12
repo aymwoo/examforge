@@ -50,6 +50,40 @@ export default function ExamGradingPage() {
     return typeMap[type] || type;
   };
 
+  // 将选项标识转换为选项文本
+  const convertAnswerToText = (answer: string | null, question: any) => {
+    if (!answer || !question || !question.options) return answer || '';
+    
+    try {
+      const options = Array.isArray(question.options) ? question.options : JSON.parse(question.options);
+      
+      // 如果答案是选项标识（如"B"或"BCD"），转换为选项文本
+      if (/^[A-Z]+$/.test(answer)) {
+        if (answer.length === 1) {
+          // 单选题
+          const index = answer.charCodeAt(0) - 65;
+          const option = options[index];
+          return typeof option === 'object' ? option.content : option;
+        } else {
+          // 多选题
+          const selectedOptions = [];
+          for (let i = 0; i < answer.length; i++) {
+            const index = answer.charCodeAt(i) - 65;
+            const option = options[index];
+            if (option) {
+              selectedOptions.push(typeof option === 'object' ? option.content : option);
+            }
+          }
+          return selectedOptions.join(', ');
+        }
+      }
+      
+      return answer;
+    } catch (error) {
+      return answer || '';
+    }
+  };
+
   const loadExamAndSubmissions = async () => {
     if (!examId) return;
     
@@ -223,7 +257,7 @@ export default function ExamGradingPage() {
 
                         {question.answer && (
                           <div style={{ backgroundColor: '#d4edda', padding: '10px', margin: '10px 0', borderRadius: '3px' }}>
-                            <strong>参考答案:</strong> {question.answer}
+                            <strong>参考答案:</strong> {convertAnswerToText(question.answer, question)}
                           </div>
                         )}
 
