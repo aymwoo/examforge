@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateExamDto } from './dto/create-exam.dto';
@@ -1208,6 +1209,83 @@ ${studentAnswer}
   }
 
   // 评分相关方法
+  async getSubmissionDetails(examId: string, submissionId: string, currentUser: any) {
+    const submission = await this.prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        exam: {
+          include: {
+            examQuestions: {
+              include: {
+                question: true
+              }
+            }
+          }
+        },
+        examStudent: {
+          include: {
+            student: true
+          }
+        }
+      }
+    });
+
+    if (!submission || submission.examId !== examId) {
+      throw new NotFoundException('提交记录不存在');
+    }
+
+    // 权限检查：只有管理员、教师（自己的考试）、学生本人可以查看
+    if (currentUser.role !== 'ADMIN') {
+      if (currentUser.role === 'TEACHER') {
+        if (submission.exam.createdBy !== currentUser.sub) {
+          throw new ForbiddenException('您只能查看自己创建的考试的提交记录');
+        }
+      } else if (currentUser.role === 'STUDENT' || currentUser.isStudent) {
+        // 检查是否是学生本人的提交
+        const isOwnSubmission = submission.examStudent.studentId === currentUser.sub || 
+                               submission.examStudent.student?.studentId === currentUser.username;
+        if (!isOwnSubmission) {
+          throw new ForbiddenException('您只能查看自己的提交记录');
+        }
+      } else {
+        throw new ForbiddenException('您没有权限查看此提交记录');
+      }
+    }
+
+    // 解析评分详情
+    let gradingDetails = null;
+    if (submission.gradingDetails) {
+      try {
+        gradingDetails = typeof submission.gradingDetails === 'string' 
+          ? JSON.parse(submission.gradingDetails) 
+          : submission.gradingDetails;
+      } catch (error) {
+        console.error('解析评分详情失败:', error);
+      }
+    }
+
+    return {
+      id: submission.id,
+      examId: submission.examId,
+      score: submission.score,
+      submittedAt: submission.submittedAt,
+      isAutoGraded: submission.isAutoGraded,
+      answers: submission.answers,
+      gradingDetails,
+      exam: {
+        id: submission.exam.id,
+        title: submission.exam.title,
+        totalScore: submission.exam.totalScore,
+        questions: submission.exam.examQuestions.map(eq => ({
+          id: eq.question.id,
+          content: eq.question.content,
+          type: eq.question.type,
+          score: eq.score
+        }))
+      }
+    };
+  }
+
   async getExamSubmissions(examId: string) {
     const submissions = await this.prisma.submission.findMany({
       where: { examId },

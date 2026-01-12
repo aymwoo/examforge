@@ -10,7 +10,7 @@ export default function GlobalLoginModal() {
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const addPendingRequestRef = useRef<typeof addPendingRequest>();
+  const addPendingRequestRef = useRef<typeof addPendingRequest | undefined>();
 
   // 更新 ref 当函数改变时
   useEffect(() => {
@@ -24,7 +24,9 @@ export default function GlobalLoginModal() {
 
     const handleAdd401Request = (event: CustomEvent) => {
       const { config, resolve, reject } = event.detail;
-      addPendingRequestRef.current({ config, resolve, reject });
+      if (addPendingRequestRef.current) {
+        addPendingRequestRef.current({ config, resolve, reject });
+      }
     };
 
     window.addEventListener('show401Login', handleShow401Login);

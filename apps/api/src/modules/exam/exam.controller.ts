@@ -342,6 +342,19 @@ export class ExamController {
     return this.examService.getExamSubmissions(examId);
   }
 
+  @Get(':id/submissions/:submissionId')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get submission details' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiParam({ name: 'submissionId', description: 'Submission ID' })
+  getSubmissionDetails(
+    @Param('id') examId: string,
+    @Param('submissionId') submissionId: string,
+    @Request() req: any
+  ) {
+    return this.examService.getSubmissionDetails(examId, submissionId, req.user);
+  }
+
   @Post(':id/submissions/:submissionId/grade')
   @ApiOperation({ summary: 'Grade a submission' })
   @ApiParam({ name: 'id', description: 'Exam ID' })

@@ -41,6 +41,8 @@ export default function StudentDetailPage() {
   const [exams, setExams] = useState<StudentExam[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -104,6 +106,17 @@ export default function StudentDetailPage() {
     return { text: '进行中', color: 'text-orange-600 bg-orange-50' };
   };
 
+  const handleViewSubmission = async (examId: string, submissionId: string) => {
+    try {
+      const response = await api.get(`/api/exams/${examId}/submissions/${submissionId}`);
+      setSelectedSubmission(response.data);
+      setShowSubmissionModal(true);
+    } catch (err: any) {
+      console.error('获取提交详情失败:', err);
+      setError('获取提交详情失败');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('zh-CN');
   };
@@ -158,30 +171,6 @@ export default function StudentDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <Button 
-                onClick={() => navigate(-1)} 
-                variant="outline" 
-                className="mr-4"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                返回
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">学生详情</h1>
-                <p className="text-gray-600">{studentInfo.name} 的考试记录</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500">学号</p>
-              <p className="font-medium">{studentInfo.studentId}</p>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 学生基本信息 */}
@@ -290,9 +279,18 @@ export default function StudentDetailPage() {
 
                       {exam.submission && (
                         <div className="mt-3 pt-3 border-t">
-                          <p className="text-sm text-gray-500">
-                            提交时间: {formatDate(exam.submission.submittedAt)}
-                          </p>
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-gray-500">
+                              提交时间: {formatDate(exam.submission.submittedAt)}
+                            </p>
+                            <Button
+                              onClick={() => handleViewSubmission(exam.id, exam.submission!.id)}
+                              variant="outline"
+                              className="text-sm"
+                            >
+                              查看详情
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -303,6 +301,139 @@ export default function StudentDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* 提交详情模态框 */}
+      {showSubmissionModal && selectedSubmission && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto w-full">
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">提交详情</h2>
+                <button
+                  onClick={() => setShowSubmissionModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* 基本信息 */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">基本信息</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">总得分</p>
+                    <p className="font-medium text-lg text-green-600">
+                      {selectedSubmission.score} / {selectedSubmission.exam?.totalScore || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">提交时间</p>
+                    <p className="font-medium">{formatDate(selectedSubmission.submittedAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">评分状态</p>
+                    <p className="font-medium">
+                      {selectedSubmission.isAutoGraded ? 'AI自动评分' : '待人工评分'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI评分详情 */}
+              {selectedSubmission.gradingDetails && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold mb-3">AI评分报告</h3>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-4">
+                      <div>
+                        <p className="text-gray-500">AI评分总分</p>
+                        <p className="font-medium text-blue-600">
+                          {selectedSubmission.gradingDetails.totalScore} / {selectedSubmission.gradingDetails.maxTotalScore}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-500">评分完整性</p>
+                        <p className="font-medium">
+                          {selectedSubmission.gradingDetails.isFullyAutoGraded ? '完全自动评分' : '部分需人工确认'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 题目详情 */}
+              {selectedSubmission.gradingDetails?.details && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">题目评分详情</h3>
+                  <div className="space-y-4">
+                    {Object.entries(selectedSubmission.gradingDetails.details).map(([questionId, detail]: [string, any], index) => (
+                      <div key={questionId} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium">第 {index + 1} 题</h4>
+                          <span className="text-sm bg-gray-100 px-2 py-1 rounded">
+                            {detail.score} / {detail.maxScore} 分
+                          </span>
+                        </div>
+
+                        <div className="space-y-3 text-sm">
+                          <div>
+                            <p className="font-medium text-gray-700">学生答案：</p>
+                            <div className="bg-gray-50 p-3 rounded mt-1">
+                              {detail.studentAnswer || '未作答'}
+                            </div>
+                          </div>
+
+                          {detail.type === 'objective' && (
+                            <div>
+                              <p className="font-medium text-gray-700">正确答案：</p>
+                              <div className="bg-green-50 p-3 rounded mt-1">
+                                {detail.correctAnswer}
+                              </div>
+                              <p className={`mt-2 ${detail.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                                {detail.feedback}
+                              </p>
+                            </div>
+                          )}
+
+                          {detail.type === 'subjective' && detail.aiGrading && (
+                            <div className="bg-blue-50 p-3 rounded">
+                              <p className="font-medium text-blue-800">AI评价：</p>
+                              <p className="text-blue-700 mt-1">{detail.aiGrading.reasoning}</p>
+                              {detail.aiGrading.suggestions && (
+                                <div className="mt-2">
+                                  <p className="font-medium text-blue-800">改进建议：</p>
+                                  <p className="text-blue-600">{detail.aiGrading.suggestions}</p>
+                                </div>
+                              )}
+                              <div className="mt-2 text-xs text-blue-600">
+                                置信度: {Math.round((detail.aiGrading.confidence || 0) * 100)}%
+                                {detail.needsReview && <span className="ml-2 text-orange-600">需要人工复审</span>}
+                              </div>
+                            </div>
+                          )}
+
+                          {detail.referenceAnswer && (
+                            <div>
+                              <p className="font-medium text-gray-700">参考答案：</p>
+                              <div className="bg-green-50 p-3 rounded mt-1">
+                                {detail.referenceAnswer}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

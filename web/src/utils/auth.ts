@@ -29,7 +29,7 @@ export const logout = (): void => {
   window.location.href = '/';
 };
 
-export const hasRole = (requiredRole: string): boolean => {
+export const hasRole = (requiredRole: 'ADMIN' | 'TEACHER' | 'STUDENT'): boolean => {
   const user = getCurrentUser();
   if (!user) return false;
   
