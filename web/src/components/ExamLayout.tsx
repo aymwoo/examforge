@@ -299,11 +299,11 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
                   <span>总分: {exam.totalScore} 分</span>
                   <span>题目数: {exam.examQuestions?.length || 0}</span>
                 </div>
-                {exam.accountModes && exam.accountModes.length > 0 && (
+                {exam.accountModes && Array.isArray(exam.accountModes) && exam.accountModes.length > 0 && (
                   <div className="mt-3">
                     <span className="text-sm text-blue-600 mr-2">登录模式:</span>
                     <div className="inline-flex flex-wrap gap-2">
-                      {exam.accountModes.map((mode: string) => (
+                      {(Array.isArray(exam.accountModes) ? exam.accountModes : []).map((mode: string) => (
                         <span key={mode} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
                           {mode === 'PERMANENT' ? '固定学生' :
                            mode === 'TEMPORARY_IMPORT' ? '临时导入' :
