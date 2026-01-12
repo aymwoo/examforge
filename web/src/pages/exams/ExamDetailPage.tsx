@@ -59,12 +59,15 @@ function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionS
           </span>
           <button
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               setBatchScoreType(type);
               setBatchScore(10);
               setShowBatchScoreModal(true);
             }}
-            className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+            onMouseDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 z-10 relative"
           >
             批量设分
           </button>
