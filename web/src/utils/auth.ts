@@ -26,6 +26,9 @@ export const isAuthenticated = (): boolean => {
 export const logout = (): void => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  // 清除考试登录信息
+  localStorage.removeItem('examToken');
+  localStorage.removeItem('examStudent');
   window.location.href = '/';
 };
 

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
 import Layout from "./components/common/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import QuestionsPage from "./pages/questions/QuestionsPage";
@@ -30,6 +31,32 @@ import StudentDashboard from "./pages/StudentDashboard";
 import StudentDetailPage from "./pages/StudentDetailPage";
 
 function App() {
+  useEffect(() => {
+    // 监听浏览器关闭事件
+    const handleBeforeUnload = () => {
+      // 清除考试登录信息
+      localStorage.removeItem('examToken');
+      localStorage.removeItem('examStudent');
+    };
+
+    // 监听localStorage变化（其他标签页登录/登出）
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token' || e.key === 'user') {
+        // 如果主登录信息发生变化，清除考试登录信息
+        localStorage.removeItem('examToken');
+        localStorage.removeItem('examStudent');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>
