@@ -63,8 +63,8 @@ export default function StudentDetailPage() {
 
       // 获取学生信息和考试记录
       const [studentResponse, examsResponse] = await Promise.all([
-        api.get(`/api/students/by-id/${studentId}`),
-        api.get(`/api/students/by-id/${studentId}/exams`)
+        api.get(`/api/students/detail/${studentId}`),
+        api.get(`/api/students/detail/${studentId}/exams`)
       ]);
 
       setStudentInfo(studentResponse.data);

@@ -8,12 +8,6 @@ import { StudentService } from './student.service';
 export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
-  @Get('test')
-  @ApiOperation({ summary: 'Test endpoint' })
-  async test() {
-    return { message: 'Student controller is working' };
-  }
-
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -30,7 +24,7 @@ export class StudentController {
     return this.studentService.getExamHistory(req.user.sub, req.user.isStudent);
   }
 
-  @Get('by-id/:studentId')
+  @Get('detail/:studentId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get student by student ID' })
@@ -38,7 +32,7 @@ export class StudentController {
     return this.studentService.getStudentByStudentId(studentId, req.user);
   }
 
-  @Get('by-id/:studentId/exams')
+  @Get('detail/:studentId/exams')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get student exam history by student ID' })
