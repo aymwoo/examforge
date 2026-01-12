@@ -222,7 +222,7 @@ export default function ExamStudentsPage() {
     
     const groups = {
       PERMANENT: examStudents.filter(s => s.accountType === 'PERMANENT'),
-      TEMPORARY_IMPORT: examStudents.filter(s => s.accountType === 'TEMPORARY_IMPORT'),
+      TEMPORARY_IMPORT: examStudents.filter(s => s.accountType === 'TEMPORARY_IMPORT' || s.accountType === 'TEMPORARY'),
       TEMPORARY_REGISTER: examStudents.filter(s => s.accountType === 'TEMPORARY_REGISTER'),
     };
     
