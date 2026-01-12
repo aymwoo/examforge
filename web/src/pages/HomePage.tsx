@@ -24,7 +24,6 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -42,12 +41,9 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token);
-    
     // Check URL parameter for login
     const urlParams = new URLSearchParams(window.location.search);
+    const token = localStorage.getItem('token');
     if (urlParams.get('login') === 'true' && !token) {
       setShowLoginModal(true);
       // Clean up URL
@@ -101,7 +97,6 @@ export default function HomePage() {
       const response = await authService.login(loginForm);
       localStorage.setItem('token', response.access_token);
       localStorage.setItem('user', JSON.stringify(response.user));
-      setIsLoggedIn(true);
       setShowLoginModal(false);
       setLoginForm({ username: '', password: '' });
       // Reload dashboard data for logged in user

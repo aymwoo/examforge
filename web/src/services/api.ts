@@ -37,9 +37,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Don't redirect to /auth if we're on an exam login page
+      // Don't redirect to /auth if we're on an exam login page or homepage login
       const currentPath = window.location.pathname;
       if (!currentPath.includes('/exam/') || !currentPath.includes('/login')) {
+        // Don't redirect if this is a login request from homepage modal
+        if (error.config?.url?.includes('/auth/login') && currentPath === '/') {
+          // Let the component handle the login error
+          return Promise.reject(error);
+        }
         localStorage.removeItem("token");
         window.location.href = "/auth";
       }
