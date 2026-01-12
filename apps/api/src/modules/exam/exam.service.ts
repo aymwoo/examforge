@@ -1442,19 +1442,39 @@ ${studentAnswer}
   }
 
   private compareAnswers(studentAnswer: any, correctAnswer: string | null, questionType: string): boolean {
-    if (!correctAnswer) return false;
+    console.log(`=== 答案比较 ===`);
+    console.log(`题目类型: ${questionType}`);
+    console.log(`学生答案:`, studentAnswer, `(类型: ${typeof studentAnswer})`);
+    console.log(`正确答案:`, correctAnswer, `(类型: ${typeof correctAnswer})`);
+    
+    if (!correctAnswer) {
+      console.log(`正确答案为空，返回false`);
+      return false;
+    }
 
     if (questionType === 'SINGLE_CHOICE') {
-      return studentAnswer === correctAnswer;
+      const result = studentAnswer === correctAnswer;
+      console.log(`单选题比较结果: ${result}`);
+      return result;
     } else if (questionType === 'MULTIPLE_CHOICE') {
       try {
         const correct = JSON.parse(correctAnswer);
         const student = Array.isArray(studentAnswer) ? studentAnswer : [];
-        return JSON.stringify(student.sort()) === JSON.stringify(correct.sort());
-      } catch {
+        console.log(`多选题解析 - 正确答案:`, correct, `学生答案:`, student);
+        
+        const sortedCorrect = JSON.stringify(correct.sort());
+        const sortedStudent = JSON.stringify(student.sort());
+        console.log(`排序后比较 - 正确:`, sortedCorrect, `学生:`, sortedStudent);
+        
+        const result = sortedCorrect === sortedStudent;
+        console.log(`多选题比较结果: ${result}`);
+        return result;
+      } catch (error) {
+        console.log(`多选题解析失败:`, error);
         return false;
       }
     }
+    console.log(`未知题目类型，返回false`);
     return false;
   }
 
