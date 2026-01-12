@@ -47,33 +47,35 @@ function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionS
   return (
     <div ref={setNodeRef} style={style} className="bg-white rounded-xl border border-blue-200 overflow-hidden">
       <div 
-        {...attributes}
-        {...listeners}
-        className="bg-blue-50 px-6 py-3 border-b border-blue-200 cursor-move hover:bg-blue-100 transition-colors"
+        className="bg-blue-50 px-6 py-3 border-b border-blue-200 flex items-center justify-between"
       >
-        <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+        <div 
+          {...attributes}
+          {...listeners}
+          className="cursor-move hover:bg-blue-100 transition-colors flex items-center gap-2 flex-1 py-2 -my-2"
+        >
           <GripVertical className="w-4 h-4" />
-          {QuestionTypeLabels[type as keyof typeof QuestionTypeLabels] || type} ({questions.length} 题)
-          <span className="ml-auto text-sm font-normal">
-            总分: {questions.reduce((sum: number, q: any) => sum + q.score, 0)} 分
-          </span>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              console.log('批量设分按钮被点击', type);
-              setBatchScoreType(type);
-              setBatchScore(10);
-              setShowBatchScoreModal(true);
-              console.log('模态框状态已设置为true');
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-            className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 z-10 relative"
-          >
-            批量设分
-          </button>
-        </h3>
+          <h3 className="font-semibold text-blue-900">
+            {QuestionTypeLabels[type as keyof typeof QuestionTypeLabels] || type} ({questions.length} 题)
+            <span className="ml-4 text-sm font-normal">
+              总分: {questions.reduce((sum: number, q: any) => sum + q.score, 0)} 分
+            </span>
+          </h3>
+        </div>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('批量设分按钮被点击', type);
+            setBatchScoreType(type);
+            setBatchScore(10);
+            setShowBatchScoreModal(true);
+            console.log('模态框状态已设置为true');
+          }}
+          className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+        >
+          批量设分
+        </button>
       </div>
       <SortableContext items={questions.map((q: any) => q.id)} strategy={verticalListSortingStrategy}>
         <div className="divide-y divide-gray-200">
