@@ -870,12 +870,14 @@ export class ExamService {
 
       if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
         // 客观题自动评分
+        console.log(`题目 ${question.id} 学生答案:`, studentAnswer, '类型:', typeof studentAnswer);
+        
         const isCorrect = this.compareAnswers(studentAnswer, question.answer, question.type);
         const score = isCorrect ? maxScore : 0;
         
         details[question.id] = {
           type: 'objective',
-          studentAnswer,
+          studentAnswer: studentAnswer || '', // 确保不是 undefined
           correctAnswer: question.answer,
           isCorrect,
           score,
@@ -904,7 +906,7 @@ export class ExamService {
         
         details[question.id] = {
           type: 'subjective',
-          studentAnswer,
+          studentAnswer: studentAnswer || '', // 确保不是 undefined
           referenceAnswer: question.answer,
           aiGrading: aiResult,
           score: aiResult.suggestedScore,

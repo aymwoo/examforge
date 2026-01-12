@@ -290,7 +290,7 @@ export default function ExamLoginPage() {
                 />
                 {registerForm.studentName && (
                   <p className="mt-1 text-xs text-ink-600">
-                    用户名将自动生成为：{exam.title.substring(0, 2)}_{registerForm.studentName}
+                    如果不在名册中，用户名将自动生成为：{exam.title.substring(0, 2)}_{registerForm.studentName}
                   </p>
                 )}
               </div>
