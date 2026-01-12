@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { LoginDto, RegisterDto } from './dto/login.dto';
+import { PrismaService } from '../../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -9,10 +10,36 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async login(loginDto: LoginDto) {
-    const user = await this.userService.findByUsername(loginDto.username);
+    // 首先尝试查找用户表
+    let user = await this.userService.findByUsername(loginDto.username);
+    let isStudent = false;
+
+    // 如果用户表中没找到，尝试查找学生表（使用学号作为用户名）
+    if (!user) {
+      const student = await this.prisma.student.findUnique({
+        where: { studentId: loginDto.username },
+      });
+
+      if (student) {
+        // 将学生信息转换为用户格式
+        user = {
+          id: student.id,
+          username: student.studentId,
+          name: student.name,
+          password: student.password,
+          role: 'STUDENT',
+          email: null,
+          isActive: true,
+          createdAt: student.createdAt,
+          updatedAt: student.updatedAt,
+        } as any;
+        isStudent = true;
+      }
+    }
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException('用户名或密码错误');
@@ -27,6 +54,7 @@ export class AuthService {
       sub: user.id,
       username: user.username,
       role: user.role,
+      isStudent,
     };
 
     const token = this.jwtService.sign(payload);
