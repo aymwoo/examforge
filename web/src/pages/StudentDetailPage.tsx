@@ -222,7 +222,7 @@ export default function StudentDetailPage() {
               <div className="text-center py-12">
                 <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">暂无考试记录</h3>
-                <p className="text-gray-500">该学生还没有参加过任何考试</p>
+                <p className="text-gray-500">暂无相关考试</p>
               </div>
             ) : (
               <div className="space-y-4">
