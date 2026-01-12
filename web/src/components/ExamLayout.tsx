@@ -305,7 +305,9 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
                     <div className="inline-flex flex-wrap gap-2">
                       {exam.accountModes.map((mode: string) => (
                         <span key={mode} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                          {mode === 'TEMPORARY_IMPORT' ? '临时导入' :
+                          {mode === 'PERMANENT' ? '固定学生' :
+                           mode === 'TEMPORARY_IMPORT' ? '临时导入' :
+                           mode === 'TEMPORARY_REGISTER' ? '临时注册' :
                            mode === 'CLASS_IMPORT' ? '班级导入' :
                            mode === 'GENERATE_ACCOUNTS' ? '生成账号' : mode}
                         </span>
