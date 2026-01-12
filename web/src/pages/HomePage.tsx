@@ -108,6 +108,7 @@ export default function HomePage() {
       loadDashboardData();
     } catch (err: any) {
       setLoginError(err.response?.data?.message || '登录失败');
+      // 登录失败时不关闭模态框，只显示错误信息
     } finally {
       setLoginLoading(false);
     }
@@ -135,24 +136,6 @@ export default function HomePage() {
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* 登录提示 */}
-        {!isLoggedIn && (
-          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-medium text-blue-900">欢迎使用 ExamForge</h3>
-                <p className="text-blue-700">登录后可以创建和管理考试</p>
-              </div>
-              <Button 
-                onClick={() => setShowLoginModal(true)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                登录
-              </Button>
-            </div>
-          </div>
-        )}
-
         {/* 统计卡片 */}
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           {/* 正在进行 - 脉冲动画 */}
