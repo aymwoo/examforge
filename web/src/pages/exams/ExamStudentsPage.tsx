@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Upload, FileText } from "lucide-react";
+import { Upload, FileText, Users } from "lucide-react";
 import ExamLayout from "@/components/ExamLayout";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -41,6 +41,11 @@ export default function ExamStudentsPage() {
   const [importing, setImporting] = useState(false);
   const [customPassword, setCustomPassword] = useState("");
   const [importMode, setImportMode] = useState<'text' | 'file'>('text');
+  const [showClassModal, setShowClassModal] = useState(false);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [selectedClass, setSelectedClass] = useState<string>("");
+  const [classStudents, setClassStudents] = useState<any[]>([]);
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (id) {
@@ -132,6 +137,47 @@ export default function ExamStudentsPage() {
     }
   };
 
+  const loadClasses = async () => {
+    try {
+      const response = await api.get('/api/classes');
+      setClasses(response.data.data || []);
+    } catch (err) {
+      console.error('加载班级失败:', err);
+    }
+  };
+
+  const loadClassStudents = async (classId: string) => {
+    try {
+      const response = await api.get(`/api/classes/${classId}/students`);
+      setClassStudents(response.data || []);
+    } catch (err) {
+      console.error('加载班级学生失败:', err);
+    }
+  };
+
+  const handleClassImport = async () => {
+    if (selectedStudents.size === 0) return;
+    
+    setImporting(true);
+    try {
+      const studentIds = Array.from(selectedStudents);
+      await api.post(`/api/exams/${id}/students/import-from-class`, {
+        classId: selectedClass,
+        studentIds
+      });
+
+      setShowClassModal(false);
+      setSelectedClass("");
+      setClassStudents([]);
+      setSelectedStudents(new Set());
+      loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || '导入失败');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   // 按登录模式分组学生
   const getStudentsByMode = () => {
     const groups = {
@@ -169,13 +215,25 @@ export default function ExamStudentsPage() {
         <div className="rounded-3xl border-2 border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-8 shadow-lg">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-indigo-900">学生管理</h2>
-            <Button
-              onClick={() => setShowImportModal(true)}
-              className="bg-indigo-500 hover:bg-indigo-600 text-white flex items-center gap-2"
-            >
-              <Upload className="w-4 h-4" />
-              临时导入学生
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  loadClasses();
+                  setShowClassModal(true);
+                }}
+                className="bg-green-500 hover:bg-green-600 text-white flex items-center gap-2"
+              >
+                <Users className="w-4 h-4" />
+                从班级导入
+              </Button>
+              <Button
+                onClick={() => setShowImportModal(true)}
+                className="bg-indigo-500 hover:bg-indigo-600 text-white flex items-center gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                临时导入学生
+              </Button>
+            </div>
           </div>
           
           {/* 统计信息 */}
@@ -397,6 +455,106 @@ export default function ExamStudentsPage() {
             <div className="text-sm text-gray-600">
               系统将自动为每个学生生成易记的临时账号，仅在此次考试中有效。
             </div>
+          </div>
+        </Modal>
+
+        {/* 从班级导入学生模态框 */}
+        <Modal
+          isOpen={showClassModal}
+          onClose={() => {
+            setShowClassModal(false);
+            setSelectedClass("");
+            setClassStudents([]);
+            setSelectedStudents(new Set());
+          }}
+          title="从班级导入学生"
+          onConfirm={handleClassImport}
+          confirmText={importing ? "导入中..." : "确认导入"}
+          confirmDisabled={importing || selectedStudents.size === 0}
+        >
+          <div className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>说明：</strong>从现有班级导入固定学生账号到考试中。
+              </p>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                选择班级
+              </label>
+              <select
+                value={selectedClass}
+                onChange={(e) => {
+                  setSelectedClass(e.target.value);
+                  if (e.target.value) {
+                    loadClassStudents(e.target.value);
+                  } else {
+                    setClassStudents([]);
+                  }
+                  setSelectedStudents(new Set());
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                <option value="">请选择班级</option>
+                {classes.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name} ({cls.studentCount || 0}人)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {classStudents.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    选择学生 ({selectedStudents.size}/{classStudents.length})
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedStudents(new Set(classStudents.map(s => s.id)))}
+                      className="text-sm text-indigo-600 hover:text-indigo-800"
+                    >
+                      全选
+                    </button>
+                    <button
+                      onClick={() => setSelectedStudents(new Set())}
+                      className="text-sm text-gray-600 hover:text-gray-800"
+                    >
+                      清空
+                    </button>
+                  </div>
+                </div>
+                <div className="max-h-60 overflow-y-auto border border-gray-300 rounded-lg">
+                  {classStudents.map((student) => (
+                    <label
+                      key={student.id}
+                      className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedStudents.has(student.id)}
+                        onChange={(e) => {
+                          const newSelected = new Set(selectedStudents);
+                          if (e.target.checked) {
+                            newSelected.add(student.id);
+                          } else {
+                            newSelected.delete(student.id);
+                          }
+                          setSelectedStudents(newSelected);
+                        }}
+                        className="mr-3 rounded border-gray-300"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">{student.name}</div>
+                        <div className="text-sm text-gray-500">学号: {student.studentId}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </Modal>
       </div>

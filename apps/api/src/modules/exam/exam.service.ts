@@ -1284,11 +1284,16 @@ ${studentAnswer}
   }
 
   // 从班级导入固定学生
-  async importStudentsFromClass(examId: string, classId: string) {
+  async importStudentsFromClass(examId: string, classId: string, studentIds?: string[]) {
     await this.findById(examId);
 
+    const whereClause: any = { classId };
+    if (studentIds && studentIds.length > 0) {
+      whereClause.id = { in: studentIds };
+    }
+
     const students = await this.prisma.student.findMany({
-      where: { classId },
+      where: whereClause,
     });
 
     const results = [];

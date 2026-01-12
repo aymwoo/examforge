@@ -218,6 +218,13 @@ export class ExamController {
     return this.examService.importTemporaryStudents(id, body.students, body.customPassword);
   }
 
+  @Post(':id/students/import-from-class')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Import students from class to exam' })
+  importStudentsFromClass(@Param('id') id: string, @Body() body: { classId: string, studentIds: string[] }) {
+    return this.examService.importStudentsFromClass(id, body.classId, body.studentIds);
+  }
+
   @Get(':id/students')
   @ApiOperation({ summary: 'Get exam students' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
