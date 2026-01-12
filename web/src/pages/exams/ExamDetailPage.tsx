@@ -27,6 +27,78 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// 可拖拽的题型区块组件
+function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionSelect, setSelectedQuestion, setSelectedImage, setShowImageModal, navigate, hasImages, getImages, canEdit, handleBatchSetTypeScore }: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `type-${type}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="bg-white rounded-xl border border-blue-200 overflow-hidden">
+      <div 
+        {...attributes}
+        {...listeners}
+        className="bg-blue-50 px-6 py-3 border-b border-blue-200 cursor-move hover:bg-blue-100 transition-colors"
+      >
+        <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+          <GripVertical className="w-4 h-4" />
+          {QuestionTypeLabels[type as keyof typeof QuestionTypeLabels] || type} ({questions.length} 题)
+          <span className="ml-auto text-sm font-normal">
+            总分: {questions.reduce((sum: number, q: any) => sum + q.score, 0)} 分
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              const score = prompt(`为所有${QuestionTypeLabels[type as keyof typeof QuestionTypeLabels] || type}题目设置分值:`);
+              if (score && !isNaN(Number(score))) {
+                handleBatchSetTypeScore(type, Number(score));
+              }
+            }}
+            className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+          >
+            批量设分
+          </button>
+        </h3>
+      </div>
+      <SortableContext items={questions.map((q: any) => q.id)} strategy={verticalListSortingStrategy}>
+        <div className="divide-y divide-gray-200">
+          {questions.map((examQuestion: any) => (
+            <SortableQuestion
+              key={examQuestion.id}
+              examQuestion={examQuestion}
+              isSelected={selectedQuestions.has(examQuestion.question.id)}
+              onSelect={handleQuestionSelect}
+              onDetailClick={setSelectedQuestion}
+              onImageClick={(question: any) => {
+                const images = getImages(question);
+                if (images.length > 0) {
+                  setSelectedImage(images[0]);
+                  setShowImageModal(true);
+                }
+              }}
+              onEditClick={(questionId: string) => navigate(`/questions/${questionId}/edit`)}
+              hasImages={hasImages}
+              getImages={getImages}
+              canEdit={canEdit}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </div>
+  );
+}
+
 // 可拖拽的题目组件
 function SortableQuestion({ examQuestion, index, onSelect, isSelected, onDetailClick, onImageClick, onEditClick, hasImages, getImages, canEdit }: any) {
   const {
@@ -40,63 +112,6 @@ function SortableQuestion({ examQuestion, index, onSelect, isSelected, onDetailC
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-  };
-
-  // 题型区块组件
-  const TypeBlock = ({ type, questions }: { type: string, questions: any[] }) => {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: `type-${type}` });
-
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-    };
-
-    return (
-      <div ref={setNodeRef} style={style} className="bg-white rounded-xl border border-blue-200 overflow-hidden">
-        <div 
-          {...attributes}
-          {...listeners}
-          className="bg-blue-50 px-6 py-3 border-b border-blue-200 cursor-move hover:bg-blue-100 transition-colors"
-        >
-          <h3 className="font-semibold text-blue-900 flex items-center gap-2">
-            <GripVertical className="w-4 h-4" />
-            {QuestionTypeLabels[type as keyof typeof QuestionTypeLabels] || type} ({questions.length} 题)
-          </h3>
-        </div>
-        <SortableContext items={questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
-          <div className="divide-y divide-gray-200">
-            {questions.map((examQuestion: any) => (
-              <SortableQuestion
-                key={examQuestion.id}
-                examQuestion={examQuestion}
-                isSelected={selectedQuestions.has(examQuestion.question.id)}
-                onSelect={handleQuestionSelect}
-                onDetailClick={setSelectedQuestion}
-                onImageClick={(question: any) => {
-                  const images = getImages(question);
-                  if (images.length > 0) {
-                    setSelectedImage(images[0]);
-                    setShowImageModal(true);
-                  }
-                }}
-                onEditClick={(questionId: string) => navigate(`/questions/${questionId}/edit`)}
-                hasImages={hasImages}
-                getImages={getImages}
-                canEdit={canEdit}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </div>
-    );
   };
 
   return (
@@ -400,6 +415,34 @@ export default function ExamDetailPage() {
     }
   };
 
+  const handleBatchSetTypeScore = async (type: string, score: number) => {
+    if (!id || !exam?.examQuestions) return;
+
+    try {
+      const typeQuestions = exam.examQuestions.filter(eq => eq.question?.type === type);
+      const updates = typeQuestions.map(eq => ({
+        questionId: eq.questionId,
+        score: score
+      }));
+
+      await api.patch(`/api/exams/${id}/questions/batch-scores`, { updates });
+      
+      // 检查总分
+      const newTotal = exam.examQuestions.reduce((sum, eq) => {
+        const isTypeQuestion = typeQuestions.some(tq => tq.questionId === eq.questionId);
+        return sum + (isTypeQuestion ? score : eq.score);
+      }, 0);
+
+      if (newTotal !== exam.totalScore) {
+        alert(`警告：试卷总分已变为 ${newTotal} 分，与设置的总分 ${exam.totalScore} 分不一致`);
+      }
+
+      loadExam();
+    } catch (err: any) {
+      alert(err.response?.data?.message || '批量设置分值失败');
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-slatebg text-ink-900 antialiased min-h-screen flex items-center justify-center">
@@ -430,7 +473,17 @@ export default function ExamDetailPage() {
         {/* 题目管理 */}
         <div className="rounded-3xl border-2 border-blue-100 bg-gradient-to-br from-blue-50 to-white p-8 shadow-lg">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-blue-900">考试题目</h2>
+            <div>
+              <h2 className="text-2xl font-bold text-blue-900">考试题目</h2>
+              <div className="text-sm text-gray-600 mt-1">
+                当前总分: {exam?.examQuestions?.reduce((sum, eq) => sum + eq.score, 0) || 0} 分 
+                / 设置总分: {exam?.totalScore || 0} 分
+                {exam?.examQuestions && exam?.totalScore && 
+                 exam.examQuestions.reduce((sum, eq) => sum + eq.score, 0) !== exam.totalScore && (
+                  <span className="ml-2 text-red-600 font-medium">⚠️ 分值不匹配</span>
+                )}
+              </div>
+            </div>
             <Button 
               onClick={() => navigate(`/exams/${id}/add-questions`)}
               className="bg-blue-500 hover:bg-blue-600 text-white"
@@ -463,7 +516,21 @@ export default function ExamDetailPage() {
                     if (!questions) return null;
                     
                     return (
-                      <TypeBlock key={type} type={type} questions={questions} />
+                      <SortableTypeBlock 
+                        key={type} 
+                        type={type} 
+                        questions={questions}
+                        selectedQuestions={selectedQuestions}
+                        handleQuestionSelect={handleQuestionSelect}
+                        setSelectedQuestion={setSelectedQuestion}
+                        setSelectedImage={setSelectedImage}
+                        setShowImageModal={setShowImageModal}
+                        navigate={navigate}
+                        hasImages={hasImages}
+                        getImages={getImages}
+                        canEdit={canEdit}
+                        handleBatchSetTypeScore={handleBatchSetTypeScore}
+                      />
                     );
                   })}
                 </div>
