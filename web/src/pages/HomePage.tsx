@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Clock, Users, FileText, Calendar, RefreshCw, Zap, Brain, BarChart3, Shield, Upload, CheckCircle, BookOpen } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Clock, Users, FileText, Calendar, RefreshCw, Zap, Brain, BarChart3, Shield, Upload, CheckCircle, BookOpen, X } from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
+import { authService } from "@/services/auth";
 
 interface OngoingExam {
   id: string;
@@ -22,6 +23,11 @@ export default function HomePage() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState('');
 
   const loadDashboardData = async () => {
     try {
@@ -36,6 +42,10 @@ export default function HomePage() {
   };
 
   useEffect(() => {
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+    
     loadDashboardData();
     
     // 设置自动刷新，每30秒更新一次数据
@@ -62,6 +72,34 @@ export default function HomePage() {
     return `${minutes}分钟`;
   };
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError('');
+
+    try {
+      const response = await authService.login(loginForm);
+      localStorage.setItem('token', response.access_token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      setIsLoggedIn(true);
+      setShowLoginModal(false);
+      setLoginForm({ username: '', password: '' });
+      // Reload dashboard data for logged in user
+      loadDashboardData();
+    } catch (err: any) {
+      setLoginError(err.response?.data?.message || '登录失败');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLoginInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLoginForm({
+      ...loginForm,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   if (loading) {
     return (
       <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
@@ -77,6 +115,24 @@ export default function HomePage() {
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {/* 登录提示 */}
+        {!isLoggedIn && (
+          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-blue-900">欢迎使用 ExamForge</h3>
+                <p className="text-blue-700">登录后可以创建和管理考试</p>
+              </div>
+              <Button 
+                onClick={() => setShowLoginModal(true)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                登录
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* 统计卡片 */}
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-8">
           {/* 正在进行 - 脉冲动画 */}
@@ -402,6 +458,100 @@ export default function HomePage() {
             </div>
           )}
         </div>
+
+        {/* 登录模态框 */}
+        {showLoginModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">登录账户</h2>
+                <button
+                  onClick={() => {
+                    setShowLoginModal(false);
+                    setLoginError('');
+                    setLoginForm({ username: '', password: '' });
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                {loginError && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                    {loginError}
+                  </div>
+                )}
+
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                    用户名
+                  </label>
+                  <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    required
+                    value={loginForm.username}
+                    onChange={handleLoginInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="请输入用户名"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                    密码
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    required
+                    value={loginForm.password}
+                    onChange={handleLoginInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="请输入密码"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowLoginModal(false);
+                      setLoginError('');
+                      setLoginForm({ username: '', password: '' });
+                    }}
+                    className="flex-1"
+                  >
+                    取消
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={loginLoading}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  >
+                    {loginLoading ? '登录中...' : '登录'}
+                  </Button>
+                </div>
+
+                <div className="text-center text-sm text-gray-600 pt-2">
+                  还没有账户？{' '}
+                  <Link
+                    to="/register"
+                    className="text-blue-600 hover:text-blue-500 font-medium"
+                    onClick={() => setShowLoginModal(false)}
+                  >
+                    立即注册
+                  </Link>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
