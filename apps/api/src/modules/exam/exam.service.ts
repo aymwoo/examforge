@@ -744,6 +744,7 @@ export class ExamService {
           isAutoGraded: submission.isAutoGraded,
           submittedAt: submission.submittedAt,
           answers: answers, // 添加原始答案数据
+          gradingResults: gradingResults, // 添加评分结果
         }
       });
 
