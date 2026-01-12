@@ -28,7 +28,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 // 可拖拽的题型区块组件
-function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionSelect, setSelectedQuestion, setSelectedImage, setShowImageModal, navigate, hasImages, getImages, canEdit, handleBatchSetTypeScore }: any) {
+function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionSelect, setSelectedQuestion, setSelectedImage, setShowImageModal, navigate, hasImages, getImages, canEdit, handleBatchSetTypeScore, setBatchScoreType, setBatchScore, setShowBatchScoreModal }: any) {
   const {
     attributes,
     listeners,
@@ -60,10 +60,9 @@ function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionS
           <button
             onClick={(e) => {
               e.stopPropagation();
-              const score = prompt(`为所有${QuestionTypeLabels[type as keyof typeof QuestionTypeLabels] || type}题目设置分值:`);
-              if (score && !isNaN(Number(score))) {
-                handleBatchSetTypeScore(type, Number(score));
-              }
+              setBatchScoreType(type);
+              setBatchScore(10);
+              setShowBatchScoreModal(true);
             }}
             className="ml-2 px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
           >
@@ -208,6 +207,7 @@ export default function ExamDetailPage() {
   const [showBatchScoreModal, setShowBatchScoreModal] = useState(false);
   const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
   const [batchScore, setBatchScore] = useState<number>(10);
+  const [batchScoreType, setBatchScoreType] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
   const [hasOrderChanged, setHasOrderChanged] = useState(false);
@@ -437,6 +437,7 @@ export default function ExamDetailPage() {
         alert(`警告：试卷总分已变为 ${newTotal} 分，与设置的总分 ${exam.totalScore} 分不一致`);
       }
 
+      setShowBatchScoreModal(false);
       loadExam();
     } catch (err: any) {
       alert(err.response?.data?.message || '批量设置分值失败');
@@ -530,6 +531,9 @@ export default function ExamDetailPage() {
                         getImages={getImages}
                         canEdit={canEdit}
                         handleBatchSetTypeScore={handleBatchSetTypeScore}
+                        setBatchScoreType={setBatchScoreType}
+                        setBatchScore={setBatchScore}
+                        setShowBatchScoreModal={setShowBatchScoreModal}
                       />
                     );
                   })}
@@ -664,13 +668,24 @@ export default function ExamDetailPage() {
           onClose={() => {
             setShowBatchScoreModal(false);
             setSelectedQuestions(new Set());
+            setBatchScoreType("");
           }}
           title="批量设置分值"
-          onConfirm={handleBatchUpdateScores}
+          onConfirm={() => {
+            if (batchScoreType) {
+              handleBatchSetTypeScore(batchScoreType, batchScore);
+            } else {
+              handleBatchUpdateScores();
+            }
+          }}
           confirmText="确定设置"
         >
           <div className="space-y-4">
-            <p>将为 {selectedQuestions.size} 道题目设置分值：</p>
+            {batchScoreType ? (
+              <p>将为所有 <strong>{QuestionTypeLabels[batchScoreType as keyof typeof QuestionTypeLabels] || batchScoreType}</strong> 题目设置分值：</p>
+            ) : (
+              <p>将为 {selectedQuestions.size} 道题目设置分值：</p>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 分值
