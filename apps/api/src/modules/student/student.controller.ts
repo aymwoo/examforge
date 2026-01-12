@@ -10,18 +10,6 @@ import { StudentService } from './student.service';
 export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
-  @Get(':studentId')
-  @ApiOperation({ summary: 'Get student by student ID' })
-  async getStudentByStudentId(@Param('studentId') studentId: string) {
-    return this.studentService.getStudentByStudentId(studentId);
-  }
-
-  @Get(':studentId/exams')
-  @ApiOperation({ summary: 'Get student exam history by student ID' })
-  async getExamsByStudentId(@Param('studentId') studentId: string) {
-    return this.studentService.getExamHistoryByStudentId(studentId);
-  }
-
   @Get('profile')
   @ApiOperation({ summary: 'Get student profile' })
   async getProfile(@Request() req: any) {
@@ -32,5 +20,17 @@ export class StudentController {
   @ApiOperation({ summary: 'Get student exam history' })
   async getExams(@Request() req: any) {
     return this.studentService.getExamHistory(req.user.sub, req.user.isStudent);
+  }
+
+  @Get(':studentId')
+  @ApiOperation({ summary: 'Get student by student ID' })
+  async getStudentByStudentId(@Param('studentId') studentId: string) {
+    return this.studentService.getStudentByStudentId(studentId);
+  }
+
+  @Get(':studentId/exams')
+  @ApiOperation({ summary: 'Get student exam history by student ID' })
+  async getExamsByStudentId(@Param('studentId') studentId: string) {
+    return this.studentService.getExamHistoryByStudentId(studentId);
   }
 }
