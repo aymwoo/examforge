@@ -28,7 +28,9 @@ export class ExamAuthService {
       throw new BadRequestException('Exam not found');
     }
 
-    // 首先在考试学生表中查找
+    const accountModes = JSON.parse(exam.accountModes);
+
+    // 首先检查是否有临时导入的账号
     let student = await this.prisma.examStudent.findFirst({
       where: {
         examId: dto.examId,
@@ -36,9 +38,14 @@ export class ExamAuthService {
       },
     });
 
-    // 如果在考试学生表中没找到，且考试支持固定学生模式，则在班级学生表中查找
-    if (!student) {
-      const accountModes = JSON.parse(exam.accountModes);
+    // 如果找到了账号，验证密码
+    if (student) {
+      const isPasswordValid = await bcrypt.compare(dto.password, student.password);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid username or password');
+      }
+    } else {
+      // 如果在考试学生表中没找到，且考试支持固定学生模式，则在班级学生表中查找
       if (accountModes.includes('PERMANENT')) {
         // 在班级学生表中查找（使用学号作为用户名）
         const classStudent = await this.prisma.student.findFirst({
@@ -69,16 +76,13 @@ export class ExamAuthService {
       }
     }
 
+    // 如果仍然没有找到学生账号
     if (!student) {
-      throw new UnauthorizedException('Invalid username or password');
-    }
-
-    // 验证密码（如果是从考试学生表直接找到的）
-    if (student.accountType !== 'PERMANENT' || !student.studentId) {
-      const isPasswordValid = await bcrypt.compare(dto.password, student.password);
-      if (!isPasswordValid) {
-        throw new UnauthorizedException('Invalid username or password');
+      // 如果考试支持自主注册，提示用户使用注册功能
+      if (accountModes.includes('TEMPORARY_REGISTER')) {
+        throw new UnauthorizedException('Account not found. Please use registration if this is your first time.');
       }
+      throw new UnauthorizedException('Invalid username or password');
     }
 
     // 生成JWT token

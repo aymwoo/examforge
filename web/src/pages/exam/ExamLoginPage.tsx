@@ -296,7 +296,7 @@ export default function ExamLoginPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-ink-900 mb-2">
-                  设置密码
+                  密码
                 </label>
                 <input
                   type="password"
