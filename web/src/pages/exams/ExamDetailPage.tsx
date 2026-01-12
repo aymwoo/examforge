@@ -219,6 +219,8 @@ export default function ExamDetailPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [hasOrderChanged, setHasOrderChanged] = useState(false);
   const [typeOrder, setTypeOrder] = useState<string[]>([]);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warningMessage, setWarningMessage] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -322,7 +324,8 @@ export default function ExamDetailPage() {
       setSelectedQuestions(new Set());
       loadExam();
     } catch (err: any) {
-      alert(err.response?.data?.message || '批量设置分值失败');
+      setWarningMessage(err.response?.data?.message || '批量设置分值失败');
+      setShowWarningModal(true);
     }
   };
 
@@ -418,7 +421,8 @@ export default function ExamDetailPage() {
       setHasOrderChanged(false);
       loadExam();
     } catch (err: any) {
-      alert(err.response?.data?.message || '保存排序失败');
+      setWarningMessage(err.response?.data?.message || '保存排序失败');
+      setShowWarningModal(true);
     }
   };
 
@@ -441,13 +445,15 @@ export default function ExamDetailPage() {
       }, 0);
 
       if (newTotal !== exam.totalScore) {
-        alert(`警告：试卷总分已变为 ${newTotal} 分，与设置的总分 ${exam.totalScore} 分不一致`);
+        setWarningMessage(`试卷总分已变为 ${newTotal} 分，与设置的总分 ${exam.totalScore} 分不一致`);
+        setShowWarningModal(true);
       }
 
       setShowBatchScoreModal(false);
       loadExam();
     } catch (err: any) {
-      alert(err.response?.data?.message || '批量设置分值失败');
+      setWarningMessage(err.response?.data?.message || '批量设置分值失败');
+      setShowWarningModal(true);
     }
   };
 
@@ -732,6 +738,17 @@ export default function ExamDetailPage() {
           </div>
         </div>
       )}
+
+      {/* 警告模态框 */}
+      <Modal
+        isOpen={showWarningModal}
+        onClose={() => setShowWarningModal(false)}
+        title="提示"
+        confirmText="确定"
+        onConfirm={() => setShowWarningModal(false)}
+      >
+        <p>{warningMessage}</p>
+      </Modal>
     </ExamLayout>
   );
 }
