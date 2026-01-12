@@ -1518,14 +1518,26 @@ ${studentAnswer}
     }
 
     if (questionType === 'SINGLE_CHOICE') {
-      // 单选题：直接比较文本内容
-      const result = studentAnswer === correctAnswer;
-      console.log(`单选题比较结果: ${result}`);
+      // 单选题：处理对象格式的正确答案
+      let correctText = correctAnswer;
+      if (typeof correctAnswer === 'object' && correctAnswer.content) {
+        correctText = correctAnswer.content;
+      }
+      
+      const result = studentAnswer === correctText;
+      console.log(`单选题比较结果: ${result} (学生: ${studentAnswer} vs 正确: ${correctText})`);
       return result;
     } else if (questionType === 'MULTIPLE_CHOICE') {
       try {
-        // 多选题：比较数组内容
-        const correct = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
+        // 多选题：处理对象数组格式的正确答案
+        let correct = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
+        
+        // 如果正确答案是对象数组，提取content字段
+        if (correct.length > 0 && typeof correct[0] === 'object' && correct[0].content) {
+          correct = correct.map(item => item.content);
+          console.log(`提取content后的正确答案:`, correct);
+        }
+        
         const student = Array.isArray(studentAnswer) ? studentAnswer : [studentAnswer];
         console.log(`多选题解析 - 正确答案:`, correct, `学生答案:`, student);
         
