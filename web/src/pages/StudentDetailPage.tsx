@@ -121,6 +121,28 @@ export default function StudentDetailPage() {
     return new Date(dateString).toLocaleString('zh-CN');
   };
 
+  const formatAnswerDisplay = (answer: string | string[], question: any) => {
+    if (!question || !question.options) return answer;
+    
+    if (Array.isArray(answer)) {
+      // 多选题：将答案文本数组转换为选项标识数组
+      return answer.map(answerText => {
+        const index = question.options.findIndex((opt: any) => {
+          const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
+          return optionText === answerText;
+        });
+        return index >= 0 ? String.fromCharCode(65 + index) : answerText;
+      }).join(', ');
+    } else {
+      // 单选题：将答案文本转换为选项标识
+      const index = question.options.findIndex((opt: any) => {
+        const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
+        return optionText === answer;
+      });
+      return index >= 0 ? String.fromCharCode(65 + index) : answer;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -396,7 +418,11 @@ export default function StudentDetailPage() {
                           <div>
                             <p className="font-medium text-gray-700">学生答案：</p>
                             <div className="bg-gray-50 p-3 rounded mt-1">
-                              {detail.studentAnswer || '未作答'}
+                              {(() => {
+                                const question = selectedSubmission.exam?.questions?.find((q: any) => q.id === questionId);
+                                const formattedAnswer = question ? formatAnswerDisplay(detail.studentAnswer, question) : detail.studentAnswer;
+                                return formattedAnswer || '未作答';
+                              })()}
                             </div>
                           </div>
 
@@ -404,7 +430,10 @@ export default function StudentDetailPage() {
                             <div>
                               <p className="font-medium text-gray-700">正确答案：</p>
                               <div className="bg-green-50 p-3 rounded mt-1">
-                                {detail.correctAnswer}
+                                {(() => {
+                                  const question = selectedSubmission.exam?.questions?.find((q: any) => q.id === questionId);
+                                  return question ? formatAnswerDisplay(detail.correctAnswer, question) : detail.correctAnswer;
+                                })()}
                               </div>
                               <p className={`mt-2 ${detail.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
                                 {detail.feedback}

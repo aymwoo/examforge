@@ -1289,6 +1289,7 @@ ${studentAnswer}
           id: eq.question.id,
           content: eq.question.content,
           type: eq.question.type,
+          options: eq.question.options,
           score: eq.score
         }))
       }
