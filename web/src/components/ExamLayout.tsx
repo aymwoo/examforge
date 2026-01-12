@@ -359,7 +359,7 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
                       onClick={handlePublishExam}
                       disabled={updating || (exam.examQuestions?.length || 0) === 0}
                       size="sm"
-                      className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white"
+                      className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white"
                     >
                       <Play className="h-4 w-4" />
                       {updating ? '发布中...' : '发布考试'}
