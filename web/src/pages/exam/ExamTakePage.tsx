@@ -315,6 +315,15 @@ export default function ExamTakePage() {
                     console.log('exam questions:', exam?.questions);
                     console.log('submissionResult.answers:', submissionResult.answers);
                     console.log('answers count:', submissionResult.answers?.length);
+                    
+                    // 设置评分详情数据
+                    if (submissionResult.gradingDetails) {
+                      const parsedDetails = typeof submissionResult.gradingDetails === 'string' 
+                        ? JSON.parse(submissionResult.gradingDetails) 
+                        : submissionResult.gradingDetails;
+                      setGradingResults(parsedDetails);
+                    }
+                    
                     setShowDetailedResults(true);
                   }} 
                   variant="outline"
