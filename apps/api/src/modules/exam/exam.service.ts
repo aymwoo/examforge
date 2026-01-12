@@ -1506,7 +1506,6 @@ ${studentAnswer}
   }
 
   private compareAnswers(studentAnswer: any, correctAnswer: string | string[], questionType: string): boolean {
-  private compareAnswers(studentAnswer: any, correctAnswer: string | string[], questionType: string): boolean {
     console.log(`=== 答案比较 ===`);
     console.log(`题目类型: ${questionType}`);
     console.log(`学生答案:`, studentAnswer, `(类型: ${typeof studentAnswer})`);
