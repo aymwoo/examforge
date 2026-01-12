@@ -71,8 +71,20 @@ export class ExamService {
     // Filter for ongoing exams (for the ongoing count)
     const now = new Date();
     const ongoingExams = publishedExams.filter(exam => {
-      // If no start/end time set, consider it as ongoing
-      if (!exam.startTime || !exam.endTime) return true;
+      // If no start/end time set, consider it as ongoing if published
+      if (!exam.startTime && !exam.endTime) return true;
+      
+      // If only start time is set, check if it has started
+      if (exam.startTime && !exam.endTime) {
+        return now >= exam.startTime;
+      }
+      
+      // If only end time is set, check if it hasn't ended
+      if (!exam.startTime && exam.endTime) {
+        return now <= exam.endTime;
+      }
+      
+      // If both times are set, check if current time is within the range
       return now >= exam.startTime && now <= exam.endTime;
     });
 
