@@ -21,7 +21,7 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
   const [updating, setUpdating] = useState(false);
   const [modal, setModal] = useState<{
     isOpen: boolean;
-    type: 'publish' | 'withdraw' | 'delete' | 'success' | 'error';
+    type: 'publish' | 'withdraw' | 'delete' | 'success' | 'error' | 'accountModes';
     title: string;
     message: string;
   }>({
@@ -30,6 +30,7 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
     title: '',
     message: ''
   });
+  const [selectedAccountModes, setSelectedAccountModes] = useState<string[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -125,6 +126,48 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
     }
   };
 
+  const handleAccountModesEdit = () => {
+    setSelectedAccountModes(exam?.accountModes || []);
+    setModal({
+      isOpen: true,
+      type: 'accountModes',
+      title: '修改学生登录模式',
+      message: ''
+    });
+  };
+
+  const handleAccountModeToggle = (mode: string) => {
+    setSelectedAccountModes(prev => 
+      prev.includes(mode) 
+        ? prev.filter(m => m !== mode)
+        : [...prev, mode]
+    );
+  };
+
+  const confirmAccountModes = async () => {
+    if (!id || selectedAccountModes.length === 0) return;
+    setUpdating(true);
+    try {
+      const updatedExam = await updateExam(id, { accountModes: selectedAccountModes });
+      setExam(updatedExam);
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: '修改成功',
+        message: '学生登录模式已更新！'
+      });
+    } catch (err: any) {
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: '修改失败',
+        message: err.response?.data?.message || '修改失败，请重试'
+      });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleWithdrawExam = async () => {
     if (!exam || !id) return;
 
@@ -169,6 +212,7 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
       case 'publish': return confirmPublish;
       case 'withdraw': return confirmWithdraw;
       case 'delete': return confirmDelete;
+      case 'accountModes': return confirmAccountModes;
       default: return undefined;
     }
   };
@@ -236,6 +280,26 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
                   <span>总分: {exam.totalScore} 分</span>
                   <span>题目数: {exam.examQuestions?.length || 0}</span>
                 </div>
+                {exam.accountModes && exam.accountModes.length > 0 && (
+                  <div className="mt-3">
+                    <span className="text-sm text-blue-600 mr-2">登录模式:</span>
+                    <div className="inline-flex flex-wrap gap-2">
+                      {exam.accountModes.map((mode: string) => (
+                        <span key={mode} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
+                          {mode === 'TEMPORARY_IMPORT' ? '临时导入' :
+                           mode === 'CLASS_IMPORT' ? '班级导入' :
+                           mode === 'GENERATE_ACCOUNTS' ? '生成账号' : mode}
+                        </span>
+                      ))}
+                      <button
+                        onClick={handleAccountModesEdit}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
+                      >
+                        修改
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="text-right">
                 <div className="flex items-center gap-3 mb-3">
@@ -298,9 +362,14 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
             >
               <UserCheck className="h-4 w-4" />
               学生管理
-              {submissionCount > 0 && (
+              {exam.totalStudents > 0 && (
                 <span className="ml-1 bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full text-xs">
-                  {submissionCount}
+                  {exam.totalStudents}
+                </span>
+              )}
+              {submissionCount > 0 && (
+                <span className="ml-1 bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">
+                  已开始: {submissionCount}
                 </span>
               )}
             </button>
@@ -370,10 +439,39 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
           onClose={closeModal}
           title={modal.title}
           onConfirm={getModalAction()}
-          confirmText={modal.type === 'delete' ? '删除' : modal.type === 'publish' ? '发布' : modal.type === 'withdraw' ? '撤回' : undefined}
+          confirmText={modal.type === 'delete' ? '删除' : modal.type === 'publish' ? '发布' : modal.type === 'withdraw' ? '撤回' : modal.type === 'accountModes' ? '保存' : undefined}
           confirmVariant={modal.type === 'delete' ? 'danger' : 'primary'}
         >
-          <p>{modal.message}</p>
+          {modal.type === 'accountModes' ? (
+            <div className="space-y-4">
+              <p className="text-gray-600 mb-4">选择学生可以使用的登录方式：</p>
+              <div className="space-y-3">
+                {[
+                  { value: 'TEMPORARY_IMPORT', label: '临时导入', desc: '从Excel/CSV文件导入临时学生账号' },
+                  { value: 'CLASS_IMPORT', label: '班级导入', desc: '从已有班级导入固定学生账号' },
+                  { value: 'GENERATE_ACCOUNTS', label: '生成账号', desc: '自动生成指定数量的学生账号' }
+                ].map(mode => (
+                  <label key={mode.value} className="flex items-start gap-3 p-3 border rounded hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedAccountModes.includes(mode.value)}
+                      onChange={() => handleAccountModeToggle(mode.value)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <div className="font-medium text-gray-900">{mode.label}</div>
+                      <div className="text-sm text-gray-500">{mode.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {selectedAccountModes.length === 0 && (
+                <p className="text-red-500 text-sm">请至少选择一种登录模式</p>
+              )}
+            </div>
+          ) : (
+            <p>{modal.message}</p>
+          )}
         </Modal>
       </div>
     </div>

@@ -6,6 +6,14 @@ export enum QuestionType {
   ESSAY = 'ESSAY',
 }
 
+export const QuestionTypeLabels: Record<QuestionType, string> = {
+  [QuestionType.SINGLE_CHOICE]: '单选题',
+  [QuestionType.MULTIPLE_CHOICE]: '多选题',
+  [QuestionType.TRUE_FALSE]: '判断题',
+  [QuestionType.FILL_BLANK]: '填空题',
+  [QuestionType.ESSAY]: '简答题',
+};
+
 export enum QuestionStatus {
   DRAFT = 'DRAFT',
   PUBLISHED = 'PUBLISHED',

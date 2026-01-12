@@ -2,8 +2,15 @@
   "name": "@examforge/shared-types",
   "version": "1.0.0",
   "description": "Shared types between frontend and backend",
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
