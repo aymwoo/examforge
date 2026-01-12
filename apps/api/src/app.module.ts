@@ -13,6 +13,7 @@ import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AIProviderModule } from './modules/ai-provider/ai-provider.module';
 import { ClassModule } from './modules/class/class.module';
+import { StudentModule } from './modules/student/student.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { ClassModule } from './modules/class/class.module';
     AuthModule,
     AIProviderModule,
     ClassModule,
+    StudentModule,
   ],
 })
 export class AppModule {}

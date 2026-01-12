@@ -49,6 +49,11 @@ export default function GlobalLoginModal() {
       // 重试之前失败的请求
       await retryPendingRequests();
       
+      // 根据用户角色跳转
+      if (response.user.role === 'STUDENT') {
+        window.location.href = '/student';
+      }
+      
       setShowGlobalLogin(false);
       setLoginForm({ username: '', password: '' });
     } catch (err: any) {

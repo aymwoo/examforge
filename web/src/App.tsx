@@ -27,6 +27,7 @@ import ClassesPage from "./pages/classes/ClassesPage";
 import ClassDetailPage from "./pages/classes/ClassDetailPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import GlobalLoginModal from "./components/GlobalLoginModal";
+import StudentDashboard from "./pages/StudentDashboard";
 
 function App() {
   return (
@@ -35,6 +36,11 @@ function App() {
         <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
+          <Route path="student" element={
+            <ProtectedRoute requiredRole="STUDENT">
+              <StudentDashboard />
+            </ProtectedRoute>
+          } />
           <Route path="questions" element={
             <ProtectedRoute requiredRole="TEACHER">
               <QuestionsPage />
