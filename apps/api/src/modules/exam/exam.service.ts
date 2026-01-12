@@ -1449,11 +1449,15 @@ ${studentAnswer}
   }
 
   private convertAnswerToText(answer: string | null, options: string | null, questionType: string): string | string[] {
+    console.log('convertAnswerToText 输入:', { answer, options, questionType });
+    
     if (!answer || !options) return answer || '';
     
     try {
       // 解析选项
       const optionsArray = JSON.parse(options);
+      console.log('解析后的选项数组:', optionsArray);
+      
       if (!Array.isArray(optionsArray)) return answer;
       
       if (questionType === 'SINGLE_CHOICE') {
@@ -1461,24 +1465,34 @@ ${studentAnswer}
         if (answer.length === 1 && /[A-Z]/.test(answer)) {
           const index = answer.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
           const option = optionsArray[index];
+          console.log(`单选题转换: ${answer} -> 索引${index} -> 选项:`, option);
+          
           if (option) {
             // 如果选项是对象，提取content字段；如果是字符串，直接返回
-            return typeof option === 'object' ? option.content : option;
+            const result = typeof option === 'object' ? option.content : option;
+            console.log('单选题转换结果:', result);
+            return result;
           }
         }
         return answer;
       } else if (questionType === 'MULTIPLE_CHOICE') {
         // 多选题：将选项标识字符串转换为选项文本数组
         if (/^[A-Z]+$/.test(answer)) {
+          console.log(`多选题转换: ${answer}`);
           const selectedOptions = [];
           for (let i = 0; i < answer.length; i++) {
             const index = answer.charCodeAt(i) - 65;
             const option = optionsArray[index];
+            console.log(`字母${answer[i]} -> 索引${index} -> 选项:`, option);
+            
             if (option) {
               // 如果选项是对象，提取content字段；如果是字符串，直接添加
-              selectedOptions.push(typeof option === 'object' ? option.content : option);
+              const content = typeof option === 'object' ? option.content : option;
+              selectedOptions.push(content);
+              console.log('添加到结果:', content);
             }
           }
+          console.log('多选题转换结果:', selectedOptions);
           return selectedOptions;
         }
         return answer;
