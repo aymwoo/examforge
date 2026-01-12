@@ -256,9 +256,6 @@ export default function ExamGradingPage() {
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* 调试信息 */}
-        {console.log('Rendering main content, exam:', exam, 'submissions:', submissions)}
-        
         {/* 测试可见性 */}
         <div className="bg-red-500 text-white p-4 mb-4">
           调试: 页面正在渲染 - 考试: {exam?.title} - 提交数: {submissions.length}
@@ -316,12 +313,10 @@ export default function ExamGradingPage() {
                 )}
               </div>
               <div className="space-y-2">
-                {console.log('About to render submissions:', submissions)}
                 {submissions.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">暂无提交记录</p>
                 ) : (
                   submissions.map((submission) => {
-                    console.log('Rendering submission:', submission);
                     return (
                       <div
                         key={submission.id}
