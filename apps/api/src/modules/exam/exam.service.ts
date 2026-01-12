@@ -585,6 +585,8 @@ export class ExamService {
   async submitExam(examId: string, examStudentId: string, answers: Record<string, any>) {
     console.log(`开始提交考试: examId=${examId}, examStudentId=${examStudentId}`);
     console.log(`提交的答案:`, JSON.stringify(answers, null, 2));
+    console.log(`答案对象的keys:`, Object.keys(answers));
+    console.log(`答案对象的类型:`, typeof answers);
     
     // 检查是否已经有正式提交的记录
     const existingSubmission = await this.prisma.submission.findFirst({
@@ -867,6 +869,9 @@ export class ExamService {
       });
 
       console.log(`处理题目 ${currentQuestion}: 类型=${question.type}, ID=${question.id}`);
+      console.log(`从answers对象中获取的学生答案:`, studentAnswer);
+      console.log(`answers对象的所有keys:`, Object.keys(answers));
+      console.log(`当前题目ID是否在answers中:`, answers.hasOwnProperty(question.id));
 
       if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
         // 客观题自动评分
