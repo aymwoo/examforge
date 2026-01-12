@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Copy, Trash2, Edit } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "@/components/ui/Button";
-import { listExams, deleteExam, type Exam } from "@/services/exams";
+import Modal from "@/components/ui/Modal";
+import { listExams, deleteExam, copyExam, type Exam } from "@/services/exams";
+import { getCurrentUser } from "@/utils/auth";
 
 export default function ExamsPage() {
   const navigate = useNavigate();
+  const currentUser = getCurrentUser();
   const [exams, setExams] = useState<Exam[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({
     total: 0,
@@ -46,24 +51,35 @@ export default function ExamsPage() {
     navigate("/exams/new");
   };
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= meta.totalPages) {
-      loadExams(newPage);
+  const handleDeleteExam = async () => {
+    if (!selectedExam) return;
+    try {
+      await deleteExam(selectedExam.id);
+      setShowDeleteModal(false);
+      setSelectedExam(null);
+      loadExams(page);
+    } catch (err: any) {
+      alert(err.response?.data?.message || '删除失败');
     }
   };
 
-  const handleDeleteExam = async (id: string) => {
-    if (!confirm("确定要删除这个考试吗？此操作不可恢复。")) return;
-
+  const handleCopyExam = async (exam: Exam) => {
     try {
-      await deleteExam(id);
+      const copiedExam = await copyExam(exam.id);
+      alert('考试复制成功！');
       loadExams(page);
-    } catch (err: unknown) {
-      const axiosError = err as {
-        response?: { data?: { message?: string } };
-        message?: string;
-      };
-      setError(axiosError.response?.data?.message || axiosError.message || "删除失败");
+    } catch (err: any) {
+      alert(err.response?.data?.message || '复制失败');
+    }
+  };
+
+  const canDeleteExam = (exam: Exam) => {
+    return currentUser?.role === 'ADMIN' || exam.createdBy === currentUser?.id;
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= meta.totalPages) {
+      loadExams(newPage);
     }
   };
 
@@ -128,12 +144,28 @@ export default function ExamsPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleDeleteExam(exam.id);
+                          handleCopyExam(exam);
                         }}
-                        className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100"
+                        className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 flex items-center gap-1"
+                        title="复制考试"
                       >
-                        删除
+                        <Copy className="h-3 w-3" />
+                        复制
                       </button>
+                      {canDeleteExam(exam) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedExam(exam);
+                            setShowDeleteModal(true);
+                          }}
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 flex items-center gap-1"
+                          title="删除考试"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          删除
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-700">
@@ -192,6 +224,22 @@ export default function ExamsPage() {
             )}
           </>
         )}
+
+        {/* 删除确认模态框 */}
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setSelectedExam(null);
+          }}
+          title="删除考试"
+          onConfirm={handleDeleteExam}
+          confirmText="删除"
+          confirmVariant="danger"
+        >
+          <p>确定要删除考试 "{selectedExam?.title}" 吗？</p>
+          <p className="text-red-600 text-sm mt-2">此操作将删除考试及其所有相关数据，且不可撤销。</p>
+        </Modal>
       </div>
     </div>
   );

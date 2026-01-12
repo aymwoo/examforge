@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, BarChart3, Users, CheckSquare, Eye, Download, Trash2, FileText, UserCheck, Play, Square } from "lucide-react";
+import { ArrowLeft, BarChart3, Users, CheckSquare, Eye, Download, Trash2, FileText, UserCheck, Play, Square, Copy } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { getExamById, deleteExam, updateExam, type Exam } from "@/services/exams";
@@ -168,6 +168,25 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
     }
   };
 
+  const copyExamLink = () => {
+    const examUrl = `${window.location.origin}/exam/${id}/login`;
+    navigator.clipboard.writeText(examUrl).then(() => {
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: '复制成功',
+        message: '考试链接已复制到剪贴板'
+      });
+    }).catch(() => {
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: '复制失败',
+        message: '无法复制链接，请手动复制'
+      });
+    });
+  };
+
   const handleWithdrawExam = async () => {
     if (!exam || !id) return;
 
@@ -300,9 +319,29 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
                     </div>
                   </div>
                 )}
+                <div className="mt-3">
+                  <span className="text-sm text-blue-600 mr-2">考试链接:</span>
+                  <div className="mt-1">
+                    <button
+                      onClick={copyExamLink}
+                      className="bg-blue-50 border border-blue-200 rounded px-3 py-2 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-100 font-mono transition-colors underline cursor-pointer"
+                      title="点击复制链接"
+                    >
+                      {`${window.location.origin}/exam/${exam.id}/login`}
+                    </button>
+                  </div>
+                </div>
               </div>
               <div className="text-right">
                 <div className="flex items-center gap-3 mb-3">
+                  <Button
+                    onClick={() => window.open(`/exam/${exam.id}/login`, '_blank')}
+                    size="sm"
+                    className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white"
+                  >
+                    <Play className="h-4 w-4" />
+                    进入考试
+                  </Button>
                   {exam.status === 'PUBLISHED' ? (
                     <Button
                       onClick={handleWithdrawExam}

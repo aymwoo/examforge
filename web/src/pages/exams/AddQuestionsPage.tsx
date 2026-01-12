@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Check, Search } from "lucide-react";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { getExamById, type Exam } from "@/services/exams";
 import { listQuestions, type Question } from "@/services/questions";
 
@@ -35,6 +36,13 @@ export default function AddQuestionsPage() {
     difficulty: "",
     tags: "",
     search: "",
+  });
+
+  const [showModal, setShowModal] = useState(false);
+  const [modalConfig, setModalConfig] = useState({
+    title: '',
+    message: '',
+    type: 'success' as 'success' | 'error'
   });
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -148,7 +156,12 @@ export default function AddQuestionsPage() {
 
   const handleAddQuestions = async () => {
     if (selectedQuestions.size === 0) {
-      alert('请选择要添加的题目');
+      setModalConfig({
+        title: '提示',
+        message: '请选择要添加的题目',
+        type: 'error'
+      });
+      setShowModal(true);
       return;
     }
 
@@ -167,11 +180,20 @@ export default function AddQuestionsPage() {
       );
       
       await Promise.all(promises);
-      alert('题目添加成功');
-      navigate(`/exams/${id}`);
+      setModalConfig({
+        title: '成功',
+        message: '题目添加成功',
+        type: 'success'
+      });
+      setShowModal(true);
     } catch (error) {
       console.error('添加题目失败:', error);
-      alert('添加题目失败，请重试');
+      setModalConfig({
+        title: '错误',
+        message: '添加题目失败，请重试',
+        type: 'error'
+      });
+      setShowModal(true);
     } finally {
       setSaving(false);
     }
@@ -437,6 +459,27 @@ export default function AddQuestionsPage() {
             </>
           )}
         </div>
+
+        {/* 提示模态框 */}
+        <Modal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            if (modalConfig.type === 'success') {
+              navigate(`/exams/${id}`);
+            }
+          }}
+          title={modalConfig.title}
+          confirmText="确定"
+          onConfirm={() => {
+            setShowModal(false);
+            if (modalConfig.type === 'success') {
+              navigate(`/exams/${id}`);
+            }
+          }}
+        >
+          <p>{modalConfig.message}</p>
+        </Modal>
       </div>
     </div>
   );

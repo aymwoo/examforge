@@ -107,6 +107,15 @@ export class ExamController {
     return this.examService.delete(id);
   }
 
+  @Post(':id/copy')
+  @ApiOperation({ summary: 'Copy an exam' })
+  @ApiParam({ name: 'id', description: 'Exam ID to copy' })
+  @ApiResponse({ status: 201, description: 'Exam copied successfully' })
+  @ApiResponse({ status: 404, description: 'Exam not found' })
+  copy(@Param('id') id: string, @Request() req) {
+    return this.examService.copy(id, req.user.id);
+  }
+
   @Post(':id/questions')
   @ApiOperation({ summary: 'Add a question to an exam' })
   @ApiParam({ name: 'id', description: 'Exam ID' })

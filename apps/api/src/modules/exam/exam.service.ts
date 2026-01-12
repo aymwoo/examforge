@@ -195,6 +195,39 @@ export class ExamService {
     await this.prisma.exam.delete({ where: { id } });
   }
 
+  async copy(id: string, userId: string) {
+    const originalExam = await this.findById(id);
+    
+    // 创建新考试（复制基本信息）
+    const newExam = await this.prisma.exam.create({
+      data: {
+        title: `${originalExam.title} - 副本`,
+        description: originalExam.description,
+        duration: originalExam.duration,
+        totalScore: originalExam.totalScore,
+        status: 'DRAFT', // 新考试默认为草稿状态
+        accountModes: originalExam.accountModes,
+        createdBy: userId, // 设置为当前用户
+      }
+    });
+
+    // 复制考试题目
+    if (originalExam.examQuestions && originalExam.examQuestions.length > 0) {
+      const examQuestions = originalExam.examQuestions.map((eq: any) => ({
+        examId: newExam.id,
+        questionId: eq.questionId,
+        order: eq.order,
+        score: eq.score,
+      }));
+
+      await this.prisma.examQuestion.createMany({
+        data: examQuestions
+      });
+    }
+
+    return this.findById(newExam.id);
+  }
+
   async addQuestion(examId: string, dto: AddQuestionDto) {
     await this.findById(examId);
 

@@ -95,6 +95,11 @@ export const deleteExam = async (id: string): Promise<void> => {
   await api.delete(`/api/exams/${id}`);
 };
 
+export const copyExam = async (id: string): Promise<Exam> => {
+  const response = await api.post<Exam>(`/api/exams/${id}/copy`);
+  return response.data;
+};
+
 export const addQuestionToExam = async (
   examId: string,
   data: AddQuestionDto,
