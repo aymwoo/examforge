@@ -42,7 +42,7 @@ export class StudentService {
     };
   }
 
-  async getStudentByStudentId(studentId: string) {
+  async getStudentByStudentId(studentId: string, currentUser: any) {
     const student = await this.prisma.student.findUnique({
       where: { studentId },
       include: {
@@ -60,6 +60,9 @@ export class StudentService {
       throw new NotFoundException('学生信息不存在');
     }
 
+    // 权限检查
+    await this.checkStudentAccess(student, currentUser);
+
     return {
       id: student.id,
       studentId: student.studentId,
@@ -75,15 +78,21 @@ export class StudentService {
     };
   }
 
-  async getExamHistoryByStudentId(studentId: string) {
+  async getExamHistoryByStudentId(studentId: string, currentUser: any) {
     // 先找到学生
     const student = await this.prisma.student.findUnique({
-      where: { studentId }
+      where: { studentId },
+      include: {
+        class: true
+      }
     });
 
     if (!student) {
       throw new NotFoundException('学生信息不存在');
     }
+
+    // 权限检查
+    await this.checkStudentAccess(student, currentUser);
 
     // 获取学生参与的所有考试
     const examStudents = await this.prisma.examStudent.findMany({
@@ -119,6 +128,40 @@ export class StudentService {
         submittedAt: examStudent.submissions[0].submittedAt
       } : null
     }));
+  }
+
+  private async checkStudentAccess(student: any, currentUser: any) {
+    // 管理员可以访问所有学生
+    if (currentUser.role === 'ADMIN') {
+      return;
+    }
+
+    // 学生只能访问自己的信息
+    if (currentUser.role === 'STUDENT' || currentUser.isStudent) {
+      if (student.studentId === currentUser.username) {
+        return;
+      }
+      throw new ForbiddenException('您只能查看自己的信息');
+    }
+
+    // 教师只能访问自己班级的学生
+    if (currentUser.role === 'TEACHER') {
+      if (!student.classId) {
+        throw new ForbiddenException('该学生未分配班级，您无权查看');
+      }
+
+      // 检查教师是否是该班级的创建者
+      const classInfo = await this.prisma.class.findUnique({
+        where: { id: student.classId }
+      });
+
+      if (!classInfo || classInfo.createdBy !== currentUser.sub) {
+        throw new ForbiddenException('您只能查看自己班级的学生信息');
+      }
+      return;
+    }
+
+    throw new ForbiddenException('您没有权限查看该学生信息');
   }
 
   async getExamHistory(userId: string, isStudent: boolean) {
