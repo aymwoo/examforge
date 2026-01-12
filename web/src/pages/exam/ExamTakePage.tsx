@@ -177,10 +177,15 @@ export default function ExamTakePage() {
   };
 
   const handleAnswerChange = (questionId: string, answer: any) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: answer
-    }));
+    console.log(`答案变更: 题目ID=${questionId}, 答案=`, answer);
+    setAnswers(prev => {
+      const newAnswers = {
+        ...prev,
+        [questionId]: answer
+      };
+      console.log(`更新后的所有答案:`, newAnswers);
+      return newAnswers;
+    });
   };
 
   const handleSubmitExam = async () => {
@@ -619,7 +624,11 @@ export default function ExamTakePage() {
                             name={`question-${currentQuestion.id}`}
                             value={optionText}
                             checked={answers[currentQuestion.id] === optionText}
-                            onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                handleAnswerChange(currentQuestion.id, optionText);
+                              }
+                            }}
                             className="w-4 h-4 text-blue-600"
                           />
                           <span className="text-ink-900">{String.fromCharCode(65 + index)}. {optionText}</span>
