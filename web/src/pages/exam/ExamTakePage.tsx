@@ -409,7 +409,12 @@ export default function ExamTakePage() {
                             <div>
                               <div className="text-sm font-medium text-gray-700 mb-2">您的答案:</div>
                               <div className={`border rounded-lg p-3 ${answer ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-                                {Array.isArray(answer) ? answer.join(', ') : (answer || '未作答')}
+                                {(() => {
+                                  if (!answer) return '未作答';
+                                  if (Array.isArray(answer)) return answer.join(', ');
+                                  if (typeof answer === 'object') return JSON.stringify(answer);
+                                  return String(answer);
+                                })()}
                               </div>
                             </div>
                             
@@ -420,7 +425,10 @@ export default function ExamTakePage() {
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                                   {(() => {
                                     const correctAnswer = submissionResult.gradingResults.details[question.id].correctAnswer;
-                                    return Array.isArray(correctAnswer) ? correctAnswer.join(', ') : correctAnswer;
+                                    if (!correctAnswer) return '';
+                                    if (Array.isArray(correctAnswer)) return correctAnswer.join(', ');
+                                    if (typeof correctAnswer === 'object') return JSON.stringify(correctAnswer);
+                                    return String(correctAnswer);
                                   })()}
                                 </div>
                               </div>
