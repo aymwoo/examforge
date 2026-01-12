@@ -323,6 +323,27 @@ export class ExamService {
     return Promise.all(promises);
   }
 
+  async batchUpdateQuestionOrders(examId: string, updates: { questionId: string, order: number }[]) {
+    await this.findById(examId);
+
+    const promises = updates.map(async ({ questionId, order }) => {
+      const examQuestion = await this.prisma.examQuestion.findFirst({
+        where: { examId, questionId }
+      });
+
+      if (!examQuestion) {
+        throw new NotFoundException(`题目 ${questionId} 不存在于此考试中`);
+      }
+
+      return this.prisma.examQuestion.update({
+        where: { id: examQuestion.id },
+        data: { order }
+      });
+    });
+
+    return Promise.all(promises);
+  }
+
   private transformExam(exam: any) {
     return {
       ...exam,

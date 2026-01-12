@@ -4,8 +4,8 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import ExamLayout from "@/components/ExamLayout";
 import { getExamById, type Exam } from "@/services/exams";
-import { QuestionType, QuestionTypeLabels } from "@examforge/shared-types";
-import { Filter, Settings, CheckSquare, Square, GripVertical } from "lucide-react";
+import { QuestionTypeLabels } from "@examforge/shared-types";
+import { CheckSquare, Square, GripVertical } from "lucide-react";
 import api from "@/services/api";
 import {
   DndContext,
@@ -40,6 +40,63 @@ function SortableQuestion({ examQuestion, index, onSelect, isSelected, onDetailC
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+  };
+
+  // 题型区块组件
+  const TypeBlock = ({ type, questions }: { type: string, questions: any[] }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: `type-${type}` });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+      <div ref={setNodeRef} style={style} className="bg-white rounded-xl border border-blue-200 overflow-hidden">
+        <div 
+          {...attributes}
+          {...listeners}
+          className="bg-blue-50 px-6 py-3 border-b border-blue-200 cursor-move hover:bg-blue-100 transition-colors"
+        >
+          <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+            <GripVertical className="w-4 h-4" />
+            {QuestionTypeLabels[type as keyof typeof QuestionTypeLabels] || type} ({questions.length} 题)
+          </h3>
+        </div>
+        <SortableContext items={questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+          <div className="divide-y divide-gray-200">
+            {questions.map((examQuestion: any) => (
+              <SortableQuestion
+                key={examQuestion.id}
+                examQuestion={examQuestion}
+                isSelected={selectedQuestions.has(examQuestion.question.id)}
+                onSelect={handleQuestionSelect}
+                onDetailClick={setSelectedQuestion}
+                onImageClick={(question: any) => {
+                  const images = getImages(question);
+                  if (images.length > 0) {
+                    setSelectedImage(images[0]);
+                    setShowImageModal(true);
+                  }
+                }}
+                onEditClick={(questionId: string) => navigate(`/questions/${questionId}/edit`)}
+                hasImages={hasImages}
+                getImages={getImages}
+                canEdit={canEdit}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </div>
+    );
   };
 
   return (
@@ -138,6 +195,8 @@ export default function ExamDetailPage() {
   const [batchScore, setBatchScore] = useState<number>(10);
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
+  const [hasOrderChanged, setHasOrderChanged] = useState(false);
+  const [typeOrder, setTypeOrder] = useState<string[]>([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -153,6 +212,13 @@ export default function ExamDetailPage() {
       loadExam();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (exam?.examQuestions) {
+      const types = [...new Set(exam.examQuestions.map(eq => eq.question?.type).filter(Boolean))];
+      setTypeOrder(types);
+    }
+  }, [exam]);
 
   const loadExam = async () => {
     if (!id) return;
@@ -273,46 +339,64 @@ export default function ExamDetailPage() {
       return;
     }
 
+    // 处理题型区块拖拽
+    if (String(active.id).startsWith('type-') && String(over.id).startsWith('type-')) {
+      const activeType = String(active.id).replace('type-', '');
+      const overType = String(over.id).replace('type-', '');
+      
+      const oldIndex = typeOrder.indexOf(activeType);
+      const newIndex = typeOrder.indexOf(overType);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newTypeOrder = arrayMove(typeOrder, oldIndex, newIndex);
+        setTypeOrder(newTypeOrder);
+        setHasOrderChanged(true);
+      }
+      return;
+    }
+
+    // 处理题目内部拖拽（保持原有逻辑）
     if (!exam?.examQuestions) return;
 
-    // 找到被拖拽的题目和目标位置的题目
     const activeQuestion = exam.examQuestions.find(eq => eq.id === active.id);
     const overQuestion = exam.examQuestions.find(eq => eq.id === over.id);
 
     if (!activeQuestion || !overQuestion) return;
 
-    // 检查是否在同一题型内拖拽
     if (activeQuestion.question?.type !== overQuestion.question?.type) {
       alert('只能在相同题型内调整顺序');
       return;
     }
 
-    // 获取当前题型的所有题目
-    const currentType = activeQuestion.question?.type;
-    const typeQuestions = exam.examQuestions
-      .filter(eq => eq.question?.type === currentType)
-      .sort((a, b) => a.order - b.order);
+    setHasOrderChanged(true);
+  };
 
-    const oldIndex = typeQuestions.findIndex(eq => eq.id === active.id);
-    const newIndex = typeQuestions.findIndex(eq => eq.id === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    // 重新排序
-    const reorderedQuestions = arrayMove(typeQuestions, oldIndex, newIndex);
+  const handleSaveOrder = async () => {
+    if (!id || !exam?.examQuestions) return;
 
     try {
-      // 更新每个题目的order
-      const updates = reorderedQuestions.map((eq, index) => ({
-        questionId: eq.questionId,
-        order: eq.order, // 保持原有的全局order，只在类型内调整
-      }));
+      // 根据新的题型顺序重新计算所有题目的order
+      const updates: { questionId: string, order: number }[] = [];
+      let globalOrder = 1;
 
-      // 这里需要调用API更新顺序
-      // 暂时先重新加载数据
-      await loadExam();
-    } catch (error) {
-      console.error('更新题目顺序失败:', error);
+      typeOrder.forEach(type => {
+        const typeQuestions = exam.examQuestions
+          .filter(eq => eq.question?.type === type)
+          .sort((a, b) => a.order - b.order);
+
+        typeQuestions.forEach(eq => {
+          updates.push({
+            questionId: eq.questionId,
+            order: globalOrder++
+          });
+        });
+      });
+
+      await api.patch(`/api/exams/${id}/questions/batch-orders`, { updates });
+      setHasOrderChanged(false);
+      loadExam();
+    } catch (err: any) {
+      alert(err.response?.data?.message || '保存排序失败');
     }
   };
 
@@ -354,48 +438,36 @@ export default function ExamDetailPage() {
               添加题目
             </Button>
           </div>
-          {exam.examQuestions && exam.examQuestions.length > 0 ? (
+          
+          {hasOrderChanged && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between">
+              <span className="text-yellow-800">题目顺序已修改</span>
+              <button
+                onClick={handleSaveOrder}
+                className="px-3 py-1 bg-yellow-600 text-white rounded hover:bg-yellow-700"
+              >
+                保存排序
+              </button>
+            </div>
+          )}
+          {exam?.examQuestions && exam.examQuestions.length > 0 ? (
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >
-              <div className="space-y-6">
-                {/* 按题型分组显示 */}
-                {Object.entries(getQuestionsByType()).map(([type, questions]) => (
-                  <div key={type} className="bg-white rounded-xl border border-blue-200 overflow-hidden">
-                    <div className="bg-blue-50 px-6 py-3 border-b border-blue-200">
-                      <h3 className="font-semibold text-blue-900">
-                        {QuestionTypeLabels[type as keyof typeof QuestionTypeLabels] || type} ({questions.length} 题)
-                      </h3>
-                    </div>
-                    <SortableContext items={questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
-                      <div className="divide-y divide-gray-200">
-                        {questions.map((examQuestion: any) => (
-                          <SortableQuestion
-                            key={examQuestion.id}
-                            examQuestion={examQuestion}
-                            isSelected={selectedQuestions.has(examQuestion.question.id)}
-                            onSelect={handleQuestionSelect}
-                            onDetailClick={setSelectedQuestion}
-                            onImageClick={(question: any) => {
-                              const images = getImages(question);
-                              if (images.length > 0) {
-                                setSelectedImage(images[0]);
-                                setShowImageModal(true);
-                              }
-                            }}
-                            onEditClick={(questionId: string) => navigate(`/questions/${questionId}/edit`)}
-                            hasImages={hasImages}
-                            getImages={getImages}
-                            canEdit={canEdit}
-                          />
-                        ))}
-                      </div>
-                    </SortableContext>
-                  </div>
-                ))}
-              </div>
+              <SortableContext items={typeOrder.map(type => `type-${type}`)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-6">
+                  {typeOrder.map(type => {
+                    const questions = getQuestionsByType()[type];
+                    if (!questions) return null;
+                    
+                    return (
+                      <TypeBlock key={type} type={type} questions={questions} />
+                    );
+                  })}
+                </div>
+              </SortableContext>
             </DndContext>
           ) : (
             <div className="text-center py-12">

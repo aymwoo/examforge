@@ -159,6 +159,17 @@ export class ExamController {
     return this.examService.batchUpdateQuestionScores(examId, body.updates);
   }
 
+  @Patch(':id/questions/batch-orders')
+  @ApiOperation({ summary: 'Batch update question orders' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiResponse({ status: 200, description: 'Orders updated successfully' })
+  batchUpdateQuestionOrders(
+    @Param('id') examId: string,
+    @Body() body: { updates: { questionId: string, order: number }[] }
+  ) {
+    return this.examService.batchUpdateQuestionOrders(examId, body.updates);
+  }
+
   // 学生管理API
   @Post(':id/students')
   @ApiOperation({ summary: 'Add a student to exam' })
