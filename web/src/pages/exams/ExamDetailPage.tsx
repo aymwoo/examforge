@@ -4,6 +4,8 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import ExamLayout from "@/components/ExamLayout";
 import { getExamById, type Exam } from "@/services/exams";
+
+type ExamWithOwner = Exam & { createdBy?: string };
 import { QuestionTypeLabels } from "@examforge/shared-types";
 import {
   CheckSquare,
@@ -45,7 +47,6 @@ function SortableTypeBlock({
   hasImages,
   getImages,
   canEdit,
-  handleBatchSetTypeScore,
   setBatchScoreType,
   setBatchScore,
   setShowBatchScoreModal,
@@ -141,6 +142,7 @@ function SortableTypeBlock({
               <SortableQuestion
                 key={examQuestion.id}
                 examQuestion={examQuestion}
+                index={examQuestion.order}
                 isSelected={selectedQuestions.has(examQuestion.question.id)}
                 onSelect={handleQuestionSelect}
                 onDetailClick={setSelectedQuestion}
@@ -169,14 +171,12 @@ function SortableTypeBlock({
 // 可拖拽的题目组件
 function SortableQuestion({
   examQuestion,
-  index,
   onSelect,
   isSelected,
   onDetailClick,
   onImageClick,
   onEditClick,
   hasImages,
-  getImages,
   canEdit,
 }: any) {
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -292,7 +292,7 @@ function SortableQuestion({
 export default function ExamDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [exam, setExam] = useState<Exam | null>(null);
+  const [exam, setExam] = useState<ExamWithOwner | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
@@ -304,8 +304,7 @@ export default function ExamDetailPage() {
   );
   const [batchScore, setBatchScore] = useState<number>(10);
   const [batchScoreType, setBatchScoreType] = useState<string>("");
-  const [typeFilter, setTypeFilter] = useState<string>("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [typeFilter] = useState<string>("");
   const [hasOrderChanged, setHasOrderChanged] = useState(false);
   const [typeOrder, setTypeOrder] = useState<string[]>([]);
   const [showWarningModal, setShowWarningModal] = useState(false);
@@ -347,7 +346,11 @@ export default function ExamDetailPage() {
       const data = await getExamById(id);
 
       // 权限检查：教师只能查看自己创建的考试
-      if (currentUser.role === "TEACHER" && data.createdBy !== currentUser.id) {
+      const dataWithOwner = data as ExamWithOwner;
+      if (
+        currentUser.role === "TEACHER" &&
+        dataWithOwner.createdBy !== currentUser.id
+      ) {
         setError("您没有权限查看此考试");
         return;
       }
@@ -403,18 +406,6 @@ export default function ExamDetailPage() {
       newSelected.add(questionId);
     }
     setSelectedQuestions(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    if (!exam?.examQuestions) return;
-    const filteredQuestions = getFilteredQuestions();
-    if (selectedQuestions.size === filteredQuestions.length) {
-      setSelectedQuestions(new Set());
-    } else {
-      setSelectedQuestions(
-        new Set(filteredQuestions.map((eq) => eq.question.id)),
-      );
-    }
   };
 
   const handleBatchUpdateScores = async () => {
@@ -514,7 +505,7 @@ export default function ExamDetailPage() {
       let globalOrder = 1;
 
       typeOrder.forEach((type) => {
-        const typeQuestions = exam.examQuestions
+        const typeQuestions = (exam.examQuestions ?? [])
           .filter((eq) => eq.question?.type === type)
           .sort((a, b) => a.order - b.order);
 
@@ -712,7 +703,6 @@ export default function ExamDetailPage() {
                         hasImages={hasImages}
                         getImages={getImages}
                         canEdit={canEdit}
-                        handleBatchSetTypeScore={handleBatchSetTypeScore}
                         setBatchScoreType={setBatchScoreType}
                         setBatchScore={setBatchScore}
                         setShowBatchScoreModal={setShowBatchScoreModal}

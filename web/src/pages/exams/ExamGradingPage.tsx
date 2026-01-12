@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft,
   User,
   Clock,
   CheckCircle,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import ExamLayout from "@/components/ExamLayout";
 import { useToast } from "@/components/ui/Toast";
 import api from "@/services/api";
 
@@ -402,49 +402,43 @@ export default function ExamGradingPage() {
   }
 
   return (
-    <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
+    <ExamLayout activeTab="grading">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        {/* 头部 */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              onClick={() => navigate(`/exams/${examId}`)}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              返回
-            </Button>
+        <div className="rounded-3xl border-2 border-green-100 bg-gradient-to-br from-green-50 to-white p-8 shadow-lg">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-ink-900">
-                {exam?.title} - 评分
-              </h1>
-              <p className="text-ink-600">共 {submissions.length} 份提交</p>
+              <h2 className="text-2xl font-bold text-green-900">评分管理</h2>
+              <p className="mt-1 text-sm text-green-800">
+                {exam?.title ? `考试：${exam.title}` : ""}
+                {typeof submissions.length === "number"
+                  ? `（共 ${submissions.length} 份提交）`
+                  : ""}
+              </p>
             </div>
-          </div>
 
-          {/* 批量操作 */}
-          {submissions.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                已选择 {selectedSubmissions.size} 项
-              </span>
-              <Button
-                onClick={handleBatchApprove}
-                disabled={selectedSubmissions.size === 0 || approveLoading}
-                variant="outline"
-              >
-                {approveLoading ? "复核中..." : "多选复核确认得分"}
-              </Button>
-              <Button
-                onClick={handleBatchReset}
-                disabled={selectedSubmissions.size === 0 || resetLoading}
-                variant="outline"
-                className="text-red-600 border-red-300 hover:bg-red-50"
-              >
-                {resetLoading ? "重置中..." : "批量重置"}
-              </Button>
-            </div>
-          )}
+            {submissions.length > 0 && (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <span className="text-sm text-gray-600">
+                  已选择 {selectedSubmissions.size} 项
+                </span>
+                <Button
+                  onClick={handleBatchApprove}
+                  disabled={selectedSubmissions.size === 0 || approveLoading}
+                  variant="outline"
+                >
+                  {approveLoading ? "复核中..." : "多选复核确认得分"}
+                </Button>
+                <Button
+                  onClick={handleBatchReset}
+                  disabled={selectedSubmissions.size === 0 || resetLoading}
+                  variant="outline"
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  {resetLoading ? "重置中..." : "批量重置"}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1397,6 +1391,6 @@ export default function ExamGradingPage() {
           </div>
         ) : null}
       </Modal>
-    </div>
+    </ExamLayout>
   );
 }
