@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { User, Mail, Phone, Calendar, Save, Lock, Eye, EyeOff } from "lucide-react";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { getCurrentUser } from "@/utils/auth";
 import api from "@/services/api";
 
@@ -26,6 +27,8 @@ export default function ProfilePage() {
     confirm: false
   });
   const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
 
   const getRoleName = (role: string) => {
     const roleMap: Record<string, string> = {
@@ -69,9 +72,11 @@ export default function ProfilePage() {
       // 更新本地存储的用户信息
       localStorage.setItem('user', JSON.stringify(response.data));
       
-      alert('个人资料已保存');
+      setModalMessage('个人资料已保存');
+      setShowModal(true);
     } catch (error: any) {
-      alert(error.response?.data?.message || '保存失败，请重试');
+      setModalMessage(error.response?.data?.message || '保存失败，请重试');
+      setShowModal(true);
     } finally {
       setLoading(false);
     }
@@ -81,12 +86,14 @@ export default function ProfilePage() {
     e.preventDefault();
     
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('新密码和确认密码不匹配');
+      setModalMessage('新密码和确认密码不匹配');
+      setShowModal(true);
       return;
     }
     
     if (passwordData.newPassword.length < 6) {
-      alert('新密码长度至少6位');
+      setModalMessage('新密码长度至少6位');
+      setShowModal(true);
       return;
     }
     
@@ -98,14 +105,16 @@ export default function ProfilePage() {
         newPassword: passwordData.newPassword
       });
 
-      alert('密码修改成功');
+      setModalMessage('密码修改成功');
+      setShowModal(true);
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
     } catch (error: any) {
-      alert(error.response?.data?.message || '密码修改失败，请重试');
+      setModalMessage(error.response?.data?.message || '密码修改失败，请重试');
+      setShowModal(true);
     } finally {
       setLoading(false);
     }
@@ -336,6 +345,17 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* 提示模态框 */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="提示"
+        confirmText="确定"
+        onConfirm={() => setShowModal(false)}
+      >
+        <p>{modalMessage}</p>
+      </Modal>
     </div>
   );
 }
