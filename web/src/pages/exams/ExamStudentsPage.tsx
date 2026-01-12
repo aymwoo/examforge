@@ -26,6 +26,7 @@ interface ExamStudent {
   username: string;
   displayName?: string;
   createdAt: string;
+  accountType?: string; // 添加账号类型字段
 }
 
 export default function ExamStudentsPage() {
@@ -88,6 +89,27 @@ export default function ExamStudentsPage() {
     }
   };
 
+  // 按登录模式分组学生
+  const getStudentsByMode = () => {
+    const groups = {
+      PERMANENT: examStudents.filter(s => s.accountType === 'PERMANENT'),
+      TEMPORARY_IMPORT: examStudents.filter(s => s.accountType === 'TEMPORARY_IMPORT'),
+      TEMPORARY_REGISTER: examStudents.filter(s => s.accountType === 'TEMPORARY_REGISTER'),
+    };
+    return groups;
+  };
+
+  const studentGroups = getStudentsByMode();
+
+  const getModeLabel = (mode: string) => {
+    const labels = {
+      PERMANENT: '固定学生',
+      TEMPORARY_IMPORT: '临时导入',
+      TEMPORARY_REGISTER: '临时注册'
+    };
+    return labels[mode as keyof typeof labels] || mode;
+  };
+
   if (loading) {
     return (
       <ExamLayout activeTab="students">
@@ -114,94 +136,101 @@ export default function ExamStudentsPage() {
           </div>
           
           {/* 统计信息 */}
-          <div className="grid gap-4 sm:grid-cols-4 mb-8">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             <div className="bg-white rounded-xl p-4 border border-blue-200">
-              <div className="text-2xl font-bold text-blue-600">{exam?.totalStudents || 0}</div>
-              <div className="text-sm text-blue-700">注册学生</div>
+              <div className="text-2xl font-bold text-blue-600">{studentGroups.PERMANENT.length}</div>
+              <div className="text-sm text-blue-700">固定学生</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-green-200">
+              <div className="text-2xl font-bold text-green-600">{studentGroups.TEMPORARY_IMPORT.length}</div>
+              <div className="text-sm text-green-700">临时导入</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-orange-200">
+              <div className="text-2xl font-bold text-orange-600">{studentGroups.TEMPORARY_REGISTER.length}</div>
+              <div className="text-sm text-orange-700">临时注册</div>
             </div>
             <div className="bg-white rounded-xl p-4 border border-indigo-200">
               <div className="text-2xl font-bold text-indigo-600">{submissions.length}</div>
-              <div className="text-sm text-indigo-700">已提交学生</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-green-200">
-              <div className="text-2xl font-bold text-green-600">
-                {submissions.filter(s => s.isReviewed).length}
-              </div>
-              <div className="text-sm text-green-700">已复核</div>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-yellow-200">
-              <div className="text-2xl font-bold text-yellow-600">
-                {submissions.filter(s => s.isAutoGraded && !s.isReviewed).length}
-              </div>
-              <div className="text-sm text-yellow-700">待复核</div>
+              <div className="text-sm text-indigo-700">已提交</div>
             </div>
           </div>
 
           {/* 学生列表 */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-indigo-900">学生详情</h3>
-            {examStudents.length > 0 ? (
-              examStudents.map((student) => {
-                const submission = submissions.find(s => s.student.username === student.username);
-                return (
-                  <div 
-                    key={student.id}
-                    className="bg-white rounded-xl p-6 border border-indigo-200 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-semibold text-indigo-900">
-                          {student.displayName || student.username}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          注册时间: {new Date(student.createdAt).toLocaleString('zh-CN')}
-                        </div>
-                        {submission && (
-                          <div className="text-sm text-gray-600">
-                            提交时间: {new Date(submission.submittedAt).toLocaleString('zh-CN')}
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        {submission ? (
-                          <>
-                            {submission.score !== null && (
-                              <div className="text-lg font-bold text-green-600 mb-1">
-                                {submission.score}/{exam?.totalScore}
-                              </div>
-                            )}
-                            {submission.gradingDetails && (
-                              <div className="text-sm text-blue-600 mb-2">
-                                AI预评分: {submission.gradingDetails.totalScore}/{submission.gradingDetails.maxTotalScore}
-                              </div>
-                            )}
-                            <div className="flex gap-2">
-                              {submission.isReviewed ? (
-                                <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                                  已复核
-                                </span>
-                              ) : submission.isAutoGraded ? (
-                                <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">
-                                  待复核
-                                </span>
-                              ) : (
-                                <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">
-                                  未评分
-                                </span>
-                              )}
+          <div className="space-y-6">
+            {Object.entries(studentGroups).map(([mode, students]) => (
+              students.length > 0 && (
+                <div key={mode} className="space-y-4">
+                  <h3 className="text-lg font-semibold text-indigo-900 flex items-center gap-2">
+                    {getModeLabel(mode)}
+                    <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-sm">
+                      {students.length}人
+                    </span>
+                  </h3>
+                  {students.map((student) => {
+                    const submission = submissions.find(s => s.student.username === student.username);
+                    return (
+                      <div 
+                        key={student.id}
+                        className="bg-white rounded-xl p-6 border border-indigo-200 hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-semibold text-indigo-900">
+                              {student.displayName || student.username}
                             </div>
-                          </>
-                        ) : (
-                          <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
-                            未提交
-                          </span>
-                        )}
+                            <div className="text-sm text-gray-600">
+                              注册时间: {new Date(student.createdAt).toLocaleString('zh-CN')}
+                            </div>
+                            {submission && (
+                              <div className="text-sm text-gray-600">
+                                提交时间: {new Date(submission.submittedAt).toLocaleString('zh-CN')}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            {submission ? (
+                              <>
+                                {submission.score !== null && (
+                                  <div className="text-lg font-bold text-green-600 mb-1">
+                                    {submission.score}/{exam?.totalScore}
+                                  </div>
+                                )}
+                                {submission.gradingDetails && (
+                                  <div className="text-sm text-blue-600 mb-2">
+                                    AI预评分: {submission.gradingDetails.totalScore}/{submission.gradingDetails.maxTotalScore}
+                                  </div>
+                                )}
+                                <div className="flex gap-2">
+                                  {submission.isReviewed ? (
+                                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                                      已复核
+                                    </span>
+                                  ) : submission.isAutoGraded ? (
+                                    <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">
+                                      待复核
+                                    </span>
+                                  ) : (
+                                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">
+                                      未评分
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                                未提交
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
+                    );
+                  })}
+                </div>
+              )
+            ))}
+            
+            {examStudents.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-indigo-700">暂无注册学生</p>
               </div>
