@@ -275,6 +275,13 @@ export default function ExamDetailPage() {
     setError(null);
     try {
       const data = await getExamById(id);
+      
+      // 权限检查：教师只能查看自己创建的考试
+      if (currentUser.role === 'TEACHER' && data.createdBy !== currentUser.id) {
+        setError("您没有权限查看此考试");
+        return;
+      }
+      
       setExam(data);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || "加载失败");
