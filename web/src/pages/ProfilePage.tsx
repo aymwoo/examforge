@@ -63,8 +63,24 @@ export default function ProfilePage() {
     setLoading(true);
     
     try {
-      // TODO: 实现保存个人资料的API调用
-      console.log('保存个人资料:', formData);
+      const response = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        throw new Error('更新失败');
+      }
+
+      const updatedUser = await response.json();
+      
+      // 更新本地存储的用户信息
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
       alert('个人资料已保存');
     } catch (error) {
       alert('保存失败，请重试');
@@ -89,19 +105,31 @@ export default function ProfilePage() {
     setLoading(true);
     
     try {
-      // TODO: 实现修改密码的API调用
-      console.log('修改密码:', {
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword
+      const response = await fetch('/api/users/change-password', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        })
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || '密码修改失败');
+      }
+
       alert('密码修改成功');
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
-    } catch (error) {
-      alert('密码修改失败，请重试');
+    } catch (error: any) {
+      alert(error.message || '密码修改失败，请重试');
     } finally {
       setLoading(false);
     }

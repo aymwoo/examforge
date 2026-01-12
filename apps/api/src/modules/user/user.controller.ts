@@ -7,11 +7,15 @@ import {
   Param,
   Delete,
   Query,
+  Put,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('users')
 @Controller('users')
@@ -58,5 +62,19 @@ export class UserController {
   @ApiOperation({ summary: 'Delete user' })
   remove(@Param('id') id: string) {
     return this.userService.remove(id);
+  }
+
+  @Put('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update current user profile' })
+  updateProfile(@Request() req: any, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.updateProfile(req.user.id, updateUserDto);
+  }
+
+  @Put('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Change user password' })
+  changePassword(@Request() req: any, @Body() body: { currentPassword: string; newPassword: string }) {
+    return this.userService.changePassword(req.user.id, body.currentPassword, body.newPassword);
   }
 }
