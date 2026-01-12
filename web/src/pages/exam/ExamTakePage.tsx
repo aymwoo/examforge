@@ -402,15 +402,19 @@ export default function ExamTakePage() {
                             <div>
                               <div className="text-sm font-medium text-gray-700 mb-2">您的答案:</div>
                               <div className={`border rounded-lg p-3 ${answer ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-                                {answer || '未作答'}
+                                {Array.isArray(answer) ? answer.join(', ') : (answer || '未作答')}
                               </div>
                             </div>
                             
-                            {question.answer && (
+                            {/* 从gradingResults中获取正确答案 */}
+                            {submissionResult?.gradingResults?.details?.[question.id]?.correctAnswer && (
                               <div>
-                                <div className="text-sm font-medium text-gray-700 mb-2">参考答案:</div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">正确答案:</div>
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                                  {question.answer}
+                                  {(() => {
+                                    const correctAnswer = submissionResult.gradingResults.details[question.id].correctAnswer;
+                                    return Array.isArray(correctAnswer) ? correctAnswer.join(', ') : correctAnswer;
+                                  })()}
                                 </div>
                               </div>
                             )}
