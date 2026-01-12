@@ -203,22 +203,11 @@ export default function ExamGradingPage() {
   const formatAnswerDisplay = (answer: string | string[], question: any) => {
     if (!question || !question.options) return answer;
     
+    // 如果答案已经是选项文本格式，直接返回
     if (Array.isArray(answer)) {
-      // 多选题：将答案文本数组转换为选项标识数组
-      return answer.map(answerText => {
-        const index = question.options.findIndex((opt: any) => {
-          const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
-          return optionText === answerText;
-        });
-        return index >= 0 ? String.fromCharCode(65 + index) : answerText;
-      }).join(', ');
+      return answer.join(', ');
     } else {
-      // 单选题：将答案文本转换为选项标识
-      const index = question.options.findIndex((opt: any) => {
-        const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
-        return optionText === answer;
-      });
-      return index >= 0 ? String.fromCharCode(65 + index) : answer;
+      return answer;
     }
   };
 
