@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { User, Mail, Phone, Calendar, Save, Lock, Eye, EyeOff } from "lucide-react";
 import Button from "@/components/ui/Button";
 import { getCurrentUser } from "@/utils/auth";
+import api from "@/services/api";
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -63,27 +64,14 @@ export default function ProfilePage() {
     setLoading(true);
     
     try {
-      const response = await fetch('/api/users/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (!response.ok) {
-        throw new Error('更新失败');
-      }
-
-      const updatedUser = await response.json();
+      const response = await api.put('/api/users/profile', formData);
       
       // 更新本地存储的用户信息
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      localStorage.setItem('user', JSON.stringify(response.data));
       
       alert('个人资料已保存');
-    } catch (error) {
-      alert('保存失败，请重试');
+    } catch (error: any) {
+      alert(error.response?.data?.message || '保存失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -105,22 +93,10 @@ export default function ProfilePage() {
     setLoading(true);
     
     try {
-      const response = await fetch('/api/users/change-password', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
-        })
+      await api.put('/api/users/change-password', {
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || '密码修改失败');
-      }
 
       alert('密码修改成功');
       setPasswordData({
@@ -129,7 +105,7 @@ export default function ProfilePage() {
         confirmPassword: ''
       });
     } catch (error: any) {
-      alert(error.message || '密码修改失败，请重试');
+      alert(error.response?.data?.message || '密码修改失败，请重试');
     } finally {
       setLoading(false);
     }
