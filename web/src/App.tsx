@@ -25,11 +25,14 @@ import DocsPage from "./pages/DocsPage";
 import AddQuestionsPage from "./pages/exams/AddQuestionsPage";
 import ClassesPage from "./pages/classes/ClassesPage";
 import ClassDetailPage from "./pages/classes/ClassDetailPage";
+import { AuthProvider } from "./contexts/AuthContext";
+import GlobalLoginModal from "./components/GlobalLoginModal";
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="questions" element={
@@ -129,7 +132,9 @@ function App() {
         <Route path="/exam/:examId/login" element={<ExamLoginPage />} />
         <Route path="/exam/:examId/take" element={<ExamTakePage />} />
       </Routes>
+      <GlobalLoginModal />
     </BrowserRouter>
+    </AuthProvider>
   );
 }
 

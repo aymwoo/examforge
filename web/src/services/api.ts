@@ -37,17 +37,28 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Don't redirect to /auth if we're on an exam login page or homepage login
-      const currentPath = window.location.pathname;
-      if (!currentPath.includes('/exam/') || !currentPath.includes('/login')) {
-        // Don't redirect if this is a login request from homepage modal
-        if (error.config?.url?.includes('/auth/login') && currentPath === '/') {
-          // Let the component handle the login error
-          return Promise.reject(error);
+      // 清除过期的token
+      localStorage.removeItem("token");
+      
+      // 触发全局登录模态框
+      window.dispatchEvent(new CustomEvent('show401Login', {
+        detail: { 
+          config: error.config,
+          error: error
         }
-        localStorage.removeItem("token");
-        window.location.href = "/auth";
-      }
+      }));
+      
+      // 返回一个永远不会resolve的Promise，让调用方等待重试
+      return new Promise((resolve, reject) => {
+        // 将resolve和reject保存到事件详情中，供重试时使用
+        window.dispatchEvent(new CustomEvent('add401Request', {
+          detail: {
+            config: error.config,
+            resolve,
+            reject
+          }
+        }));
+      });
     }
     return Promise.reject(error);
   },
