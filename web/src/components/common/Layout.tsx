@@ -57,7 +57,7 @@ export default function Layout() {
         <div className="container mx-auto px-4 py-2">
           <div className="flex items-center justify-between min-h-[72px]">
             <Link 
-              to={user?.role === 'STUDENT' ? `/students/${user.username}` : "/"} 
+              to={user?.role === 'STUDENT' ? `/student/${user.username}` : "/"} 
               className="text-xl font-bold flex items-center gap-3"
             >
               <div className="h-16 w-16 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200 flex items-center justify-center">
