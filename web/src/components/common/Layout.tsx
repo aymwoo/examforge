@@ -53,8 +53,8 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <nav className="fixed top-0 left-0 right-0 z-50 border-b bg-white shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 py-2">
+          <div className="flex items-center justify-between min-h-[72px]">
             <Link to="/" className="text-xl font-bold flex items-center gap-3">
               <div className="h-16 w-16 overflow-hidden rounded-lg bg-white shadow-sm border border-gray-200 flex items-center justify-center">
                 <img 
@@ -196,7 +196,7 @@ export default function Layout() {
           </div>
         </div>
       </nav>
-      <main className="container mx-auto px-4 py-8 pt-16">
+      <main className="container mx-auto px-4 py-8 pt-20">
         <Outlet />
       </main>
     </div>
