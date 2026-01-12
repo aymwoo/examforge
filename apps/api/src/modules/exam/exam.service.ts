@@ -881,17 +881,21 @@ export class ExamService {
         // 客观题自动评分
         console.log(`题目 ${question.id} 学生答案:`, studentAnswer, '类型:', typeof studentAnswer);
         
-        const isCorrect = this.compareAnswers(studentAnswer, question.answer, question.type);
+        // 将正确答案从选项标识转换为选项文本
+        const correctAnswerText = this.convertAnswerToText(question.answer, question.options, question.type);
+        console.log(`转换后的正确答案:`, correctAnswerText);
+        
+        const isCorrect = this.compareAnswers(studentAnswer, correctAnswerText, question.type);
         const score = isCorrect ? maxScore : 0;
         
         details[question.id] = {
           type: 'objective',
           studentAnswer: studentAnswer !== undefined ? studentAnswer : '', // 确保显示实际答案
-          correctAnswer: question.answer,
+          correctAnswer: correctAnswerText, // 使用转换后的文本答案
           isCorrect,
           score,
           maxScore,
-          feedback: isCorrect ? '答案正确' : `正确答案：${question.answer}`,
+          feedback: isCorrect ? '答案正确' : `正确答案：${correctAnswerText}`,
         };
         
         totalScore += score;
@@ -1444,7 +1448,45 @@ ${studentAnswer}
     };
   }
 
-  private compareAnswers(studentAnswer: any, correctAnswer: string | null, questionType: string): boolean {
+  private convertAnswerToText(answer: string | null, options: string | null, questionType: string): string | string[] {
+    if (!answer || !options) return answer || '';
+    
+    try {
+      // 解析选项
+      const optionsArray = JSON.parse(options);
+      if (!Array.isArray(optionsArray)) return answer;
+      
+      if (questionType === 'SINGLE_CHOICE') {
+        // 单选题：将选项标识转换为选项文本
+        if (answer.length === 1 && /[A-Z]/.test(answer)) {
+          const index = answer.charCodeAt(0) - 65; // A=0, B=1, C=2, D=3
+          return optionsArray[index] || answer;
+        }
+        return answer;
+      } else if (questionType === 'MULTIPLE_CHOICE') {
+        // 多选题：将选项标识字符串转换为选项文本数组
+        if (/^[A-Z]+$/.test(answer)) {
+          const selectedOptions = [];
+          for (let i = 0; i < answer.length; i++) {
+            const index = answer.charCodeAt(i) - 65;
+            if (optionsArray[index]) {
+              selectedOptions.push(optionsArray[index]);
+            }
+          }
+          return selectedOptions;
+        }
+        return answer;
+      }
+      
+      return answer;
+    } catch (error) {
+      console.log('转换答案失败:', error);
+      return answer || '';
+    }
+  }
+
+  private compareAnswers(studentAnswer: any, correctAnswer: string | string[], questionType: string): boolean {
+  private compareAnswers(studentAnswer: any, correctAnswer: string | string[], questionType: string): boolean {
     console.log(`=== 答案比较 ===`);
     console.log(`题目类型: ${questionType}`);
     console.log(`学生答案:`, studentAnswer, `(类型: ${typeof studentAnswer})`);
@@ -1463,20 +1505,7 @@ ${studentAnswer}
     } else if (questionType === 'MULTIPLE_CHOICE') {
       try {
         // 多选题：比较数组内容
-        let correct: string[];
-        
-        // 如果正确答案是字符串，尝试解析为数组
-        if (typeof correctAnswer === 'string') {
-          try {
-            correct = JSON.parse(correctAnswer);
-          } catch {
-            // 如果解析失败，可能是单个字符串，转为数组
-            correct = [correctAnswer];
-          }
-        } else {
-          correct = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
-        }
-        
+        const correct = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
         const student = Array.isArray(studentAnswer) ? studentAnswer : [studentAnswer];
         console.log(`多选题解析 - 正确答案:`, correct, `学生答案:`, student);
         
