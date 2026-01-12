@@ -191,6 +191,11 @@ export default function ExamTakePage() {
   const handleSubmitExam = async () => {
     if (!student || !examId) return;
 
+    console.log('=== 提交前的完整答案对象 ===');
+    console.log('answers:', JSON.stringify(answers, null, 2));
+    console.log('answers keys:', Object.keys(answers));
+    console.log('exam questions:', exam?.questions?.map(q => ({ id: q.id, type: q.type })));
+
     if (!confirm('确定要提交考试吗？提交后将无法修改答案。')) {
       return;
     }
