@@ -442,6 +442,7 @@ export class ExamService {
         id: true,
         username: true,
         displayName: true,
+        accountType: true,
         createdAt: true,
         _count: {
           select: { submissions: true },
@@ -1389,7 +1390,7 @@ ${studentAnswer}
               username: fallbackUsername,
               password: await bcrypt.hash(password, 10),
               displayName: studentData.name,
-              accountType: 'TEMPORARY',
+              accountType: 'TEMPORARY_IMPORT',
             },
           });
 
@@ -1407,7 +1408,7 @@ ${studentAnswer}
             username,
             password: await bcrypt.hash(password, 10),
             displayName: studentData.name,
-            accountType: 'TEMPORARY',
+            accountType: 'TEMPORARY_IMPORT',
           },
         });
 
