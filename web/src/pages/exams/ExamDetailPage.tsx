@@ -523,12 +523,28 @@ export default function ExamDetailPage() {
                 )}
               </div>
             </div>
-            <Button 
-              onClick={() => navigate(`/exams/${id}/add-questions`)}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
-            >
-              添加题目
-            </Button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const allTypes = new Set(typeOrder);
+                  const isAllCollapsed = typeOrder.every(type => collapsedTypes.has(type));
+                  if (isAllCollapsed) {
+                    setCollapsedTypes(new Set());
+                  } else {
+                    setCollapsedTypes(allTypes);
+                  }
+                }}
+                className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded"
+              >
+                {typeOrder.every(type => collapsedTypes.has(type)) ? '展开全部' : '折叠全部'}
+              </button>
+              <Button 
+                onClick={() => navigate(`/exams/${id}/add-questions`)}
+                className="bg-blue-500 hover:bg-blue-600 text-white"
+              >
+                添加题目
+              </Button>
+            </div>
           </div>
           
           {hasOrderChanged && (
