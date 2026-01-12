@@ -5,18 +5,20 @@ import { StudentService } from './student.service';
 
 @ApiTags('students')
 @Controller('students')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
 export class StudentController {
   constructor(private readonly studentService: StudentService) {}
 
   @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get student profile' })
   async getProfile(@Request() req: any) {
     return this.studentService.getProfile(req.user.sub, req.user.isStudent);
   }
 
   @Get('exams')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get student exam history' })
   async getExams(@Request() req: any) {
     return this.studentService.getExamHistory(req.user.sub, req.user.isStudent);
