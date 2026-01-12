@@ -150,7 +150,8 @@ export default function ExamStudentsPage() {
   const loadClasses = async () => {
     try {
       const response = await api.get('/api/classes');
-      setClasses(response.data.data || []);
+      console.log('Classes API response:', response.data); // Debug log
+      setClasses(response.data.data || response.data || []);
     } catch (err) {
       console.error('加载班级失败:', err);
     }
