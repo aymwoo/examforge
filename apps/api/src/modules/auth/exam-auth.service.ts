@@ -28,22 +28,57 @@ export class ExamAuthService {
       throw new BadRequestException('Exam not found');
     }
 
-    // 验证学生账号
-    const student = await this.prisma.examStudent.findFirst({
+    // 首先在考试学生表中查找
+    let student = await this.prisma.examStudent.findFirst({
       where: {
         examId: dto.examId,
         username: dto.username,
       },
     });
 
+    // 如果在考试学生表中没找到，且考试支持固定学生模式，则在班级学生表中查找
+    if (!student) {
+      const accountModes = JSON.parse(exam.accountModes);
+      if (accountModes.includes('PERMANENT')) {
+        // 在班级学生表中查找（使用学号作为用户名）
+        const classStudent = await this.prisma.student.findFirst({
+          where: {
+            studentId: dto.username, // 学号作为用户名
+          },
+        });
+
+        if (classStudent) {
+          // 验证密码
+          const isPasswordValid = await bcrypt.compare(dto.password, classStudent.password);
+          if (!isPasswordValid) {
+            throw new UnauthorizedException('Invalid username or password');
+          }
+
+          // 创建对应的考试学生记录
+          student = await this.prisma.examStudent.create({
+            data: {
+              examId: dto.examId,
+              username: classStudent.studentId,
+              password: classStudent.password, // 使用原密码哈希
+              displayName: classStudent.name,
+              accountType: 'PERMANENT',
+              studentId: classStudent.studentId,
+            },
+          });
+        }
+      }
+    }
+
     if (!student) {
       throw new UnauthorizedException('Invalid username or password');
     }
 
-    // 验证密码
-    const isPasswordValid = await bcrypt.compare(dto.password, student.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid username or password');
+    // 验证密码（如果是从考试学生表直接找到的）
+    if (student.accountType !== 'PERMANENT' || !student.studentId) {
+      const isPasswordValid = await bcrypt.compare(dto.password, student.password);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Invalid username or password');
+      }
     }
 
     // 生成JWT token
