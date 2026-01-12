@@ -59,6 +59,8 @@ export default function StudentDetailPage() {
       setLoading(true);
       setError('');
 
+      console.log('Token:', localStorage.getItem('token')); // Debug log
+
       // 获取学生信息和考试记录
       const [studentResponse, examsResponse] = await Promise.all([
         api.get(`/api/students/by-id/${studentId}`),
@@ -69,7 +71,13 @@ export default function StudentDetailPage() {
       setExams(examsResponse.data);
     } catch (err: any) {
       console.error('加载学生数据失败:', err);
-      setError(err.response?.data?.message || '加载学生信息失败');
+      if (err.response?.status === 401) {
+        setError('登录已过期，请重新登录');
+      } else if (err.response?.status === 403) {
+        setError('您没有权限查看该学生信息');
+      } else {
+        setError(err.response?.data?.message || '加载学生信息失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -116,7 +124,7 @@ export default function StudentDetailPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-lg mb-4">{error}</div>
-          {error.includes('登录') ? (
+          {error.includes('登录') || error.includes('过期') ? (
             <Button 
               onClick={() => window.dispatchEvent(new CustomEvent('show401Login'))}
               className="bg-blue-600 hover:bg-blue-700"
