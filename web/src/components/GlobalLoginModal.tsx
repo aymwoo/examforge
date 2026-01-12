@@ -51,7 +51,7 @@ export default function GlobalLoginModal() {
       
       // 根据用户角色跳转
       if (response.user.role === 'STUDENT') {
-        window.location.href = '/student';
+        window.location.href = `/student/${response.user.username}`;
       }
       
       setShowGlobalLogin(false);

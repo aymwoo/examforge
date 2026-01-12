@@ -28,6 +28,7 @@ import ClassDetailPage from "./pages/classes/ClassDetailPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import GlobalLoginModal from "./components/GlobalLoginModal";
 import StudentDashboard from "./pages/StudentDashboard";
+import StudentDetailPage from "./pages/StudentDetailPage";
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
               <StudentDashboard />
             </ProtectedRoute>
           } />
+          <Route path="student/:id" element={<StudentDetailPage />} />
           <Route path="questions" element={
             <ProtectedRoute requiredRole="TEACHER">
               <QuestionsPage />
