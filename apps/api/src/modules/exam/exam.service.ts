@@ -1340,7 +1340,7 @@ ${studentAnswer}
   }
 
   // 从Excel/CSV导入临时学生
-  async importTemporaryStudents(examId: string, studentsData: Array<{name: string, username?: string}>) {
+  async importTemporaryStudents(examId: string, studentsData: Array<{name: string, username?: string}>, customPassword?: string) {
     const exam = await this.findById(examId);
     
     const results = [];
@@ -1377,7 +1377,7 @@ ${studentAnswer}
           }
           
           // 使用后缀用户名
-          const password = AccountGenerator.generateMemorablePassword();
+          const password = customPassword || AccountGenerator.generateMemorablePassword();
           const examStudent = await this.prisma.examStudent.create({
             data: {
               examId,
@@ -1395,7 +1395,7 @@ ${studentAnswer}
           continue;
         }
 
-        const password = AccountGenerator.generateMemorablePassword();
+        const password = customPassword || AccountGenerator.generateMemorablePassword();
         const examStudent = await this.prisma.examStudent.create({
           data: {
             examId,

@@ -214,8 +214,8 @@ export class ExamController {
   @Post(':id/students/import-temporary')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Import temporary students for exam' })
-  importTemporaryStudents(@Param('id') id: string, @Body() body: { students: { name: string }[] }) {
-    return this.examService.importTemporaryStudents(id, body.students);
+  importTemporaryStudents(@Param('id') id: string, @Body() body: { students: { name: string }[], customPassword?: string }) {
+    return this.examService.importTemporaryStudents(id, body.students, body.customPassword);
   }
 
   @Get(':id/students')

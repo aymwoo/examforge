@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Upload } from "lucide-react";
+import { Upload, FileText } from "lucide-react";
 import ExamLayout from "@/components/ExamLayout";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { getExamById, type Exam } from "@/services/exams";
 import api from "@/services/api";
+import * as XLSX from 'xlsx';
 
 interface Submission {
   id: string;
@@ -38,6 +39,8 @@ export default function ExamStudentsPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
+  const [customPassword, setCustomPassword] = useState("");
+  const [importMode, setImportMode] = useState<'text' | 'file'>('text');
 
   useEffect(() => {
     if (id) {
@@ -76,16 +79,56 @@ export default function ExamStudentsPage() {
       }).filter(student => student.name);
 
       await api.post(`/api/exams/${id}/students/import-temporary`, {
-        students: studentsData
+        students: studentsData,
+        customPassword: customPassword.trim() || undefined
       });
 
       setShowImportModal(false);
       setImportText("");
+      setCustomPassword("");
       loadData();
     } catch (err: any) {
       alert(err.response?.data?.message || '导入失败');
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        let studentsData: string[] = [];
+
+        if (file.name.endsWith('.csv')) {
+          // 处理CSV文件
+          const text = data as string;
+          const lines = text.split('\n');
+          studentsData = lines.map(line => line.trim()).filter(line => line);
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+          // 处理Excel文件
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          studentsData = jsonData.map((row: any) => String(row[0] || '').trim()).filter(name => name);
+        }
+
+        setImportText(studentsData.join('\n'));
+        setImportMode('text');
+      } catch (error) {
+        alert('文件解析失败，请检查文件格式');
+      }
+    };
+
+    if (file.name.endsWith('.csv')) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
     }
   };
 
@@ -244,6 +287,8 @@ export default function ExamStudentsPage() {
           onClose={() => {
             setShowImportModal(false);
             setImportText("");
+            setCustomPassword("");
+            setImportMode('text');
           }}
           title="临时导入学生名册"
           onConfirm={handleImportStudents}
@@ -256,19 +301,101 @@ export default function ExamStudentsPage() {
                 <strong>注意：</strong>此功能仅为当前考试临时导入学生，不会添加到系统数据库中。
               </p>
             </div>
+            
+            {/* 导入方式选择 */}
+            <div className="flex gap-4 mb-4">
+              <button
+                onClick={() => setImportMode('text')}
+                className={`px-4 py-2 rounded-lg border ${
+                  importMode === 'text' 
+                    ? 'bg-indigo-500 text-white border-indigo-500' 
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                手动输入
+              </button>
+              <button
+                onClick={() => setImportMode('file')}
+                className={`px-4 py-2 rounded-lg border ${
+                  importMode === 'file' 
+                    ? 'bg-indigo-500 text-white border-indigo-500' 
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                文件导入
+              </button>
+            </div>
+
+            {/* 自定义密码 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                学生姓名列表（每行一个姓名）
+                自定义初始密码（可选）
               </label>
-              <textarea
-                value={importText}
-                onChange={(e) => setImportText(e.target.value)}
-                placeholder="张三&#10;李四&#10;王五"
-                className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              <input
+                type="text"
+                value={customPassword}
+                onChange={(e) => setCustomPassword(e.target.value)}
+                placeholder="留空则使用默认密码"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                建议使用简单易记的密码，如：123456、考试名称等
+              </p>
             </div>
+
+            {importMode === 'text' ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  学生姓名列表（每行一个姓名）
+                </label>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="张三&#10;李四&#10;王五"
+                  className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  上传Excel或CSV文件
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileImport}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label
+                    htmlFor="file-upload"
+                    className="cursor-pointer bg-indigo-500 text-white px-4 py-2 rounded-lg hover:bg-indigo-600"
+                  >
+                    选择文件
+                  </label>
+                  <p className="text-sm text-gray-500 mt-2">
+                    支持 .xlsx, .xls, .csv 格式，只需第一列包含学生姓名
+                  </p>
+                </div>
+                {importText && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      预览数据（可编辑）
+                    </label>
+                    <textarea
+                      value={importText}
+                      onChange={(e) => setImportText(e.target.value)}
+                      className="w-full h-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="text-sm text-gray-600">
-              系统将自动为每个学生生成临时账号，仅在此次考试中有效。
+              系统将自动为每个学生生成易记的临时账号，仅在此次考试中有效。
             </div>
           </div>
         </Modal>
