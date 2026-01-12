@@ -61,9 +61,11 @@ function SortableTypeBlock({ type, questions, selectedQuestions, handleQuestionS
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              console.log('批量设分按钮被点击', type);
               setBatchScoreType(type);
               setBatchScore(10);
               setShowBatchScoreModal(true);
+              console.log('模态框状态已设置为true');
             }}
             onMouseDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
@@ -665,46 +667,44 @@ export default function ExamDetailPage() {
       )}
 
       {/* 批量设置分值模态框 */}
-      {showBatchScoreModal && (
-        <Modal
-          isOpen={showBatchScoreModal}
-          onClose={() => {
-            setShowBatchScoreModal(false);
-            setSelectedQuestions(new Set());
-            setBatchScoreType("");
-          }}
-          title="批量设置分值"
-          onConfirm={() => {
-            if (batchScoreType) {
-              handleBatchSetTypeScore(batchScoreType, batchScore);
-            } else {
-              handleBatchUpdateScores();
-            }
-          }}
-          confirmText="确定设置"
-        >
-          <div className="space-y-4">
-            {batchScoreType ? (
-              <p>将为所有 <strong>{QuestionTypeLabels[batchScoreType as keyof typeof QuestionTypeLabels] || batchScoreType}</strong> 题目设置分值：</p>
-            ) : (
-              <p>将为 {selectedQuestions.size} 道题目设置分值：</p>
-            )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                分值
-              </label>
-              <input
-                type="number"
-                value={batchScore}
-                onChange={(e) => setBatchScore(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                min="1"
-                max="100"
-              />
-            </div>
+      <Modal
+        isOpen={showBatchScoreModal}
+        onClose={() => {
+          setShowBatchScoreModal(false);
+          setSelectedQuestions(new Set());
+          setBatchScoreType("");
+        }}
+        title="批量设置分值"
+        onConfirm={() => {
+          if (batchScoreType) {
+            handleBatchSetTypeScore(batchScoreType, batchScore);
+          } else {
+            handleBatchUpdateScores();
+          }
+        }}
+        confirmText="确定设置"
+      >
+        <div className="space-y-4">
+          {batchScoreType ? (
+            <p>将为所有 <strong>{QuestionTypeLabels[batchScoreType as keyof typeof QuestionTypeLabels] || batchScoreType}</strong> 题目设置分值：</p>
+          ) : (
+            <p>将为 {selectedQuestions.size} 道题目设置分值：</p>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              分值
+            </label>
+            <input
+              type="number"
+              value={batchScore}
+              onChange={(e) => setBatchScore(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              min="1"
+              max="100"
+            />
           </div>
-        </Modal>
-      )}
+        </div>
+      </Modal>
 
       {/* 图片查看模态框 */}
       {showImageModal && selectedImage && (
