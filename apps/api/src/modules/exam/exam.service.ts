@@ -882,7 +882,7 @@ export class ExamService {
         
         details[question.id] = {
           type: 'objective',
-          studentAnswer: studentAnswer || '', // 确保不是 undefined
+          studentAnswer: studentAnswer !== undefined ? studentAnswer : '', // 确保显示实际答案
           correctAnswer: question.answer,
           isCorrect,
           score,
@@ -911,7 +911,7 @@ export class ExamService {
         
         details[question.id] = {
           type: 'subjective',
-          studentAnswer: studentAnswer || '', // 确保不是 undefined
+          studentAnswer: studentAnswer !== undefined ? studentAnswer : '', // 确保显示实际答案
           referenceAnswer: question.answer,
           aiGrading: aiResult,
           score: aiResult.suggestedScore,
