@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ 
   children, 
   requiredRole, 
-  fallbackPath = '/login' 
+  fallbackPath = '/' 
 }: ProtectedRouteProps) {
   const navigate = useNavigate();
 

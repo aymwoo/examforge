@@ -26,7 +26,7 @@ export const isAuthenticated = (): boolean => {
 export const logout = (): void => {
   localStorage.removeItem('token');
   localStorage.removeItem('user');
-  window.location.href = '/login';
+  window.location.href = '/';
 };
 
 export const hasRole = (requiredRole: string): boolean => {

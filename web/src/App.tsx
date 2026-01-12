@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/common/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import QuestionsPage from "./pages/questions/QuestionsPage";
@@ -11,7 +11,6 @@ import ExamStudentsPage from "./pages/exams/ExamStudentsPage";
 import NewExamPage from "./pages/exams/NewExamPage";
 import ImportPage from "./pages/import/ImportPage";
 import ImportHistoryPage from "./pages/import/ImportHistoryPage";
-import AuthPage from "./pages/auth/AuthPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import ExamEntryPage from "./pages/exam/ExamEntryPage";
@@ -130,10 +129,10 @@ function App() {
               <ImportHistoryPage />
             </ProtectedRoute>
           } />
-          <Route path="auth" element={<AuthPage />} />
+          <Route path="auth" element={<Navigate to="/" replace />} />
         </Route>
         {/* 独立的认证页面 */}
-        <Route path="/login" element={<AuthPage />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/register" element={<RegisterPage />} />
         {/* 考试相关页面不使用Layout */}
         <Route path="/exam/:examId" element={<ExamEntryPage />} />

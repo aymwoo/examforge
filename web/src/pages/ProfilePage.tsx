@@ -131,7 +131,7 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">请先登录</p>
-          <Button onClick={() => navigate('/login')}>前往登录</Button>
+          <Button onClick={() => navigate('/')}>前往首页</Button>
         </div>
       </div>
     );
