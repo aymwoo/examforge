@@ -114,6 +114,25 @@ export class AuthService {
   }
 
   async validateUser(payload: any) {
+    // 如果是学生用户，查找学生表
+    if (payload.isStudent) {
+      const student = await this.prisma.student.findUnique({
+        where: { id: payload.sub }
+      });
+      if (!student) {
+        throw new UnauthorizedException('学生不存在');
+      }
+      return {
+        id: student.id,
+        username: student.studentId,
+        name: student.name,
+        role: 'STUDENT',
+        isActive: true,
+        isStudent: true
+      };
+    }
+
+    // 普通用户查找用户表
     const user = await this.userService.findOne(payload.sub);
     if (!user || !user.isActive) {
       throw new UnauthorizedException('用户不存在或已被禁用');
