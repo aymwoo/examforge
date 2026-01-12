@@ -377,7 +377,7 @@ export default function ExamTakePage() {
                 {exam?.questions && Array.isArray(exam.questions) ? (
                   <div className="space-y-6">
                     {exam.questions.map((question, index) => {
-                      const answer = submissionResult?.answers?.find(a => a.questionId === question.id);
+                      const answer = submissionResult?.answers?.[question.id];
                       return (
                         <div key={question.id} className="border border-gray-200 rounded-xl p-4">
                           <div className="flex justify-between items-center mb-4">
@@ -385,10 +385,10 @@ export default function ExamTakePage() {
                             <div className="text-right">
                               <div className="text-xs text-gray-500">得分</div>
                               <div className="font-bold text-lg">
-                                <span className={answer && answer.score > 0 ? 'text-green-600' : 'text-red-600'}>
-                                  {answer?.score || 0}
+                                <span className="text-gray-600">
+                                  {submissionResult?.score || 0}
                                 </span>
-                                <span className="text-gray-400">/{answer?.maxScore || question.score || 0}</span>
+                                <span className="text-gray-400">/{exam?.totalScore || 0}</span>
                               </div>
                             </div>
                           </div>
@@ -402,7 +402,7 @@ export default function ExamTakePage() {
                             <div>
                               <div className="text-sm font-medium text-gray-700 mb-2">您的答案:</div>
                               <div className={`border rounded-lg p-3 ${answer ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-                                {answer?.answer || '未作答'}
+                                {answer || '未作答'}
                               </div>
                             </div>
                             
