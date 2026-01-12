@@ -23,6 +23,8 @@ import UsersPage from "./pages/UsersPage";
 import ProfilePage from "./pages/ProfilePage";
 import DocsPage from "./pages/DocsPage";
 import AddQuestionsPage from "./pages/exams/AddQuestionsPage";
+import ClassesPage from "./pages/classes/ClassesPage";
+import ClassDetailPage from "./pages/classes/ClassDetailPage";
 
 function App() {
   return (
@@ -83,6 +85,16 @@ function App() {
           <Route path="settings" element={
             <ProtectedRoute requiredRole="TEACHER">
               <SettingsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="classes" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <ClassesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="classes/:id" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <ClassDetailPage />
             </ProtectedRoute>
           } />
           <Route path="users" element={

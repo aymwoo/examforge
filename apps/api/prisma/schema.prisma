@@ -27,6 +27,7 @@ model User {
   // 关联关系
   createdQuestions Question[] @relation("CreatedBy")
   createdExams     Exam[]     @relation("CreatedBy")
+  createdClasses   Class[]    @relation("CreatedClasses")
   aiProviders      AIProvider[] @relation("CreatedAIProviders")
   userSettings     UserSetting[]
   importRecords    ImportRecord[] @relation("ImportRecords")
@@ -160,6 +161,7 @@ model Student {
   id          String   @id @default(cuid())
   studentId   String   @unique @map("student_id") // 学号
   name        String
+  gender      String?  // 性别
   classId     String?  @map("class_id")
   password    String
   createdAt   DateTime @default(now()) @map("created_at")
@@ -172,12 +174,15 @@ model Student {
 }
 
 model Class {
-  id        String   @id @default(cuid())
-  name      String   // 班级名称
-  code      String   @unique // 班级代码
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String   @id @default(cuid())
+  name        String   // 班级名称
+  code        String   @unique // 班级代码
+  description String?  // 班级描述
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
+  creator   User?     @relation("CreatedClasses", fields: [createdBy], references: [id])
   students  Student[]
 
   @@map("classes")

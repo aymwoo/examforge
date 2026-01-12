@@ -12,6 +12,7 @@ import { ExamAuthModule } from './modules/auth/exam-auth.module';
 import { UserModule } from './modules/user/user.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AIProviderModule } from './modules/ai-provider/ai-provider.module';
+import { ClassModule } from './modules/class/class.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AIProviderModule } from './modules/ai-provider/ai-provider.module';
     UserModule,
     AuthModule,
     AIProviderModule,
+    ClassModule,
   ],
 })
 export class AppModule {}

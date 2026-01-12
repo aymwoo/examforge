@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Home,
   HelpCircle,
+  UserCog,
 } from "lucide-react";
 import { getCurrentUser, hasRole, logout } from "../../utils/auth";
 
@@ -102,6 +103,13 @@ export default function Layout() {
                         导入
                       </Link>
                       <Link
+                        to="/classes"
+                        className="flex items-center gap-2 hover:text-primary"
+                      >
+                        <Users className="h-4 w-4" />
+                        班级
+                      </Link>
+                      <Link
                         to="/settings"
                         className="flex items-center gap-2 hover:text-primary"
                       >
@@ -115,7 +123,7 @@ export default function Layout() {
                       to="/users"
                       className="flex items-center gap-2 hover:text-primary"
                     >
-                      <Users className="h-4 w-4" />
+                      <UserCog className="h-4 w-4" />
                       用户
                     </Link>
                   )}
