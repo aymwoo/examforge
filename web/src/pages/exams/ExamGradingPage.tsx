@@ -47,10 +47,12 @@ export default function ExamGradingPage() {
   const [exam, setExam] = useState<any>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [selectedSubmissions, setSelectedSubmissions] = useState<Set<string>>(new Set());
   const [aiSuggestions, setAiSuggestions] = useState<Record<string, AIGradingSuggestion>>({});
   const [manualScores, setManualScores] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [gradingLoading, setGradingLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showAnswerModal, setShowAnswerModal] = useState(false);
 
@@ -153,6 +155,51 @@ export default function ExamGradingPage() {
     }
   };
 
+  const handleSubmissionCheck = (submissionId: string, checked: boolean) => {
+    const newSelected = new Set(selectedSubmissions);
+    if (checked) {
+      newSelected.add(submissionId);
+    } else {
+      newSelected.delete(submissionId);
+    }
+    setSelectedSubmissions(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedSubmissions(new Set(submissions.map(s => s.id)));
+    } else {
+      setSelectedSubmissions(new Set());
+    }
+  };
+
+  const handleBatchReset = async () => {
+    if (selectedSubmissions.size === 0) {
+      alert('请先选择要重置的提交记录');
+      return;
+    }
+
+    if (!confirm(`确定要重置选中的 ${selectedSubmissions.size} 个学生的答题记录吗？学生将可以重新答题。`)) {
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await api.post(`/api/exams/${examId}/submissions/batch-reset`, {
+        submissionIds: Array.from(selectedSubmissions)
+      });
+      
+      // 重新加载数据
+      await loadExamAndSubmissions();
+      setSelectedSubmissions(new Set());
+      alert('重置成功！学生可以重新答题。');
+    } catch (err: any) {
+      alert(err.response?.data?.message || '重置失败');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   const handleScoreChange = (questionId: string, score: number) => {
     setManualScores(prev => ({
       ...prev,
@@ -231,13 +278,43 @@ export default function ExamGradingPage() {
               <p className="text-red-500 text-sm">调试: 提交数量 = {submissions.length}</p>
             </div>
           </div>
+          
+          {/* 批量操作 */}
+          {submissions.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">
+                已选择 {selectedSubmissions.size} 项
+              </span>
+              <Button
+                onClick={handleBatchReset}
+                disabled={selectedSubmissions.size === 0 || resetLoading}
+                variant="outline"
+                className="text-red-600 border-red-300 hover:bg-red-50"
+              >
+                {resetLoading ? '重置中...' : '批量重置'}
+              </Button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 提交列表 */}
           <div className="lg:col-span-1">
             <div className="rounded-2xl border border-border bg-white p-4">
-              <h3 className="font-semibold text-ink-900 mb-4">学生提交</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-ink-900">学生提交</h3>
+                {submissions.length > 0 && (
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedSubmissions.size === submissions.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded"
+                    />
+                    全选
+                  </label>
+                )}
+              </div>
               <div className="space-y-2">
                 {console.log('About to render submissions:', submissions)}
                 {submissions.length === 0 ? (
@@ -246,23 +323,34 @@ export default function ExamGradingPage() {
                   submissions.map((submission) => {
                     console.log('Rendering submission:', submission);
                     return (
-                      <button
+                      <div
                         key={submission.id}
-                        onClick={() => handleSubmissionSelect(submission)}
-                        className={`w-full text-left p-3 rounded-xl border transition-colors ${
+                        className={`border rounded-xl transition-colors ${
                           selectedSubmission?.id === submission.id
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-border bg-white hover:border-blue-300'
                         }`}
                       >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-ink-600" />
-                        <span className="font-medium text-ink-900">
-                          {submission.student.displayName || submission.student.username}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3 p-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedSubmissions.has(submission.id)}
+                            onChange={(e) => handleSubmissionCheck(submission.id, e.target.checked)}
+                            className="rounded"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <button
+                            onClick={() => handleSubmissionSelect(submission)}
+                            className="flex-1 text-left"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-ink-600" />
+                                <span className="font-medium text-ink-900">
+                                  {submission.student.displayName || submission.student.username}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
                         {submission.score !== null ? (
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         ) : submission.gradingDetails ? (
@@ -310,6 +398,8 @@ export default function ExamGradingPage() {
                       </div>
                     )}
                   </button>
+                        </div>
+                      </div>
                     );
                   })
                 )}

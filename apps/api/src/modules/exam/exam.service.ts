@@ -1406,6 +1406,34 @@ ${studentAnswer}
     };
   }
 
+  async batchResetSubmissions(examId: string, submissionIds: string[], currentUser: any) {
+    // 权限检查：只有管理员和考试创建者可以重置
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId }
+    });
+
+    if (!exam) {
+      throw new NotFoundException('考试不存在');
+    }
+
+    if (currentUser.role !== 'ADMIN' && exam.createdBy !== currentUser.sub) {
+      throw new ForbiddenException('您没有权限重置此考试的提交记录');
+    }
+
+    // 删除选中的提交记录
+    const result = await this.prisma.submission.deleteMany({
+      where: {
+        id: { in: submissionIds },
+        examId: examId
+      }
+    });
+
+    return {
+      message: `成功重置 ${result.count} 个学生的答题记录`,
+      resetCount: result.count
+    };
+  }
+
   private compareAnswers(studentAnswer: any, correctAnswer: string | null, questionType: string): boolean {
     if (!correctAnswer) return false;
 

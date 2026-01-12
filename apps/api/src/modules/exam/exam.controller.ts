@@ -392,6 +392,31 @@ export class ExamController {
     return this.examService.getAIGradingSuggestions(examId, submissionId);
   }
 
+  @Post(':id/submissions/batch-reset')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Batch reset submissions' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        submissionIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of submission IDs to reset'
+        }
+      },
+      required: ['submissionIds']
+    }
+  })
+  batchResetSubmissions(
+    @Param('id') examId: string,
+    @Body() body: { submissionIds: string[] },
+    @Request() req: any
+  ) {
+    return this.examService.batchResetSubmissions(examId, body.submissionIds, req.user);
+  }
+
   @Get(':id/analytics')
   @ApiOperation({ summary: 'Get exam analytics and statistics' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
