@@ -1456,15 +1456,31 @@ ${studentAnswer}
     }
 
     if (questionType === 'SINGLE_CHOICE') {
+      // 单选题：直接比较文本内容
       const result = studentAnswer === correctAnswer;
       console.log(`单选题比较结果: ${result}`);
       return result;
     } else if (questionType === 'MULTIPLE_CHOICE') {
       try {
-        const correct = JSON.parse(correctAnswer);
-        const student = Array.isArray(studentAnswer) ? studentAnswer : [];
+        // 多选题：比较数组内容
+        let correct: string[];
+        
+        // 如果正确答案是字符串，尝试解析为数组
+        if (typeof correctAnswer === 'string') {
+          try {
+            correct = JSON.parse(correctAnswer);
+          } catch {
+            // 如果解析失败，可能是单个字符串，转为数组
+            correct = [correctAnswer];
+          }
+        } else {
+          correct = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
+        }
+        
+        const student = Array.isArray(studentAnswer) ? studentAnswer : [studentAnswer];
         console.log(`多选题解析 - 正确答案:`, correct, `学生答案:`, student);
         
+        // 排序后比较
         const sortedCorrect = JSON.stringify(correct.sort());
         const sortedStudent = JSON.stringify(student.sort());
         console.log(`排序后比较 - 正确:`, sortedCorrect, `学生:`, sortedStudent);
