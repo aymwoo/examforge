@@ -78,8 +78,6 @@ export default function ExamTakePage() {
           Authorization: `Bearer ${localStorage.getItem('examToken')}`
         }
       });
-      console.log('Received exam data:', response.data);
-      console.log('Questions with images:', response.data.questions?.filter(q => q.images && q.images.length > 0));
       
       // 确保images数据不被修改
       const examData = {
@@ -90,7 +88,6 @@ export default function ExamTakePage() {
         }))
       };
       
-      console.log('Setting exam data:', examData);
       setExam(examData);
       setTimeLeft(response.data.duration * 60); // 转换为秒
       
@@ -454,13 +451,6 @@ export default function ExamTakePage() {
   }
 
   const currentQuestion = exam?.questions?.[currentQuestionIndex];
-  
-  // 调试当前题目
-  console.log('Current question index:', currentQuestionIndex);
-  console.log('Total questions:', exam?.questions?.length);
-  console.log('All questions:', exam?.questions?.map((q, i) => ({ index: i, id: q.id, hasImages: q.images?.length > 0 })));
-  console.log('Current question:', currentQuestion);
-  console.log('Current question images:', currentQuestion?.images);
 
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen">
