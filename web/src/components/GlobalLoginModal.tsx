@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '../components/ui/Button';
@@ -10,6 +10,12 @@ export default function GlobalLoginModal() {
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const addPendingRequestRef = useRef(addPendingRequest);
+
+  // 更新 ref 当函数改变时
+  useEffect(() => {
+    addPendingRequestRef.current = addPendingRequest;
+  }, [addPendingRequest]);
 
   useEffect(() => {
     const handleShow401Login = () => {
@@ -18,7 +24,7 @@ export default function GlobalLoginModal() {
 
     const handleAdd401Request = (event: CustomEvent) => {
       const { config, resolve, reject } = event.detail;
-      addPendingRequest({ config, resolve, reject });
+      addPendingRequestRef.current({ config, resolve, reject });
     };
 
     window.addEventListener('show401Login', handleShow401Login);
@@ -28,7 +34,7 @@ export default function GlobalLoginModal() {
       window.removeEventListener('show401Login', handleShow401Login);
       window.removeEventListener('add401Request', handleAdd401Request as EventListener);
     };
-  }, [addPendingRequest, setShowGlobalLogin]);
+  }, [setShowGlobalLogin]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
