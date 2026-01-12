@@ -203,11 +203,43 @@ export default function ExamGradingPage() {
   const formatAnswerDisplay = (answer: string | string[], question: any) => {
     if (!question || !question.options) return answer;
     
-    // 如果答案已经是选项文本格式，直接返回
     if (Array.isArray(answer)) {
       return answer.join(', ');
     } else {
       return answer;
+    }
+  };
+
+  const convertAnswerToText = (answer: string | null, question: any) => {
+    if (!answer || !question || !question.options) return answer || '';
+    
+    try {
+      const options = Array.isArray(question.options) ? question.options : JSON.parse(question.options);
+      
+      // 如果答案是选项标识（如"B"或"BCD"），转换为选项文本
+      if (/^[A-Z]+$/.test(answer)) {
+        if (answer.length === 1) {
+          // 单选题
+          const index = answer.charCodeAt(0) - 65;
+          const option = options[index];
+          return typeof option === 'object' ? option.content : option;
+        } else {
+          // 多选题
+          const selectedOptions = [];
+          for (let i = 0; i < answer.length; i++) {
+            const index = answer.charCodeAt(i) - 65;
+            const option = options[index];
+            if (option) {
+              selectedOptions.push(typeof option === 'object' ? option.content : option);
+            }
+          }
+          return selectedOptions.join(', ');
+        }
+      }
+      
+      return answer;
+    } catch (error) {
+      return answer || '';
     }
   };
 
@@ -529,7 +561,7 @@ export default function ExamGradingPage() {
                                 <div className="mt-3 pt-3 border-t border-gray-200">
                                   <p className="text-sm font-medium text-green-700 mb-1">参考答案:</p>
                                   <p className="text-sm text-green-600">
-                                    {formatAnswerDisplay(question.answer, question)}
+                                    {convertAnswerToText(question.answer, question)}
                                   </p>
                                 </div>
                               )}
