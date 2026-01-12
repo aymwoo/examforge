@@ -177,13 +177,11 @@ export default function ExamTakePage() {
   };
 
   const handleAnswerChange = (questionId: string, answer: any) => {
-    console.log(`答案变更: 题目ID=${questionId}, 答案=`, answer);
     setAnswers(prev => {
       const newAnswers = {
         ...prev,
         [questionId]: answer
       };
-      console.log(`更新后的所有答案:`, newAnswers);
       return newAnswers;
     });
   };

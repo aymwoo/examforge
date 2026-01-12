@@ -124,30 +124,22 @@ export default function StudentDetailPage() {
   const formatAnswerDisplay = (answer: string | string[], question: any) => {
     if (!question || !question.options) return answer;
     
-    console.log('格式化答案:', answer, '题目选项:', question.options);
-    
     if (Array.isArray(answer)) {
       // 多选题：将答案文本数组转换为选项标识数组
       return answer.map(answerText => {
         const index = question.options.findIndex((opt: any) => {
           const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
-          console.log('比较选项:', optionText, '与答案:', answerText);
           return optionText === answerText;
         });
-        const result = index >= 0 ? String.fromCharCode(65 + index) : answerText;
-        console.log('多选项结果:', answerText, '->', result);
-        return result;
+        return index >= 0 ? String.fromCharCode(65 + index) : answerText;
       }).join(', ');
     } else {
       // 单选题：将答案文本转换为选项标识
       const index = question.options.findIndex((opt: any) => {
         const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
-        console.log('比较选项:', optionText, '与答案:', answer);
         return optionText === answer;
       });
-      const result = index >= 0 ? String.fromCharCode(65 + index) : answer;
-      console.log('单选项结果:', answer, '->', result);
-      return result;
+      return index >= 0 ? String.fromCharCode(65 + index) : answer;
     }
   };
 
