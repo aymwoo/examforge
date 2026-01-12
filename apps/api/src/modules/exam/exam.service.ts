@@ -675,6 +675,7 @@ export class ExamService {
       score: submission.score,
       isAutoGraded: submission.isAutoGraded,
       submittedAt: submission.submittedAt,
+      answers: answers, // 添加原始答案数据
       gradingResults: gradingResults,
     };
   }
@@ -775,6 +776,7 @@ export class ExamService {
           score: existingSubmission.score,
           isAutoGraded: existingSubmission.isAutoGraded,
           submittedAt: existingSubmission.submittedAt,
+          answers: existingSubmission.answers ? JSON.parse(existingSubmission.answers) : {},
         }
       })}\n\n`);
       res.end();
