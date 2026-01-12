@@ -37,6 +37,11 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // 如果是登录请求失败，不触发全局401处理
+      if (error.config?.url?.includes('/auth/login')) {
+        return Promise.reject(error);
+      }
+      
       // 清除过期的token
       localStorage.removeItem("token");
       
