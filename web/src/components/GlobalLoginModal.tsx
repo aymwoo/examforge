@@ -6,11 +6,11 @@ import { authService } from '../services/auth';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function GlobalLoginModal() {
-  const { showGlobalLogin, setShowGlobalLogin, retryPendingRequests, clearPendingRequests } = useAuth();
+  const { showGlobalLogin, setShowGlobalLogin, addPendingRequest, retryPendingRequests, clearPendingRequests } = useAuth();
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const addPendingRequestRef = useRef(addPendingRequest);
+  const addPendingRequestRef = useRef<typeof addPendingRequest>();
 
   // 更新 ref 当函数改变时
   useEffect(() => {
