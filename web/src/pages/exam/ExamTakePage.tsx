@@ -1,10 +1,18 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Clock, FileText, Save, Send, AlertCircle, CheckCircle, X } from "lucide-react";
+import {
+  Clock,
+  FileText,
+  Save,
+  Send,
+  AlertCircle,
+  CheckCircle,
+  X,
+} from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
-import MDEditor from '@uiw/react-md-editor';
-import '@uiw/react-md-editor/markdown-editor.css';
+import MDEditor from "@uiw/react-md-editor";
+import "@uiw/react-md-editor/markdown-editor.css";
 
 interface Question {
   id: string;
@@ -46,15 +54,20 @@ export default function ExamTakePage() {
   const [gradingResults, setGradingResults] = useState<any>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showProgressModal, setShowProgressModal] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0, message: '' });
+  const [progress, setProgress] = useState({
+    current: 0,
+    total: 0,
+    message: "",
+  });
   const [submissionResult, setSubmissionResult] = useState<any>(null);
   const [showDetailedResults, setShowDetailedResults] = useState(false);
+  const [detailedResultsLoading, setDetailedResultsLoading] = useState(false);
 
   useEffect(() => {
     // 检查是否已登录
-    const token = localStorage.getItem('examToken');
-    const studentData = localStorage.getItem('examStudent');
-    
+    const token = localStorage.getItem("examToken");
+    const studentData = localStorage.getItem("examStudent");
+
     if (!token || !studentData) {
       navigate(`/exam/${examId}/login`);
       return;
@@ -70,36 +83,36 @@ export default function ExamTakePage() {
 
   const loadExamInfo = async () => {
     if (!examId) return;
-    
+
     setLoading(true);
     try {
       const response = await api.get(`/api/exams/${examId}/take`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('examToken')}`
-        }
+          Authorization: `Bearer ${localStorage.getItem("examToken")}`,
+        },
       });
-      
+
       // 确保images数据不被修改
       const examData = {
         ...response.data,
-        questions: response.data.questions?.map(q => ({
+        questions: response.data.questions?.map((q: any) => ({
           ...q,
-          images: q.images || []
-        }))
+          images: q.images || [],
+        })),
       };
-      
+
       setExam(examData);
       setTimeLeft(response.data.duration * 60); // 转换为秒
-      
+
       // 检查是否已提交
       await checkSubmissionStatus();
     } catch (err: any) {
       if (err.response?.status === 401) {
-        localStorage.removeItem('examToken');
-        localStorage.removeItem('examStudent');
+        localStorage.removeItem("examToken");
+        localStorage.removeItem("examStudent");
         navigate(`/exam/${examId}/login`);
       } else {
-        setError(err.response?.data?.message || '加载考试信息失败');
+        setError(err.response?.data?.message || "加载考试信息失败");
       }
     } finally {
       setLoading(false);
@@ -109,19 +122,37 @@ export default function ExamTakePage() {
   const checkSubmissionStatus = async () => {
     try {
       // 检查提交状态
-      const studentData = JSON.parse(localStorage.getItem('examStudent') || '{}');
-      const statusResponse = await api.get(`/api/exams/${examId}/submission-status/${studentData.id}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('examToken')}`
-        }
-      });
-      
+      const studentData = JSON.parse(
+        localStorage.getItem("examStudent") || "{}",
+      );
+      const statusResponse = await api.get(
+        `/api/exams/${examId}/submission-status/${studentData.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("examToken")}`,
+          },
+        },
+      );
+
       if (statusResponse.data.hasSubmitted) {
         setIsSubmitted(true);
-        setSubmissionResult(statusResponse.data.submission);
+        const submission = statusResponse.data.submission;
+        setSubmissionResult(submission);
+
+        if (submission?.gradingDetails) {
+          try {
+            const parsedDetails =
+              typeof submission.gradingDetails === "string"
+                ? JSON.parse(submission.gradingDetails)
+                : submission.gradingDetails;
+            setGradingResults(parsedDetails);
+          } catch {
+            // ignore
+          }
+        }
       }
     } catch (error) {
-      console.error('检查提交状态失败:', error);
+      console.error("检查提交状态失败:", error);
     }
   };
 
@@ -130,7 +161,7 @@ export default function ExamTakePage() {
     if (timeLeft <= 0) return;
 
     const timer = setInterval(() => {
-      setTimeLeft(prev => {
+      setTimeLeft((prev) => {
         if (prev <= 1) {
           handleSubmitExam(); // 时间到自动提交
           return 0;
@@ -155,29 +186,33 @@ export default function ExamTakePage() {
 
   const handleAutoSave = async () => {
     if (!student || !examId || isSubmitted) return;
-    
+
     setAutoSaving(true);
     try {
-      await api.post(`/api/exams/${examId}/save-answers`, {
-        answers,
-        examStudentId: student.id,
-      }, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('examToken')}`
-        }
-      });
+      await api.post(
+        `/api/exams/${examId}/save-answers`,
+        {
+          answers,
+          examStudentId: student.id,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("examToken")}`,
+          },
+        },
+      );
     } catch (err) {
-      console.error('自动保存失败:', err);
+      console.error("自动保存失败:", err);
     } finally {
       setAutoSaving(false);
     }
   };
 
   const handleAnswerChange = (questionId: string, answer: any) => {
-    setAnswers(prev => {
+    setAnswers((prev) => {
       const newAnswers = {
         ...prev,
-        [questionId]: answer
+        [questionId]: answer,
       };
       return newAnswers;
     });
@@ -186,48 +221,70 @@ export default function ExamTakePage() {
   const handleSubmitExam = async () => {
     if (!student || !examId) return;
 
-    console.log('=== 提交前的完整答案对象 ===');
-    console.log('answers:', JSON.stringify(answers, null, 2));
-    console.log('answers keys:', Object.keys(answers));
-    console.log('exam questions:', exam?.questions?.map(q => ({ id: q.id, type: q.type })));
+    console.log("=== 提交前的完整答案对象 ===");
+    console.log("answers:", JSON.stringify(answers, null, 2));
+    console.log("answers keys:", Object.keys(answers));
+    console.log(
+      "exam questions:",
+      exam?.questions?.map((q) => ({ id: q.id, type: q.type })),
+    );
 
-    if (!confirm('确定要提交考试吗？提交后将无法修改答案。')) {
+    if (!confirm("确定要提交考试吗？提交后将无法修改答案。")) {
       return;
     }
 
     setIsSubmitting(true);
     setShowProgressModal(true);
-    setProgress({ current: 0, total: 0, message: '正在提交...' });
+    setProgress({ current: 0, total: 0, message: "正在提交..." });
 
     try {
       // 提交考试
-      await api.post(`/api/exams/${examId}/submit`, {
-        answers,
-        examStudentId: student.id,
-      }, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('examToken')}`
-        }
-      });
+      await api.post(
+        `/api/exams/${examId}/submit`,
+        {
+          answers,
+          examStudentId: student.id,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("examToken")}`,
+          },
+        },
+      );
 
       // 监听进度
-      const eventSource = new EventSource(`/api/exams/${examId}/submit-progress/${student.id}`);
-      
+      const eventSource = new EventSource(
+        `/api/exams/${examId}/submit-progress/${student.id}`,
+      );
+
       eventSource.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        
-        if (data.type === 'progress') {
+
+        if (data.type === "progress") {
           setProgress({
             current: data.current,
             total: data.total,
-            message: data.message
+            message: data.message,
           });
-        } else if (data.type === 'complete') {
+        } else if (data.type === "complete") {
           setSubmissionResult(data.submission);
           setIsSubmitted(true);
+
+          if (data.submission?.gradingDetails) {
+            try {
+              const parsedDetails =
+                typeof data.submission.gradingDetails === "string"
+                  ? JSON.parse(data.submission.gradingDetails)
+                  : data.submission.gradingDetails;
+              setGradingResults(parsedDetails);
+            } catch {
+              // ignore
+            }
+          }
+
           setShowProgressModal(false);
           eventSource.close();
-        } else if (data.type === 'error') {
+        } else if (data.type === "error") {
           setError(data.message);
           setShowProgressModal(false);
           eventSource.close();
@@ -235,13 +292,12 @@ export default function ExamTakePage() {
       };
 
       eventSource.onerror = () => {
-        setError('连接中断，请刷新页面查看结果');
+        setError("连接中断，请刷新页面查看结果");
         setShowProgressModal(false);
         eventSource.close();
       };
-
     } catch (err: any) {
-      setError(err.response?.data?.message || '提交失败');
+      setError(err.response?.data?.message || "提交失败");
       setShowProgressModal(false);
     } finally {
       setIsSubmitting(false);
@@ -249,9 +305,9 @@ export default function ExamTakePage() {
   };
 
   const handleLogout = () => {
-    if (confirm('确定要退出考试吗？未保存的答案将丢失。')) {
-      localStorage.removeItem('examToken');
-      localStorage.removeItem('examStudent');
+    if (confirm("确定要退出考试吗？未保存的答案将丢失。")) {
+      localStorage.removeItem("examToken");
+      localStorage.removeItem("examStudent");
       navigate(`/exam/${examId}/login`);
     }
   };
@@ -260,7 +316,7 @@ export default function ExamTakePage() {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   if (loading) {
@@ -279,7 +335,9 @@ export default function ExamTakePage() {
         <div className="rounded-2xl border border-border bg-white p-6 text-center max-w-md">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <p className="text-ink-900 mb-4">{error}</p>
-          <Button onClick={() => navigate(`/exam/${examId}/login`)}>重新登录</Button>
+          <Button onClick={() => navigate(`/exam/${examId}/login`)}>
+            重新登录
+          </Button>
         </div>
       </div>
     );
@@ -294,13 +352,24 @@ export default function ExamTakePage() {
         <div className="flex items-center justify-center min-h-screen p-4">
           <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center max-w-md">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-green-800 mb-4">考试已提交</h2>
-            <p className="text-green-700 mb-4">您已成功提交考试，无需重复操作。</p>
+            <h2 className="text-2xl font-bold text-green-800 mb-4">
+              考试已提交
+            </h2>
+            <p className="text-green-700 mb-4">
+              您已成功提交考试，无需重复操作。
+            </p>
             {submissionResult && (
               <div className="bg-white rounded-lg p-4 mb-4">
-                <p className="text-sm text-gray-600">提交时间: {new Date(submissionResult.submittedAt).toLocaleString()}</p>
-                <p className="text-lg font-semibold text-green-600">得分: {submissionResult.score}分</p>
-                {exam?.questions?.some(q => q.type === 'ESSAY' || q.type === 'FILL_BLANK') && (
+                <p className="text-sm text-gray-600">
+                  提交时间:{" "}
+                  {new Date(submissionResult.submittedAt).toLocaleString()}
+                </p>
+                <p className="text-lg font-semibold text-green-600">
+                  得分: {submissionResult.score}分
+                </p>
+                {exam?.questions?.some(
+                  (q) => q.type === "ESSAY" || q.type === "FILL_BLANK",
+                ) && (
                   <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <div className="flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -314,30 +383,75 @@ export default function ExamTakePage() {
             )}
             <div className="flex gap-3">
               {submissionResult && (
-                <Button 
-                  onClick={() => {
-                    console.log('submissionResult:', submissionResult);
-                    console.log('exam questions:', exam?.questions);
-                    console.log('submissionResult.answers:', submissionResult.answers);
-                    console.log('answers count:', submissionResult.answers?.length);
-                    
-                    // 设置评分详情数据
-                    if (submissionResult.gradingDetails) {
-                      const parsedDetails = typeof submissionResult.gradingDetails === 'string' 
-                        ? JSON.parse(submissionResult.gradingDetails) 
-                        : submissionResult.gradingDetails;
-                      setGradingResults(parsedDetails);
+                <Button
+                  disabled={detailedResultsLoading}
+                  onClick={async () => {
+                    if (detailedResultsLoading) return;
+                    setDetailedResultsLoading(true);
+                    try {
+                      console.log("submissionResult:", submissionResult);
+                      console.log("exam questions:", exam?.questions);
+                      console.log(
+                        "submissionResult.answers:",
+                        submissionResult.answers,
+                      );
+                      console.log(
+                        "answers count:",
+                        submissionResult.answers?.length,
+                      );
+
+                      // 设置评分详情数据（优先使用已有数据）
+                      if (submissionResult.gradingDetails) {
+                        try {
+                          const parsedDetails =
+                            typeof submissionResult.gradingDetails === "string"
+                              ? JSON.parse(submissionResult.gradingDetails)
+                              : submissionResult.gradingDetails;
+                          setGradingResults(parsedDetails);
+                        } catch {
+                          // ignore
+                        }
+                      }
+
+                      // 每次打开都主动拉取最新评分详情，避免缓存/状态过期
+                      if (submissionResult?.id) {
+                        try {
+                          const statusResponse = await api.get(
+                            `/api/exams/${examId}/submission-status/${student?.id}`,
+                            {
+                              headers: {
+                                Authorization: `Bearer ${localStorage.getItem("examToken")}`,
+                              },
+                            },
+                          );
+
+                          const submission = statusResponse.data?.submission;
+                          if (submission) {
+                            setSubmissionResult(submission);
+                          }
+                          if (submission?.gradingDetails) {
+                            setGradingResults(submission.gradingDetails);
+                          }
+                        } catch (err) {
+                          console.error("fetch gradingDetails failed", err);
+                        }
+                      }
+
+                      setShowDetailedResults(true);
+                    } finally {
+                      setDetailedResultsLoading(false);
                     }
-                    
-                    setShowDetailedResults(true);
-                  }} 
+                  }}
                   variant="outline"
                   className="flex-1"
                 >
-                  评分详情
+                  {detailedResultsLoading ? "加载评分中..." : "评分详情"}
                 </Button>
               )}
-              <Button onClick={() => navigate('/')} className="bg-green-600 hover:bg-green-700 flex-1">
+              <Button
+                onClick={() => navigate("/")}
+                className="bg-green-600 hover:bg-green-700 flex-1"
+              >
                 返回首页
               </Button>
             </div>
@@ -361,86 +475,159 @@ export default function ExamTakePage() {
                 {submissionResult && (
                   <div className="mt-4 flex gap-6 text-sm text-gray-600">
                     <div>
-                      总分: <span className="font-bold text-lg text-green-600">{submissionResult.score}分</span>
+                      总分:{" "}
+                      <span className="font-bold text-lg text-green-600">
+                        {submissionResult.score}分
+                      </span>
                     </div>
                     <div>
-                      提交时间: {new Date(submissionResult.submittedAt).toLocaleString()}
+                      提交时间:{" "}
+                      {new Date(submissionResult.submittedAt).toLocaleString()}
                     </div>
                     <div>
-                      题目数量: {exam?.questions?.length || 0} | 答案数量: {submissionResult.answers?.length || 0}
+                      题目数量: {exam?.questions?.length || 0} | 答案数量:{" "}
+                      {submissionResult.answers?.length || 0}
                     </div>
                   </div>
                 )}
               </div>
-              
+
               <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
                 {exam?.questions && Array.isArray(exam.questions) ? (
                   <div className="space-y-6">
                     {exam.questions.map((question, index) => {
-                      const answer = submissionResult?.answers?.[question.id];
+                      const answer =
+                        (Array.isArray(submissionResult?.answers)
+                          ? submissionResult.answers.find(
+                              (a: any) => a.questionId === question.id,
+                            )?.answer
+                          : submissionResult?.answers?.[question.id]) ??
+                        undefined;
+
+                      const hasAnswer =
+                        answer !== undefined &&
+                        answer !== null &&
+                        (typeof answer !== "string" || answer.trim() !== "") &&
+                        (!Array.isArray(answer) || answer.length > 0);
+
+                      const detail = gradingResults?.details?.[question.id];
+                      const correctAnswer = detail?.correctAnswer;
+                      const isWrong =
+                        correctAnswer !== undefined &&
+                        hasAnswer &&
+                        JSON.stringify(answer) !==
+                          JSON.stringify(correctAnswer);
                       return (
-                        <div key={question.id} className="border border-gray-200 rounded-xl p-4">
+                        <div
+                          key={question.id}
+                          className="border border-gray-200 rounded-xl p-4"
+                        >
                           <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-lg">题目 {index + 1}</h3>
+                            <h3 className="font-bold text-lg">
+                              题目 {index + 1}
+                            </h3>
                             <div className="text-right">
                               <div className="text-xs text-gray-500">得分</div>
                               <div className="font-bold text-lg">
-                                <span className="text-gray-600">
-                                  {submissionResult?.score || 0}
+                                <span
+                                  className={
+                                    isWrong ? "text-red-700" : "text-gray-600"
+                                  }
+                                >
+                                  {gradingResults?.details?.[question.id]
+                                    ?.score ?? 0}
                                 </span>
-                                <span className="text-gray-400">/{exam?.totalScore || 0}</span>
+                                <span className="text-gray-400">
+                                  /{question.score ?? 0}
+                                </span>
                               </div>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-4">
                             <div>
-                              <div className="text-sm font-medium text-gray-700 mb-2">题目内容:</div>
-                              <div className="text-gray-900">{question.content}</div>
+                              <div className="text-sm font-medium text-gray-700 mb-2">
+                                题目内容:
+                              </div>
+                              <div className="text-gray-900">
+                                {question.content}
+                              </div>
                             </div>
-                            
+
                             <div>
-                              <div className="text-sm font-medium text-gray-700 mb-2">您的答案:</div>
-                              <div className={`border rounded-lg p-3 ${answer ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                              <div className="text-sm font-medium text-gray-700 mb-2">
+                                您的答案:
+                              </div>
+                              <div
+                                className={`border rounded-lg p-3 ${
+                                  !hasAnswer
+                                    ? "bg-gray-50 border-gray-200"
+                                    : isWrong
+                                      ? "bg-red-50 border-red-200 text-red-700"
+                                      : "bg-blue-50 border-blue-200"
+                                }`}
+                              >
                                 {(() => {
-                                  if (!answer) return '未作答';
-                                  if (Array.isArray(answer)) return answer.join(', ');
-                                  if (typeof answer === 'object') return JSON.stringify(answer);
+                                  if (!hasAnswer) return "未作答";
+                                  if (Array.isArray(answer))
+                                    return answer.join(", ");
+                                  if (typeof answer === "object")
+                                    return JSON.stringify(answer);
                                   return String(answer);
                                 })()}
                               </div>
                             </div>
-                            
+
                             {/* 从gradingResults中获取正确答案 */}
-                            {submissionResult?.gradingResults?.details?.[question.id]?.correctAnswer && (
+                            {detail?.correctAnswer && (
                               <div>
-                                <div className="text-sm font-medium text-gray-700 mb-2">正确答案:</div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">
+                                  正确答案:
+                                </div>
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                                   {(() => {
-                                    const correctAnswer = submissionResult.gradingResults.details[question.id].correctAnswer;
-                                    if (!correctAnswer) return '';
-                                    if (Array.isArray(correctAnswer)) return correctAnswer.join(', ');
-                                    if (typeof correctAnswer === 'object') return JSON.stringify(correctAnswer);
+                                    const correctAnswer = detail?.correctAnswer;
+                                    if (!correctAnswer) return "";
+                                    if (Array.isArray(correctAnswer))
+                                      return correctAnswer.join(", ");
+                                    if (typeof correctAnswer === "object")
+                                      return JSON.stringify(correctAnswer);
                                     return String(correctAnswer);
                                   })()}
                                 </div>
                               </div>
                             )}
-                            
-                            {answer?.feedback && (
+
+                            {detail?.feedback && (
                               <div>
-                                <div className="text-sm font-medium text-gray-700 mb-2">评分说明:</div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">
+                                  评分说明:
+                                </div>
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
+                                  {detail.feedback}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* legacy: answer feedback (if answers array format) */}
+                            {false && answer?.feedback && (
+                              <div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">
+                                  评分说明:
+                                </div>
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
                                   {answer.feedback}
                                 </div>
                               </div>
                             )}
-                            
-                            {question.explanation && (
+
+                            {(question as any).explanation && (
                               <div>
-                                <div className="text-sm font-medium text-gray-700 mb-2">题目解析:</div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">
+                                  题目解析:
+                                </div>
                                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
-                                  {question.explanation}
+                                  {(question as any).explanation}
                                 </div>
                               </div>
                             )}
@@ -473,16 +660,20 @@ export default function ExamTakePage() {
             <div className="flex items-center gap-4">
               <FileText className="h-6 w-6 text-accent-600" />
               <div>
-                <h1 className="text-lg font-semibold text-ink-900">{exam.title}</h1>
+                <h1 className="text-lg font-semibold text-ink-900">
+                  {exam.title}
+                </h1>
                 <p className="text-sm text-ink-600">
                   {student?.displayName || student?.username}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className={`flex items-center gap-2 text-sm font-semibold ${
-                timeLeft < 300 ? 'text-red-600' : 'text-ink-600'
-              }`}>
+              <div
+                className={`flex items-center gap-2 text-sm font-semibold ${
+                  timeLeft < 300 ? "text-red-600" : "text-ink-600"
+                }`}
+              >
                 <Clock className="h-4 w-4" />
                 <span>{formatTime(timeLeft)}</span>
               </div>
@@ -506,13 +697,22 @@ export default function ExamTakePage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                <svg
+                  className="h-5 w-5 text-yellow-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
               <div className="ml-3">
                 <p className="text-sm text-yellow-700">
-                  <strong>注意：</strong>您已经提交过此次考试，无法再次作答。如需查看结果，请联系老师。
+                  <strong>注意：</strong>
+                  您已经提交过此次考试，无法再次作答。如需查看结果，请联系老师。
                 </p>
               </div>
             </div>
@@ -533,10 +733,10 @@ export default function ExamTakePage() {
                     onClick={() => setCurrentQuestionIndex(index)}
                     className={`w-8 h-8 rounded text-xs font-semibold transition-colors ${
                       index === currentQuestionIndex
-                        ? 'bg-blue-500 text-white'
+                        ? "bg-blue-500 text-white"
                         : answers[question.id] !== undefined
-                        ? 'bg-green-100 text-green-700 border border-green-300'
-                        : 'bg-gray-100 text-gray-600 border border-gray-300'
+                          ? "bg-green-100 text-green-700 border border-green-300"
+                          : "bg-gray-100 text-gray-600 border border-gray-300"
                     }`}
                   >
                     {index + 1}
@@ -575,55 +775,73 @@ export default function ExamTakePage() {
                 <div className="prose max-w-none">
                   <p className="text-ink-900">{currentQuestion.content}</p>
                 </div>
-                
+
                 {/* 示例图展示 */}
-                {currentQuestion.images && currentQuestion.images.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-sm font-semibold text-ink-900 mb-2">示例图：</h4>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                      {currentQuestion.images.map((image, index) => (
-                        <div key={index} className="relative">
-                          <img
-                            src={image.startsWith('data:') ? image : `http://localhost:3000/${image}`}
-                            alt={`题目示例图 ${index + 1}`}
-                            className="w-full max-h-64 object-contain rounded-lg border border-border bg-slate-50 cursor-pointer hover:shadow-md transition-shadow"
-                            onClick={() => {
-                              // 点击图片放大查看
-                              const modal = document.createElement('div');
-                              modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4';
-                              modal.onclick = () => modal.remove();
-                              
-                              const img = document.createElement('img');
-                              img.src = image.startsWith('data:') ? image : `http://localhost:3000/${image}`;
-                              img.className = 'max-w-full max-h-full object-contain rounded-lg';
-                              img.onclick = (e) => e.stopPropagation();
-                              
-                              modal.appendChild(img);
-                              document.body.appendChild(modal);
-                            }}
-                          />
-                          {currentQuestion.images.length > 1 && (
-                            <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                              {index + 1}/{currentQuestion.images.length}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                {currentQuestion.images &&
+                  currentQuestion.images.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="text-sm font-semibold text-ink-900 mb-2">
+                        示例图：
+                      </h4>
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {currentQuestion.images.map((image, index) => (
+                          <div key={index} className="relative">
+                            <img
+                              src={
+                                image.startsWith("data:")
+                                  ? image
+                                  : `http://localhost:3000/${image}`
+                              }
+                              alt={`题目示例图 ${index + 1}`}
+                              className="w-full max-h-64 object-contain rounded-lg border border-border bg-slate-50 cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={() => {
+                                // 点击图片放大查看
+                                const modal = document.createElement("div");
+                                modal.className =
+                                  "fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4";
+                                modal.onclick = () => modal.remove();
+
+                                const img = document.createElement("img");
+                                img.src = image.startsWith("data:")
+                                  ? image
+                                  : `http://localhost:3000/${image}`;
+                                img.className =
+                                  "max-w-full max-h-full object-contain rounded-lg";
+                                img.onclick = (e) => e.stopPropagation();
+
+                                modal.appendChild(img);
+                                document.body.appendChild(modal);
+                              }}
+                            />
+                            {currentQuestion.images.length > 1 && (
+                              <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                                {index + 1}/{currentQuestion.images.length}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
 
               {/* 答题区域 */}
               <div className="mb-6">
-                {currentQuestion.type === 'SINGLE_CHOICE' && (
+                {currentQuestion.type === "SINGLE_CHOICE" && (
                   <div className="space-y-3">
                     {currentQuestion.options?.map((option, index) => {
                       // 处理选项格式：可能是字符串或对象
-                      const optionText = typeof option === 'string' ? option : 
-                        (option as any)?.content || (option as any)?.label || String(option);
+                      const optionText =
+                        typeof option === "string"
+                          ? option
+                          : (option as any)?.content ||
+                            (option as any)?.label ||
+                            String(option);
                       return (
-                        <label key={index} className="flex items-center gap-3 cursor-pointer">
+                        <label
+                          key={index}
+                          className="flex items-center gap-3 cursor-pointer"
+                        >
                           <input
                             type="radio"
                             name={`question-${currentQuestion.id}`}
@@ -631,56 +849,91 @@ export default function ExamTakePage() {
                             checked={answers[currentQuestion.id] === optionText}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                handleAnswerChange(currentQuestion.id, optionText);
+                                handleAnswerChange(
+                                  currentQuestion.id,
+                                  optionText,
+                                );
                               }
                             }}
                             className="w-4 h-4 text-blue-600"
                           />
-                          <span className="text-ink-900">{String.fromCharCode(65 + index)}. {optionText}</span>
+                          <span className="text-ink-900">
+                            {String.fromCharCode(65 + index)}. {optionText}
+                          </span>
                         </label>
                       );
                     })}
                   </div>
                 )}
 
-                {currentQuestion.type === 'MULTIPLE_CHOICE' && (
+                {currentQuestion.type === "MULTIPLE_CHOICE" && (
                   <div className="space-y-3">
                     {currentQuestion.options?.map((option, index) => {
                       // 处理选项格式：可能是字符串或对象
-                      const optionText = typeof option === 'string' ? option : 
-                        (option as any)?.content || (option as any)?.label || String(option);
+                      const optionText =
+                        typeof option === "string"
+                          ? option
+                          : (option as any)?.content ||
+                            (option as any)?.label ||
+                            String(option);
                       return (
-                        <label key={index} className="flex items-center gap-3 cursor-pointer">
+                        <label
+                          key={index}
+                          className="flex items-center gap-3 cursor-pointer"
+                        >
                           <input
                             type="checkbox"
                             value={optionText}
-                            checked={(answers[currentQuestion.id] || []).includes(optionText)}
+                            checked={(
+                              answers[currentQuestion.id] || []
+                            ).includes(optionText)}
                             onChange={(e) => {
-                              const currentAnswers = answers[currentQuestion.id] || [];
+                              const currentAnswers =
+                                answers[currentQuestion.id] || [];
                               if (e.target.checked) {
-                                handleAnswerChange(currentQuestion.id, [...currentAnswers, optionText]);
+                                handleAnswerChange(currentQuestion.id, [
+                                  ...currentAnswers,
+                                  optionText,
+                                ]);
                               } else {
-                                handleAnswerChange(currentQuestion.id, currentAnswers.filter((a: string) => a !== optionText));
+                                handleAnswerChange(
+                                  currentQuestion.id,
+                                  currentAnswers.filter(
+                                    (a: string) => a !== optionText,
+                                  ),
+                                );
                               }
                             }}
                             className="w-4 h-4 text-blue-600"
                           />
-                          <span className="text-ink-900">{String.fromCharCode(65 + index)}. {optionText}</span>
+                          <span className="text-ink-900">
+                            {String.fromCharCode(65 + index)}. {optionText}
+                          </span>
                         </label>
                       );
                     })}
                   </div>
                 )}
 
-                {(currentQuestion.type === 'FILL_BLANK' || currentQuestion.type === 'SHORT_ANSWER' || currentQuestion.type === 'ESSAY') && (
+                {(currentQuestion.type === "FILL_BLANK" ||
+                  currentQuestion.type === "SHORT_ANSWER" ||
+                  currentQuestion.type === "ESSAY") && (
                   <div className="border border-border rounded-xl overflow-hidden">
                     <MDEditor
-                      value={answers[currentQuestion.id] || ''}
-                      onChange={(value) => handleAnswerChange(currentQuestion.id, value || '')}
+                      value={answers[currentQuestion.id] || ""}
+                      onChange={(value) =>
+                        handleAnswerChange(currentQuestion.id, value || "")
+                      }
                       preview="edit"
-                      hideToolbar={currentQuestion.type === 'FILL_BLANK'}
+                      hideToolbar={currentQuestion.type === "FILL_BLANK"}
                       visibleDragbar={false}
-                      height={currentQuestion.type === 'ESSAY' ? 300 : currentQuestion.type === 'SHORT_ANSWER' ? 200 : 100}
+                      height={
+                        currentQuestion.type === "ESSAY"
+                          ? 300
+                          : currentQuestion.type === "SHORT_ANSWER"
+                            ? 200
+                            : 100
+                      }
                       data-color-mode="light"
                     />
                   </div>
@@ -691,7 +944,9 @@ export default function ExamTakePage() {
               <div className="flex items-center justify-between">
                 <Button
                   variant="outline"
-                  onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+                  onClick={() =>
+                    setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))
+                  }
                   disabled={currentQuestionIndex === 0}
                 >
                   上一题
@@ -705,21 +960,26 @@ export default function ExamTakePage() {
                     className="flex items-center gap-2"
                   >
                     <Save className="h-4 w-4" />
-                    {autoSaving ? '保存中...' : '保存答案'}
+                    {autoSaving ? "保存中..." : "保存答案"}
                   </Button>
 
-                  {currentQuestionIndex === (exam.questions?.length || 0) - 1 ? (
+                  {currentQuestionIndex ===
+                  (exam.questions?.length || 0) - 1 ? (
                     <Button
                       onClick={handleSubmitExam}
                       disabled={isSubmitting}
                       className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
                     >
                       <Send className="h-4 w-4" />
-                      {isSubmitting ? '提交中...' : '提交考试'}
+                      {isSubmitting ? "提交中..." : "提交考试"}
                     </Button>
                   ) : (
                     <Button
-                      onClick={() => setCurrentQuestionIndex(prev => Math.min((exam.questions?.length || 0) - 1, prev + 1))}
+                      onClick={() =>
+                        setCurrentQuestionIndex((prev) =>
+                          Math.min((exam.questions?.length || 0) - 1, prev + 1),
+                        )
+                      }
                     >
                       下一题
                     </Button>
@@ -757,40 +1017,50 @@ export default function ExamTakePage() {
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h3 className="font-semibold mb-2">总分统计</h3>
                 <p className="text-lg">
-                  总得分：<span className="font-bold text-blue-600">{gradingResults.totalScore}</span> / {gradingResults.maxTotalScore}
+                  总得分：
+                  <span className="font-bold text-blue-600">
+                    {gradingResults.totalScore}
+                  </span>{" "}
+                  / {gradingResults.maxTotalScore}
                 </p>
               </div>
 
               <div className="space-y-3">
                 <h3 className="font-semibold">题目评分详情</h3>
-                {Object.entries(gradingResults.details || {}).map(([questionId, detail]: [string, any], index: number) => (
-                  <div key={questionId} className="border rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">第 {index + 1} 题</span>
-                      <span className="text-sm bg-gray-100 px-2 py-1 rounded">
-                        {detail.score} / {detail.maxScore} 分
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <strong>学生答案：</strong>
-                        <div className="bg-gray-50 p-2 rounded mt-1">{detail.studentAnswer}</div>
+                {Object.entries(gradingResults.details || {}).map(
+                  ([questionId, detail]: [string, any], index: number) => (
+                    <div key={questionId} className="border rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">第 {index + 1} 题</span>
+                        <span className="text-sm bg-gray-100 px-2 py-1 rounded">
+                          {detail.score} / {detail.maxScore} 分
+                        </span>
                       </div>
-                      
-                      {detail.aiGrading && (
-                        <div className="bg-blue-50 p-2 rounded">
-                          <strong>AI评价：</strong>{detail.aiGrading.reasoning}
-                          {detail.aiGrading.suggestions && (
-                            <div className="mt-1 text-gray-600">
-                              <strong>建议：</strong>{detail.aiGrading.suggestions}
-                            </div>
-                          )}
+
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <strong>学生答案：</strong>
+                          <div className="bg-gray-50 p-2 rounded mt-1">
+                            {detail.studentAnswer}
+                          </div>
                         </div>
-                      )}
+
+                        {detail.aiGrading && (
+                          <div className="bg-blue-50 p-2 rounded">
+                            <strong>AI评价：</strong>
+                            {detail.aiGrading.reasoning}
+                            {detail.aiGrading.suggestions && (
+                              <div className="mt-1 text-gray-600">
+                                <strong>建议：</strong>
+                                {detail.aiGrading.suggestions}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ),
+                )}
               </div>
             </div>
           </div>
@@ -808,20 +1078,27 @@ export default function ExamTakePage() {
               <h3 className="text-lg font-semibold mb-4">正在评分中...</h3>
               <div className="mb-4">
                 <div className="bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-accent-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: progress.total > 0 ? `${(progress.current / progress.total) * 100}%` : '0%' }}
+                    style={{
+                      width:
+                        progress.total > 0
+                          ? `${(progress.current / progress.total) * 100}%`
+                          : "0%",
+                    }}
                   ></div>
                 </div>
                 <p className="text-sm text-gray-600 mt-2">
-                  {progress.total > 0 ? `${progress.current}/${progress.total}` : '0/0'} - {progress.message}
+                  {progress.total > 0
+                    ? `${progress.current}/${progress.total}`
+                    : "0/0"}{" "}
+                  - {progress.message}
                 </p>
               </div>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

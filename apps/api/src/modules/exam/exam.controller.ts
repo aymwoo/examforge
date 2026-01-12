@@ -39,7 +39,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class ExamController {
   constructor(
     private readonly examService: ExamService,
-    private readonly aiService: AIService,
+    private readonly aiService: AIService
   ) {}
 
   @Post('generate-from-ai')
@@ -144,7 +144,7 @@ export class ExamController {
   updateQuestionOrder(
     @Param('id') examId: string,
     @Param('questionId') questionId: string,
-    @Body() body: { order: number; score?: number },
+    @Body() body: { order: number; score?: number }
   ) {
     return this.examService.updateQuestionOrder(examId, questionId, body.order, body.score);
   }
@@ -155,7 +155,7 @@ export class ExamController {
   @ApiResponse({ status: 200, description: 'Scores updated successfully' })
   batchUpdateQuestionScores(
     @Param('id') examId: string,
-    @Body() body: { updates: { questionId: string, score: number }[] }
+    @Body() body: { updates: { questionId: string; score: number }[] }
   ) {
     return this.examService.batchUpdateQuestionScores(examId, body.updates);
   }
@@ -166,9 +166,30 @@ export class ExamController {
   @ApiResponse({ status: 200, description: 'Orders updated successfully' })
   batchUpdateQuestionOrders(
     @Param('id') examId: string,
-    @Body() body: { updates: { questionId: string, order: number }[] }
+    @Body() body: { updates: { questionId: string; order: number }[] }
   ) {
     return this.examService.batchUpdateQuestionOrders(examId, body.updates);
+  }
+
+  @Post(':id/questions/batch-delete')
+  @ApiOperation({ summary: 'Batch remove questions from exam' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        questionIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of question IDs to remove',
+        },
+      },
+      required: ['questionIds'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Questions removed successfully' })
+  batchRemoveQuestions(@Param('id') examId: string, @Body() body: { questionIds: string[] }) {
+    return this.examService.batchRemoveQuestions(examId, body.questionIds);
   }
 
   // 学生管理API
@@ -206,7 +227,7 @@ export class ExamController {
   @ApiResponse({ status: 201, description: 'Student accounts generated successfully' })
   generateStudentAccounts(
     @Param('id') examId: string,
-    @Body() body: { count: number; prefix?: string },
+    @Body() body: { count: number; prefix?: string }
   ) {
     return this.examService.generateStudentAccounts(examId, body.count, body.prefix);
   }
@@ -214,14 +235,20 @@ export class ExamController {
   @Post(':id/students/import-temporary')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Import temporary students for exam' })
-  importTemporaryStudents(@Param('id') id: string, @Body() body: { students: { name: string }[], customPassword?: string }) {
+  importTemporaryStudents(
+    @Param('id') id: string,
+    @Body() body: { students: { name: string }[]; customPassword?: string }
+  ) {
     return this.examService.importTemporaryStudents(id, body.students, body.customPassword);
   }
 
   @Post(':id/students/import-from-class')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Import students from class to exam' })
-  importStudentsFromClass(@Param('id') id: string, @Body() body: { classId: string, studentIds: string[] }) {
+  importStudentsFromClass(
+    @Param('id') id: string,
+    @Body() body: { classId: string; studentIds: string[] }
+  ) {
     return this.examService.importStudentsFromClass(id, body.classId, body.studentIds);
   }
 
@@ -242,7 +269,7 @@ export class ExamController {
   updateExamStudent(
     @Param('id') examId: string,
     @Param('studentId') studentId: string,
-    @Body() dto: Partial<CreateExamStudentDto>,
+    @Body() dto: Partial<CreateExamStudentDto>
   ) {
     return this.examService.updateExamStudent(examId, studentId, dto);
   }
@@ -281,11 +308,14 @@ export class ExamController {
   @ApiResponse({ status: 201, description: 'Exam submitted successfully' })
   async submitExam(
     @Param('id') examId: string,
-    @Body() body: { answers: Record<string, any>; examStudentId: string },
+    @Body() body: { answers: Record<string, any>; examStudentId: string }
   ) {
     // 异步处理提交，立即返回
     this.examService.submitExamAsync(examId, body.examStudentId, body.answers);
-    return { message: '考试提交中，请等待评分完成', submissionId: `${examId}-${body.examStudentId}` };
+    return {
+      message: '考试提交中，请等待评分完成',
+      submissionId: `${examId}-${body.examStudentId}`,
+    };
   }
 
   @Get(':id/submit-progress/:examStudentId')
@@ -293,7 +323,7 @@ export class ExamController {
   async getSubmitProgress(
     @Param('id') examId: string,
     @Param('examStudentId') examStudentId: string,
-    @Res() res: Response,
+    @Res() res: Response
   ) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -307,7 +337,7 @@ export class ExamController {
   @ApiOperation({ summary: 'Check if student has submitted' })
   checkSubmissionStatus(
     @Param('id') examId: string,
-    @Param('examStudentId') examStudentId: string,
+    @Param('examStudentId') examStudentId: string
   ) {
     return this.examService.checkSubmissionStatus(examId, examStudentId);
   }
@@ -328,7 +358,7 @@ export class ExamController {
   @ApiResponse({ status: 200, description: 'Answers saved successfully' })
   saveAnswers(
     @Param('id') examId: string,
-    @Body() body: { answers: Record<string, any>; examStudentId: string },
+    @Body() body: { answers: Record<string, any>; examStudentId: string }
   ) {
     return this.examService.saveAnswers(examId, body.examStudentId, body.answers);
   }
@@ -375,9 +405,21 @@ export class ExamController {
   gradeSubmission(
     @Param('id') examId: string,
     @Param('submissionId') submissionId: string,
-    @Body() body: { scores: Record<string, number>; totalScore: number; reviewerId?: string; feedback?: string },
+    @Body()
+    body: {
+      scores: Record<string, number>;
+      totalScore: number;
+      reviewerId?: string;
+      feedback?: string;
+    }
   ) {
-    return this.examService.gradeSubmission(submissionId, body.scores, body.totalScore, body.reviewerId, body.feedback);
+    return this.examService.gradeSubmission(
+      submissionId,
+      body.scores,
+      body.totalScore,
+      body.reviewerId,
+      body.feedback
+    );
   }
 
   @Post(':id/submissions/:submissionId/ai-grade')
@@ -387,9 +429,34 @@ export class ExamController {
   @ApiResponse({ status: 200, description: 'AI grading suggestions retrieved' })
   getAIGradingSuggestions(
     @Param('id') examId: string,
-    @Param('submissionId') submissionId: string,
+    @Param('submissionId') submissionId: string
   ) {
     return this.examService.getAIGradingSuggestions(examId, submissionId);
+  }
+
+  @Post(':id/submissions/batch-approve')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Batch mark submissions as reviewed (confirm final scores)' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        submissionIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of submission IDs to approve',
+        },
+      },
+      required: ['submissionIds'],
+    },
+  })
+  batchApproveSubmissions(
+    @Param('id') examId: string,
+    @Body() body: { submissionIds: string[] },
+    @Request() req: any
+  ) {
+    return this.examService.batchApproveSubmissions(examId, body.submissionIds, req.user);
   }
 
   @Post(':id/submissions/batch-reset')
@@ -403,11 +470,11 @@ export class ExamController {
         submissionIds: {
           type: 'array',
           items: { type: 'string' },
-          description: 'Array of submission IDs to reset'
-        }
+          description: 'Array of submission IDs to reset',
+        },
       },
-      required: ['submissionIds']
-    }
+      required: ['submissionIds'],
+    },
   })
   batchResetSubmissions(
     @Param('id') examId: string,
@@ -428,9 +495,14 @@ export class ExamController {
   @Get(':id/ai-report-stream')
   @ApiOperation({ summary: 'Generate AI analysis report stream for exam' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
-  async generateAIReportStream(@Param('id') examId: string, @Query() query: any, @Request() req?: any, @Res() res?: any) {
+  async generateAIReportStream(
+    @Param('id') examId: string,
+    @Query() query: any,
+    @Request() req?: any,
+    @Res() res?: any
+  ) {
     const userId = req?.user?.id;
-    
+
     // 设置SSE响应头
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');

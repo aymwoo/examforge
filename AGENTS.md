@@ -71,7 +71,8 @@ pnpm --filter ./apps/api run prisma:studio
 
 ### TypeScript
 
-- TS `strict: true`; do not introduce `any` (API ESLint enforces this).
+- Web: `strict: true`; API: `strict: false` (intentionally disabled).
+- Do not introduce `any` - API ESLint errors on `@typescript-eslint/no-explicit-any`.
 - Prefer explicit domain types and request/response DTOs over ad-hoc object shapes.
 - Path aliases (`tsconfig.json`):
   - API: `@/* -> apps/api/src/*`
@@ -123,6 +124,18 @@ pnpm --filter ./apps/api run prisma:studio
 - Use `demo.html` as the visual reference.
 - Use shared Tailwind preset: `packages/config/tailwind.preset.js`.
 - Ensure focus-visible rings and `prefers-reduced-motion` support.
+- Web structure: `src/features/` for feature modules, `src/components/` for shared UI.
+
+### Testing patterns
+
+- Unit tests: `*.spec.ts` alongside source files in API modules.
+- E2e tests: `test/*.e2e-spec.ts` in API root.
+- Use `describe` blocks for logical grouping; `it`/`test` for individual test cases.
+
+### Environment variables
+
+- API: `apps/api/.env` (local dev only; never commit).
+- Use `@nestjs/config` with validation schemas for required env vars.
 
 ### Scope
 

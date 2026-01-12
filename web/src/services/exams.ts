@@ -7,13 +7,14 @@ export interface Exam {
   duration: number;
   totalScore: number;
   status: string;
-  accountModes: string[];
+  accountModes: ExamAccountMode[];
   startTime?: string;
   endTime?: string;
   createdAt: string;
   updatedAt: string;
   examQuestions?: ExamQuestion[];
   submissionCount?: number;
+  totalStudents?: number;
 }
 
 export interface ExamQuestion {
@@ -49,8 +50,15 @@ export interface CreateExamDto {
   description?: string;
   duration: number;
   totalScore?: number;
-  accountModes?: string[];
+  accountModes?: ExamAccountMode[];
 }
+
+export const examAccountModes = [
+  "PERMANENT",
+  "TEMPORARY_IMPORT",
+  "TEMPORARY_REGISTER",
+] as const;
+export type ExamAccountMode = (typeof examAccountModes)[number];
 
 export interface UpdateExamDto {
   title?: string;
@@ -58,6 +66,7 @@ export interface UpdateExamDto {
   duration?: number;
   totalScore?: number;
   status?: string;
+  accountModes?: ExamAccountMode[];
 }
 
 export interface AddQuestionDto {
@@ -131,8 +140,12 @@ export interface CreateExamStudentDto {
   displayName?: string;
 }
 
-export const getExamStudents = async (examId: string): Promise<ExamStudent[]> => {
-  const response = await api.get<ExamStudent[]>(`/api/exams/${examId}/students`);
+export const getExamStudents = async (
+  examId: string,
+): Promise<ExamStudent[]> => {
+  const response = await api.get<ExamStudent[]>(
+    `/api/exams/${examId}/students`,
+  );
   return response.data;
 };
 
@@ -140,7 +153,10 @@ export const addExamStudent = async (
   examId: string,
   data: CreateExamStudentDto,
 ): Promise<ExamStudent> => {
-  const response = await api.post<ExamStudent>(`/api/exams/${examId}/students`, data);
+  const response = await api.post<ExamStudent>(
+    `/api/exams/${examId}/students`,
+    data,
+  );
   return response.data;
 };
 

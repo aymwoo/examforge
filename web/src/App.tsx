@@ -27,6 +27,7 @@ import ClassesPage from "./pages/classes/ClassesPage";
 import ClassDetailPage from "./pages/classes/ClassDetailPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import GlobalLoginModal from "./components/GlobalLoginModal";
+import { ToastProvider } from "./components/ui/Toast";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentDetailPage from "./pages/StudentDetailPage";
 
@@ -35,139 +36,195 @@ function App() {
     // 监听浏览器关闭事件
     const handleBeforeUnload = () => {
       // 清除考试登录信息
-      localStorage.removeItem('examToken');
-      localStorage.removeItem('examStudent');
+      localStorage.removeItem("examToken");
+      localStorage.removeItem("examStudent");
     };
 
     // 监听localStorage变化（其他标签页登录/登出）
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'token' || e.key === 'user') {
+      if (e.key === "token" || e.key === "user") {
         // 如果主登录信息发生变化，清除考试登录信息
-        localStorage.removeItem('examToken');
-        localStorage.removeItem('examStudent');
+        localStorage.removeItem("examToken");
+        localStorage.removeItem("examStudent");
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("storage", handleStorageChange);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("storage", handleStorageChange);
     };
   }, []);
 
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="student" element={
-            <ProtectedRoute requiredRole="STUDENT">
-              <StudentDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="student/:id" element={<StudentDetailPage />} />
-          <Route path="questions" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <QuestionsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="questions/new" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <NewQuestionPage />
-            </ProtectedRoute>
-          } />
-          <Route path="questions/:id" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <QuestionDetailPage />
-            </ProtectedRoute>
-          } />
-          <Route path="questions/:id/edit" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <NewQuestionPage />
-            </ProtectedRoute>
-          } />
-          <Route path="exams" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <ExamsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="exams/new" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <NewExamPage />
-            </ProtectedRoute>
-          } />
-          <Route path="exams/:id" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <ExamDetailPage />
-            </ProtectedRoute>
-          } />
-          <Route path="exams/:id/students" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <ExamStudentsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="exams/:id/analytics" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <ExamAnalyticsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="exams/:id/grading" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <ExamGradingPageSimple />
-            </ProtectedRoute>
-          } />
-          <Route path="exams/:id/add-questions" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <AddQuestionsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="settings" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <SettingsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="classes" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <ClassesPage />
-            </ProtectedRoute>
-          } />
-          <Route path="classes/:id" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <ClassDetailPage />
-            </ProtectedRoute>
-          } />
-          <Route path="users" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <UsersPage />
-            </ProtectedRoute>
-          } />
-          <Route path="profile" element={<ProfilePage />} />
-          <Route path="docs" element={<DocsPage />} />
-          <Route path="import" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <ImportPage />
-            </ProtectedRoute>
-          } />
-          <Route path="import/history" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <ImportHistoryPage />
-            </ProtectedRoute>
-          } />
-          <Route path="auth" element={<Navigate to="/" replace />} />
-        </Route>
-        {/* 独立的认证页面 */}
-        <Route path="/login" element={<Navigate to="/" replace />} />
-        <Route path="/register" element={<RegisterPage />} />
-        {/* 考试相关页面不使用Layout */}
-        <Route path="/exam/:examId" element={<ExamEntryPage />} />
-        <Route path="/exam/:examId/login" element={<ExamLoginPage />} />
-        <Route path="/exam/:examId/take" element={<ExamTakePage />} />
-      </Routes>
-      <GlobalLoginModal />
-    </BrowserRouter>
+      <ToastProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<HomePage />} />
+              <Route
+                path="student"
+                element={
+                  <ProtectedRoute requiredRole="STUDENT">
+                    <StudentDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="student/:id" element={<StudentDetailPage />} />
+              <Route
+                path="questions"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <QuestionsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="questions/new"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <NewQuestionPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="questions/:id"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <QuestionDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="questions/:id/edit"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <NewQuestionPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="exams"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ExamsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="exams/new"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <NewExamPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="exams/:id"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ExamDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="exams/:id/students"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ExamStudentsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="exams/:id/analytics"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ExamAnalyticsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="exams/:id/grading"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ExamGradingPageSimple />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="exams/:id/add-questions"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <AddQuestionsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="settings"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="classes"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ClassesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="classes/:id"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ClassDetailPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="users"
+                element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <UsersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="docs" element={<DocsPage />} />
+              <Route
+                path="import"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ImportPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="import/history"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ImportHistoryPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="auth" element={<Navigate to="/" replace />} />
+            </Route>
+            {/* 独立的认证页面 */}
+            <Route path="/login" element={<Navigate to="/" replace />} />
+            <Route path="/register" element={<RegisterPage />} />
+            {/* 考试相关页面不使用Layout */}
+            <Route path="/exam/:examId" element={<ExamEntryPage />} />
+            <Route path="/exam/:examId/login" element={<ExamLoginPage />} />
+            <Route path="/exam/:examId/take" element={<ExamTakePage />} />
+          </Routes>
+          <GlobalLoginModal />
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }

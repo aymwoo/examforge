@@ -1,16 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import Button from '../components/ui/Button';
-import { authService } from '../services/auth';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect, useRef } from "react";
+import { X } from "lucide-react";
+import { Link } from "react-router-dom";
+import Button from "../components/ui/Button";
+import { authService } from "../services/auth";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function GlobalLoginModal() {
-  const { showGlobalLogin, setShowGlobalLogin, addPendingRequest, retryPendingRequests, clearPendingRequests } = useAuth();
-  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const {
+    showGlobalLogin,
+    setShowGlobalLogin,
+    addPendingRequest,
+    retryPendingRequests,
+    clearPendingRequests,
+  } = useAuth();
+  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState('');
-  const addPendingRequestRef = useRef<typeof addPendingRequest | undefined>();
+  const [loginError, setLoginError] = useState("");
+  const addPendingRequestRef = useRef<typeof addPendingRequest | undefined>(
+    undefined,
+  );
 
   // 更新 ref 当函数改变时
   useEffect(() => {
@@ -29,37 +37,44 @@ export default function GlobalLoginModal() {
       }
     };
 
-    window.addEventListener('show401Login', handleShow401Login);
-    window.addEventListener('add401Request', handleAdd401Request as EventListener);
+    window.addEventListener("show401Login", handleShow401Login);
+    window.addEventListener(
+      "add401Request",
+      handleAdd401Request as EventListener,
+    );
 
     return () => {
-      window.removeEventListener('show401Login', handleShow401Login);
-      window.removeEventListener('add401Request', handleAdd401Request as EventListener);
+      window.removeEventListener("show401Login", handleShow401Login);
+      window.removeEventListener(
+        "add401Request",
+        handleAdd401Request as EventListener,
+      );
     };
   }, [setShowGlobalLogin]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginLoading(true);
-    setLoginError('');
+    setLoginError("");
 
     try {
       const response = await authService.login(loginForm);
-      localStorage.setItem('token', response.access_token);
-      localStorage.setItem('user', JSON.stringify(response.user));
-      
+      localStorage.setItem("token", response.access_token);
+      localStorage.setItem("user", JSON.stringify(response.user));
+      window.dispatchEvent(new Event("authChanged"));
+
       // 重试之前失败的请求
       await retryPendingRequests();
-      
+
       // 根据用户角色跳转
-      if (response.user.role === 'STUDENT') {
+      if (response.user.role === "STUDENT") {
         window.location.href = `/student/${response.user.username}`;
       }
-      
+
       setShowGlobalLogin(false);
-      setLoginForm({ username: '', password: '' });
+      setLoginForm({ username: "", password: "" });
     } catch (err: any) {
-      setLoginError(err.response?.data?.message || '登录失败');
+      setLoginError(err.response?.data?.message || "登录失败");
     } finally {
       setLoginLoading(false);
     }
@@ -67,8 +82,8 @@ export default function GlobalLoginModal() {
 
   const handleClose = () => {
     setShowGlobalLogin(false);
-    setLoginError('');
-    setLoginForm({ username: '', password: '' });
+    setLoginError("");
+    setLoginForm({ username: "", password: "" });
     clearPendingRequests();
   };
 
@@ -94,7 +109,9 @@ export default function GlobalLoginModal() {
           </button>
         </div>
 
-        <p className="text-gray-600 mb-4">您的登录已过期，请重新登录以继续操作</p>
+        <p className="text-gray-600 mb-4">
+          您的登录已过期，请重新登录以继续操作
+        </p>
 
         <form onSubmit={handleLogin} className="space-y-4">
           {loginError && (
@@ -104,7 +121,10 @@ export default function GlobalLoginModal() {
           )}
 
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="username"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               用户名
             </label>
             <input
@@ -120,7 +140,10 @@ export default function GlobalLoginModal() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               密码
             </label>
             <input
@@ -149,12 +172,12 @@ export default function GlobalLoginModal() {
               disabled={loginLoading}
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
-              {loginLoading ? '登录中...' : '登录'}
+              {loginLoading ? "登录中..." : "登录"}
             </Button>
           </div>
 
           <div className="text-center text-sm text-gray-600 pt-2">
-            还没有账户？{' '}
+            还没有账户？{" "}
             <Link
               to="/register"
               className="text-blue-600 hover:text-blue-500 font-medium"

@@ -20,7 +20,7 @@ import * as bcrypt from 'bcrypt';
 export class ExamService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiService: AIService,
+    private readonly aiService: AIService
   ) {}
 
   async create(dto: CreateExamDto) {
@@ -71,20 +71,20 @@ export class ExamService {
 
     // Filter for ongoing exams (for the ongoing count)
     const now = new Date();
-    const ongoingExams = publishedExams.filter(exam => {
+    const ongoingExams = publishedExams.filter((exam) => {
       // If no start/end time set, consider it as ongoing if published
       if (!exam.startTime && !exam.endTime) return true;
-      
+
       // If only start time is set, check if it has started
       if (exam.startTime && !exam.endTime) {
         return now >= exam.startTime;
       }
-      
+
       // If only end time is set, check if it hasn't ended
       if (!exam.startTime && exam.endTime) {
         return now <= exam.endTime;
       }
-      
+
       // If both times are set, check if current time is within the range
       return now >= exam.startTime && now <= exam.endTime;
     });
@@ -95,7 +95,7 @@ export class ExamService {
       totalStudents: publishedExams.reduce((sum, exam) => sum + exam.examStudents.length, 0),
       totalSubmissions: publishedExams.reduce((sum, exam) => sum + exam.submissions.length, 0),
       totalQuestions: totalQuestions,
-      exams: ongoingExams.map(exam => ({
+      exams: ongoingExams.map((exam) => ({
         id: exam.id,
         title: exam.title,
         description: exam.description,
@@ -143,7 +143,7 @@ export class ExamService {
             },
           },
           _count: {
-            select: { 
+            select: {
               submissions: true,
               examStudents: true,
             },
@@ -183,7 +183,7 @@ export class ExamService {
           },
         },
         _count: {
-          select: { 
+          select: {
             submissions: true,
             examStudents: true,
           },
@@ -207,7 +207,8 @@ export class ExamService {
     if (dto.duration !== undefined) updateData.duration = dto.duration;
     if (dto.totalScore !== undefined) updateData.totalScore = dto.totalScore;
     if (dto.accountModes !== undefined) updateData.accountModes = JSON.stringify(dto.accountModes);
-    if (dto.startTime !== undefined) updateData.startTime = dto.startTime ? new Date(dto.startTime) : null;
+    if (dto.startTime !== undefined)
+      updateData.startTime = dto.startTime ? new Date(dto.startTime) : null;
     if (dto.endTime !== undefined) updateData.endTime = dto.endTime ? new Date(dto.endTime) : null;
     if (dto.status !== undefined) updateData.status = dto.status;
 
@@ -226,7 +227,7 @@ export class ExamService {
 
   async copy(id: string, userId: string) {
     const originalExam = await this.findById(id);
-    
+
     // 创建新考试（复制基本信息）
     const newExam = await this.prisma.exam.create({
       data: {
@@ -237,7 +238,7 @@ export class ExamService {
         status: 'DRAFT', // 新考试默认为草稿状态
         accountModes: JSON.stringify(originalExam.accountModes), // 转换数组为JSON字符串
         createdBy: userId, // 设置为当前用户
-      }
+      },
     });
 
     // 复制考试题目
@@ -250,7 +251,7 @@ export class ExamService {
       }));
 
       await this.prisma.examQuestion.createMany({
-        data: examQuestions
+        data: examQuestions,
       });
     }
 
@@ -331,12 +332,15 @@ export class ExamService {
     });
   }
 
-  async batchUpdateQuestionScores(examId: string, updates: { questionId: string, score: number }[]) {
+  async batchUpdateQuestionScores(
+    examId: string,
+    updates: { questionId: string; score: number }[]
+  ) {
     await this.findById(examId);
 
     const promises = updates.map(async ({ questionId, score }) => {
       const examQuestion = await this.prisma.examQuestion.findFirst({
-        where: { examId, questionId }
+        where: { examId, questionId },
       });
 
       if (!examQuestion) {
@@ -345,19 +349,22 @@ export class ExamService {
 
       return this.prisma.examQuestion.update({
         where: { id: examQuestion.id },
-        data: { score }
+        data: { score },
       });
     });
 
     return Promise.all(promises);
   }
 
-  async batchUpdateQuestionOrders(examId: string, updates: { questionId: string, order: number }[]) {
+  async batchUpdateQuestionOrders(
+    examId: string,
+    updates: { questionId: string; order: number }[]
+  ) {
     await this.findById(examId);
 
     const promises = updates.map(async ({ questionId, order }) => {
       const examQuestion = await this.prisma.examQuestion.findFirst({
-        where: { examId, questionId }
+        where: { examId, questionId },
       });
 
       if (!examQuestion) {
@@ -366,11 +373,34 @@ export class ExamService {
 
       return this.prisma.examQuestion.update({
         where: { id: examQuestion.id },
-        data: { order }
+        data: { order },
       });
     });
 
     return Promise.all(promises);
+  }
+
+  async batchRemoveQuestions(examId: string, questionIds: string[]) {
+    await this.findById(examId);
+
+    const examQuestions = await this.prisma.examQuestion.findMany({
+      where: {
+        examId,
+        questionId: { in: questionIds },
+      },
+    });
+
+    if (examQuestions.length === 0) {
+      throw new NotFoundException('没有找到要删除的题目');
+    }
+
+    const deletePromises = examQuestions.map((eq) =>
+      this.prisma.examQuestion.delete({ where: { id: eq.id } })
+    );
+
+    await Promise.all(deletePromises);
+
+    return { deletedCount: deletePromises.length };
   }
 
   private transformExam(exam: any) {
@@ -544,7 +574,7 @@ export class ExamService {
       description: exam.description,
       duration: exam.duration,
       totalScore: exam.totalScore,
-      questions: exam.examQuestions.map(eq => {
+      questions: exam.examQuestions.map((eq) => {
         console.log('Processing question:', eq.question.id, 'images field:', eq.question.images);
         return {
           id: eq.question.id,
@@ -560,21 +590,30 @@ export class ExamService {
               console.log('Parsed images for question', eq.question.id, ':', parsed);
               return Array.isArray(parsed) ? parsed : [];
             } catch (error) {
-              console.log('Failed to parse images for question', eq.question.id, ':', eq.question.images);
+              console.log(
+                'Failed to parse images for question',
+                eq.question.id,
+                ':',
+                eq.question.images
+              );
               return [];
             }
           })(),
-          options: eq.question.options ? (() => {
-            try {
-              const parsed = JSON.parse(eq.question.options);
-              // 如果是对象数组，提取content字段；如果是字符串数组，直接返回
-              return Array.isArray(parsed) 
-                ? parsed.map(opt => typeof opt === 'string' ? opt : opt.content || opt.label || String(opt))
-                : parsed;
-            } catch {
-              return null;
-            }
-          })() : null,
+          options: eq.question.options
+            ? (() => {
+                try {
+                  const parsed = JSON.parse(eq.question.options);
+                  // 如果是对象数组，提取content字段；如果是字符串数组，直接返回
+                  return Array.isArray(parsed)
+                    ? parsed.map((opt) =>
+                        typeof opt === 'string' ? opt : opt.content || opt.label || String(opt)
+                      )
+                    : parsed;
+                } catch {
+                  return null;
+                }
+              })()
+            : null,
           score: eq.score,
           order: eq.order,
         };
@@ -583,13 +622,12 @@ export class ExamService {
   }
 
   async submitExam(examId: string, examStudentId: string, answers: Record<string, any>) {
-    
     // 检查是否已经有正式提交的记录
     const existingSubmission = await this.prisma.submission.findFirst({
-      where: { 
-        examId, 
+      where: {
+        examId,
         examStudentId,
-        isAutoGraded: true // 只检查正式提交的记录
+        isAutoGraded: true, // 只检查正式提交的记录
       },
     });
 
@@ -618,13 +656,13 @@ export class ExamService {
     const gradingResults = await this.autoGradeSubmission(exam, answers, (progress) => {
       console.log(`评分进度: ${progress.current}/${progress.total} - ${progress.message}`);
     });
-    
+
     // 检查是否有草稿记录，如果有则更新，否则创建新记录
     const draftSubmission = await this.prisma.submission.findFirst({
-      where: { 
-        examId, 
+      where: {
+        examId,
         examStudentId,
-        isAutoGraded: false // 草稿记录
+        isAutoGraded: false, // 草稿记录
       },
     });
 
@@ -680,7 +718,7 @@ export class ExamService {
 
   async submitExamAsync(examId: string, examStudentId: string, answers: Record<string, any>) {
     const streamKey = `${examId}-${examStudentId}`;
-    
+
     try {
       // 检查是否已经提交过
       const existingSubmission = await this.prisma.submission.findFirst({
@@ -708,7 +746,12 @@ export class ExamService {
         return;
       }
 
-      this.sendProgress(streamKey, { type: 'progress', current: 0, total: exam.examQuestions.length, message: '开始评分' });
+      this.sendProgress(streamKey, {
+        type: 'progress',
+        current: 0,
+        total: exam.examQuestions.length,
+        message: '开始评分',
+      });
 
       // 自动评分
       const gradingResults = await this.autoGradeSubmission(exam, answers, (progress) => {
@@ -732,8 +775,8 @@ export class ExamService {
         },
       });
 
-      this.sendProgress(streamKey, { 
-        type: 'complete', 
+      this.sendProgress(streamKey, {
+        type: 'complete',
         submission: {
           id: submission.id,
           score: submission.score,
@@ -741,11 +784,10 @@ export class ExamService {
           submittedAt: submission.submittedAt,
           answers: answers, // 添加原始答案数据
           gradingResults: gradingResults, // 添加评分结果
-        }
+        },
       });
-      
-      console.log('发送完成事件，包含gradingResults:', !!gradingResults);
 
+      console.log('发送完成事件，包含gradingResults:', !!gradingResults);
     } catch (error) {
       console.error('异步提交失败:', error);
       this.sendProgress(streamKey, { type: 'error', message: error.message });
@@ -769,16 +811,18 @@ export class ExamService {
     });
 
     if (existingSubmission) {
-      res.write(`data: ${JSON.stringify({ 
-        type: 'complete', 
-        submission: {
-          id: existingSubmission.id,
-          score: existingSubmission.score,
-          isAutoGraded: existingSubmission.isAutoGraded,
-          submittedAt: existingSubmission.submittedAt,
-          answers: existingSubmission.answers ? JSON.parse(existingSubmission.answers) : {},
-        }
-      })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({
+          type: 'complete',
+          submission: {
+            id: existingSubmission.id,
+            score: existingSubmission.score,
+            isAutoGraded: existingSubmission.isAutoGraded,
+            submittedAt: existingSubmission.submittedAt,
+            answers: existingSubmission.answers ? JSON.parse(existingSubmission.answers) : {},
+          },
+        })}\n\n`
+      );
       res.end();
       return;
     }
@@ -810,8 +854,10 @@ export class ExamService {
     if (submission) {
       // 解析answers和gradingDetails
       const answers = submission.answers ? JSON.parse(submission.answers) : {};
-      const gradingDetails = submission.gradingDetails ? JSON.parse(submission.gradingDetails) : null;
-      
+      const gradingDetails = submission.gradingDetails
+        ? JSON.parse(submission.gradingDetails)
+        : null;
+
       // 将answers对象转换为数组格式，包含评分信息
       const answersArray = Object.entries(answers).map(([questionId, answer]) => {
         const detail = gradingDetails?.details?.[questionId] || {};
@@ -844,15 +890,14 @@ export class ExamService {
 
   // 自动评分方法
   private async autoGradeSubmission(
-    exam: any, 
+    exam: any,
     answers: Record<string, any>,
     onProgress?: (progress: { current: number; total: number; message: string }) => void
   ) {
-    
     const details: Record<string, any> = {};
     let totalScore = 0;
     let isFullyAutoGraded = true;
-    
+
     const totalQuestions = exam.examQuestions.length;
     let currentQuestion = 0;
 
@@ -865,14 +910,18 @@ export class ExamService {
       onProgress?.({
         current: currentQuestion,
         total: totalQuestions,
-        message: `正在评分第${currentQuestion}题 (${question.type})`
+        message: `正在评分第${currentQuestion}题 (${question.type})`,
       });
 
       if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
-        const correctAnswerText = this.convertAnswerToText(question.answer, question.options, question.type);
+        const correctAnswerText = this.convertAnswerToText(
+          question.answer,
+          question.options,
+          question.type
+        );
         const isCorrect = this.compareAnswers(studentAnswer, correctAnswerText, question.type);
         const score = isCorrect ? maxScore : 0;
-        
+
         details[question.id] = {
           type: 'objective',
           studentAnswer: studentAnswer !== undefined ? studentAnswer : '',
@@ -882,26 +931,26 @@ export class ExamService {
           maxScore,
           feedback: isCorrect ? '答案正确' : `正确答案：${correctAnswerText}`,
         };
-        
+
         totalScore += score;
       } else if (question.type === 'ESSAY' || question.type === 'FILL_BLANK') {
         // 主观题AI评分
         onProgress?.({
           current: currentQuestion,
           total: totalQuestions,
-          message: `正在AI评分第${currentQuestion}题 (主观题)`
+          message: `正在AI评分第${currentQuestion}题 (主观题)`,
         });
-        
+
         console.log(`=== 开始真实AI评分 ===`);
         console.log(`题目ID: ${question.id}, 类型: ${question.type}`);
-        
+
         const aiResult = await this.getAIGradingForSubjective(
           question.content,
           question.answer || '',
           studentAnswer || '',
-          maxScore,
+          maxScore
         );
-        
+
         details[question.id] = {
           type: 'subjective',
           studentAnswer: studentAnswer !== undefined ? studentAnswer : '', // 确保显示实际答案
@@ -911,9 +960,9 @@ export class ExamService {
           maxScore,
           needsReview: aiResult.confidence < 0.8, // 置信度低于80%需要人工复审
         };
-        
+
         totalScore += aiResult.suggestedScore;
-        
+
         // 如果有主观题，标记为需要人工确认
         if (aiResult.confidence < 0.9) {
           isFullyAutoGraded = false;
@@ -924,7 +973,7 @@ export class ExamService {
     onProgress?.({
       current: totalQuestions,
       total: totalQuestions,
-      message: '评分完成'
+      message: '评分完成',
     });
 
     return {
@@ -940,14 +989,14 @@ export class ExamService {
     questionContent: string,
     referenceAnswer: string,
     studentAnswer: string,
-    maxScore: number,
+    maxScore: number
   ) {
     console.log(`=== 开始AI评分主观题 ===`);
     console.log(`题目内容: ${questionContent}`);
     console.log(`参考答案: ${referenceAnswer}`);
     console.log(`学生答案: ${studentAnswer}`);
     console.log(`满分: ${maxScore}`);
-    
+
     if (!studentAnswer || studentAnswer.trim() === '') {
       console.log(`学生未作答，返回0分`);
       return {
@@ -959,14 +1008,19 @@ export class ExamService {
     }
 
     // 构建AI评分提示词
-    const prompt = await this.buildGradingPrompt(questionContent, referenceAnswer, studentAnswer, maxScore);
-    
+    const prompt = await this.buildGradingPrompt(
+      questionContent,
+      referenceAnswer,
+      studentAnswer,
+      maxScore
+    );
+
     try {
       // 调用真实的AI服务进行评分
       const aiResult = await this.aiService.gradeSubjectiveAnswer(prompt);
-      
+
       console.log('AI评分结果:', JSON.stringify(aiResult, null, 2));
-      
+
       return {
         suggestedScore: aiResult.score,
         reasoning: aiResult.reasoning,
@@ -975,12 +1029,14 @@ export class ExamService {
       };
     } catch (error) {
       console.error('AI评分失败:', error);
-      
+
       // AI评分失败时的降级处理
       const wordCount = studentAnswer.length;
-      const hasKeywords = referenceAnswer ? this.checkKeywords(studentAnswer, referenceAnswer) : 0.5;
+      const hasKeywords = referenceAnswer
+        ? this.checkKeywords(studentAnswer, referenceAnswer)
+        : 0.5;
       const isValidAnswer = this.isValidAnswer(studentAnswer);
-      
+
       let scoreRatio = 0;
       if (isValidAnswer) {
         scoreRatio = 0.3;
@@ -989,10 +1045,10 @@ export class ExamService {
         if (hasKeywords > 0.3) scoreRatio += 0.3;
         if (wordCount > 100 && hasKeywords > 0.5) scoreRatio += 0.2;
       }
-      
+
       scoreRatio = Math.min(scoreRatio, 1.0);
       const suggestedScore = Math.round(maxScore * scoreRatio);
-      
+
       return {
         suggestedScore,
         reasoning: `AI评分服务暂时不可用，使用备用评分算法。${this.generateReasoning(scoreRatio, wordCount, hasKeywords)}`,
@@ -1003,10 +1059,15 @@ export class ExamService {
   }
 
   // 构建AI评分提示词
-  private async buildGradingPrompt(questionContent: string, referenceAnswer: string, studentAnswer: string, maxScore: number): Promise<string> {
+  private async buildGradingPrompt(
+    questionContent: string,
+    referenceAnswer: string,
+    studentAnswer: string,
+    maxScore: number
+  ): Promise<string> {
     // 从系统设置获取评分提示词模板
     const gradingTemplate = await this.getSystemSetting('GRADING_PROMPT_TEMPLATE');
-    
+
     if (gradingTemplate) {
       // 使用系统配置的模板，替换变量
       return gradingTemplate
@@ -1016,7 +1077,7 @@ export class ExamService {
         .replace('{studentAnswer}', studentAnswer)
         .replace('{maxScore}', maxScore.toString());
     }
-    
+
     // 如果没有配置，使用默认模板
     return `你是一位专业的教师，请对以下学生答案进行评分。
 
@@ -1052,7 +1113,7 @@ ${studentAnswer}
   private async getSystemSetting(key: string): Promise<string | null> {
     try {
       const setting = await this.prisma.systemSetting.findUnique({
-        where: { key }
+        where: { key },
       });
       return setting?.value || null;
     } catch (error) {
@@ -1066,47 +1127,47 @@ ${studentAnswer}
     if (!studentAnswer || studentAnswer.trim().length < 3) {
       return false;
     }
-    
+
     const answer = studentAnswer.trim().toLowerCase();
-    
+
     // 检查是否只是数字或无意义字符
     if (/^[0-9\s]+$/.test(answer)) {
       return false;
     }
-    
+
     // 检查是否只是重复字符
     if (/^(.)\1{4,}$/.test(answer)) {
       return false;
     }
-    
+
     // 检查是否包含有意义的中文或英文词汇
     const hasChineseWords = /[\u4e00-\u9fa5]{2,}/.test(answer);
     const hasEnglishWords = /[a-z]{3,}/.test(answer);
-    
+
     return hasChineseWords || hasEnglishWords;
   }
 
   // 检查关键词匹配度
   private checkKeywords(studentAnswer: string, referenceAnswer: string): number {
     if (!referenceAnswer) return 0.5;
-    
+
     const studentWords = studentAnswer.toLowerCase().split(/\s+/);
     const referenceWords = referenceAnswer.toLowerCase().split(/\s+/);
-    
+
     let matchCount = 0;
     for (const word of referenceWords) {
-      if (word.length > 2 && studentWords.some(sw => sw.includes(word) || word.includes(sw))) {
+      if (word.length > 2 && studentWords.some((sw) => sw.includes(word) || word.includes(sw))) {
         matchCount++;
       }
     }
-    
+
     return referenceWords.length > 0 ? matchCount / referenceWords.length : 0;
   }
 
   // 生成评分理由
   private generateReasoning(scoreRatio: number, wordCount: number, keywordMatch: number): string {
     const reasons = [];
-    
+
     if (scoreRatio >= 0.9) {
       reasons.push('答案质量优秀');
     } else if (scoreRatio >= 0.7) {
@@ -1116,19 +1177,19 @@ ${studentAnswer}
     } else {
       reasons.push('答案需要改进');
     }
-    
+
     if (wordCount < 20) {
       reasons.push('答案过于简短');
     } else if (wordCount > 100) {
       reasons.push('答案详细充实');
     }
-    
+
     if (keywordMatch > 0.5) {
       reasons.push('涵盖了主要要点');
     } else if (keywordMatch < 0.3) {
       reasons.push('缺少关键要点');
     }
-    
+
     return reasons.join('，');
   }
 
@@ -1163,10 +1224,10 @@ ${studentAnswer}
 
     // 检查是否已经有正式提交的记录
     const existingSubmission = await this.prisma.submission.findFirst({
-      where: { 
-        examId, 
+      where: {
+        examId,
         examStudentId,
-        isAutoGraded: true // 正式提交的记录会被标记为已评分
+        isAutoGraded: true, // 正式提交的记录会被标记为已评分
       },
     });
 
@@ -1217,17 +1278,17 @@ ${studentAnswer}
           include: {
             examQuestions: {
               include: {
-                question: true
-              }
-            }
-          }
+                question: true,
+              },
+            },
+          },
         },
         examStudent: {
           include: {
-            student: true
-          }
-        }
-      }
+            student: true,
+          },
+        },
+      },
     });
 
     if (!submission || submission.examId !== examId) {
@@ -1242,8 +1303,9 @@ ${studentAnswer}
         }
       } else if (currentUser.role === 'STUDENT' || currentUser.isStudent) {
         // 检查是否是学生本人的提交
-        const isOwnSubmission = submission.examStudent.studentId === currentUser.sub || 
-                               submission.examStudent.student?.studentId === currentUser.username;
+        const isOwnSubmission =
+          submission.examStudent.studentId === currentUser.sub ||
+          submission.examStudent.student?.studentId === currentUser.username;
         if (!isOwnSubmission) {
           throw new ForbiddenException('您只能查看自己的提交记录');
         }
@@ -1256,9 +1318,10 @@ ${studentAnswer}
     let gradingDetails = null;
     if (submission.gradingDetails) {
       try {
-        gradingDetails = typeof submission.gradingDetails === 'string' 
-          ? JSON.parse(submission.gradingDetails) 
-          : submission.gradingDetails;
+        gradingDetails =
+          typeof submission.gradingDetails === 'string'
+            ? JSON.parse(submission.gradingDetails)
+            : submission.gradingDetails;
       } catch (error) {
         console.error('解析评分详情失败:', error);
       }
@@ -1276,14 +1339,14 @@ ${studentAnswer}
         id: submission.exam.id,
         title: submission.exam.title,
         totalScore: submission.exam.totalScore,
-        questions: submission.exam.examQuestions.map(eq => ({
+        questions: submission.exam.examQuestions.map((eq) => ({
           id: eq.question.id,
           content: eq.question.content,
           type: eq.question.type,
           options: eq.question.options,
-          score: eq.score
-        }))
-      }
+          score: eq.score,
+        })),
+      },
     };
   }
 
@@ -1296,7 +1359,7 @@ ${studentAnswer}
       orderBy: { submittedAt: 'desc' },
     });
 
-    return submissions.map(submission => ({
+    return submissions.map((submission) => ({
       id: submission.id,
       student: {
         id: submission.examStudent?.id,
@@ -1314,7 +1377,13 @@ ${studentAnswer}
     }));
   }
 
-  async gradeSubmission(submissionId: string, scores: Record<string, number>, totalScore: number, reviewerId?: string, feedback?: string) {
+  async gradeSubmission(
+    submissionId: string,
+    scores: Record<string, number>,
+    totalScore: number,
+    reviewerId?: string,
+    feedback?: string
+  ) {
     const submission = await this.prisma.submission.update({
       where: { id: submissionId },
       data: {
@@ -1361,14 +1430,14 @@ ${studentAnswer}
 
     // 返回已存储的评分详情
     const gradingDetails = submission.gradingDetails ? JSON.parse(submission.gradingDetails) : null;
-    
+
     if (!gradingDetails) {
       throw new NotFoundException('评分详情不存在，请重新提交考试');
     }
 
     // 转换为前端期望的格式
     const suggestions: Record<string, any> = {};
-    
+
     if (gradingDetails && gradingDetails.details) {
       Object.entries(gradingDetails.details).forEach(([questionId, detail]: [string, any]) => {
         if (detail.type === 'objective') {
@@ -1405,10 +1474,126 @@ ${studentAnswer}
     };
   }
 
+  async batchApproveSubmissions(examId: string, submissionIds: string[], currentUser: any) {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId },
+    });
+
+    if (!exam) {
+      throw new NotFoundException('考试不存在');
+    }
+
+    if (currentUser.role !== 'ADMIN' && exam.createdBy !== currentUser.sub) {
+      throw new ForbiddenException('您没有权限复核此考试的提交记录');
+    }
+
+    if (!submissionIds || submissionIds.length === 0) {
+      throw new BadRequestException('submissionIds 不能为空');
+    }
+
+    const submissions = await this.prisma.submission.findMany({
+      where: {
+        id: { in: submissionIds },
+        examId,
+      },
+      select: {
+        id: true,
+        score: true,
+        gradingDetails: true,
+        isReviewed: true,
+        examStudent: {
+          select: {
+            username: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+
+    const foundIdSet = new Set(submissions.map((s) => s.id));
+    const notFoundSubmissionIds = submissionIds.filter((id) => !foundIdSet.has(id));
+
+    const now = new Date();
+
+    const approvedSubmissionIds: string[] = [];
+    const approved: Array<{
+      submissionId: string;
+      student?: { username: string; displayName?: string | null };
+    }> = [];
+    const skipped: Array<{
+      submissionId: string;
+      reason: 'ALREADY_REVIEWED' | 'NO_SCORE';
+      student?: { username: string; displayName?: string | null };
+    }> = [];
+
+    for (const submission of submissions) {
+      const student = submission.examStudent
+        ? {
+            username: submission.examStudent.username,
+            displayName: submission.examStudent.displayName,
+          }
+        : undefined;
+
+      if (submission.isReviewed) {
+        skipped.push({ submissionId: submission.id, reason: 'ALREADY_REVIEWED', student });
+        continue;
+      }
+
+      const fallbackTotalScore = (() => {
+        if (!submission.gradingDetails) return null;
+        if (typeof submission.gradingDetails !== 'string') return null;
+        try {
+          const parsed = JSON.parse(submission.gradingDetails);
+          const totalScore = parsed?.totalScore;
+          return typeof totalScore === 'number' ? totalScore : null;
+        } catch {
+          return null;
+        }
+      })();
+
+      const totalScore =
+        submission.score !== null && submission.score !== undefined
+          ? submission.score
+          : fallbackTotalScore;
+
+      if (totalScore === null) {
+        skipped.push({ submissionId: submission.id, reason: 'NO_SCORE', student });
+        continue;
+      }
+
+      approvedSubmissionIds.push(submission.id);
+      approved.push({ submissionId: submission.id, student });
+    }
+
+    if (approvedSubmissionIds.length > 0) {
+      await this.prisma.submission.updateMany({
+        where: {
+          id: { in: approvedSubmissionIds },
+          examId,
+        },
+        data: {
+          isReviewed: true,
+          reviewedAt: now,
+          reviewedBy: currentUser.sub,
+        },
+      });
+    }
+
+    return {
+      approvedCount: approvedSubmissionIds.length,
+      approvedSubmissionIds,
+      approved,
+      skippedCount: skipped.length,
+      skipped,
+      notFoundCount: notFoundSubmissionIds.length,
+      notFoundSubmissionIds,
+    };
+  }
+
   async batchResetSubmissions(examId: string, submissionIds: string[], currentUser: any) {
     // 权限检查：只有管理员和考试创建者可以重置
     const exam = await this.prisma.exam.findUnique({
-      where: { id: examId }
+      where: { id: examId },
     });
 
     if (!exam) {
@@ -1423,23 +1608,27 @@ ${studentAnswer}
     const result = await this.prisma.submission.deleteMany({
       where: {
         id: { in: submissionIds },
-        examId: examId
-      }
+        examId: examId,
+      },
     });
 
     return {
       message: `成功重置 ${result.count} 个学生的答题记录`,
-      resetCount: result.count
+      resetCount: result.count,
     };
   }
 
-  private convertAnswerToText(answer: string | null, options: string | null, questionType: string): string | string[] {
+  private convertAnswerToText(
+    answer: string | null,
+    options: string | null,
+    questionType: string
+  ): string | string[] {
     if (!answer || !options) return answer || '';
-    
+
     try {
       const optionsArray = JSON.parse(options);
       if (!Array.isArray(optionsArray)) return answer;
-      
+
       if (questionType === 'SINGLE_CHOICE') {
         if (answer.length === 1 && /[A-Z]/.test(answer)) {
           const index = answer.charCodeAt(0) - 65;
@@ -1464,7 +1653,7 @@ ${studentAnswer}
         }
         return answer;
       }
-      
+
       return answer;
     } catch (error) {
       return answer || '';
@@ -1483,15 +1672,20 @@ ${studentAnswer}
     } else if (questionType === 'MULTIPLE_CHOICE') {
       try {
         let correct = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
-        
-        if (correct.length > 0 && typeof correct[0] === 'object' && correct[0] && correct[0].content) {
+
+        if (
+          correct.length > 0 &&
+          typeof correct[0] === 'object' &&
+          correct[0] &&
+          correct[0].content
+        ) {
           correct = correct.map((item: any) => item.content);
         }
-        
+
         const student = Array.isArray(studentAnswer) ? studentAnswer : [studentAnswer];
         const sortedCorrect = JSON.stringify(correct.sort());
         const sortedStudent = JSON.stringify(student.sort());
-        
+
         return sortedCorrect === sortedStudent;
       } catch (error) {
         return false;
@@ -1508,7 +1702,7 @@ ${studentAnswer}
       // 使用易记忆的格式生成用户名
       const username = AccountGenerator.generateTemporaryUsername(exam.title, '', i);
       const password = AccountGenerator.generateMemorablePassword();
-      
+
       students.push({
         username,
         password,
@@ -1538,7 +1732,7 @@ ${studentAnswer}
     for (const student of students) {
       try {
         const username = AccountGenerator.generatePermanentUsername(student.studentId);
-        
+
         // 检查是否已存在
         const existing = await this.prisma.examStudent.findFirst({
           where: { examId, username },
@@ -1581,9 +1775,13 @@ ${studentAnswer}
   }
 
   // 从Excel/CSV导入临时学生
-  async importTemporaryStudents(examId: string, studentsData: Array<{name: string, username?: string}>, customPassword?: string) {
+  async importTemporaryStudents(
+    examId: string,
+    studentsData: Array<{ name: string; username?: string }>,
+    customPassword?: string
+  ) {
     const exam = await this.findById(examId);
-    
+
     const results = [];
     const errors = [];
 
@@ -1592,11 +1790,11 @@ ${studentAnswer}
       try {
         // 生成易记忆的临时账号用户名
         const username = AccountGenerator.generateTemporaryUsername(
-          exam.title, 
-          studentData.name, 
+          exam.title,
+          studentData.name,
           i + 1
         );
-        
+
         // 检查是否已存在
         const existing = await this.prisma.examStudent.findFirst({
           where: { examId, username },
@@ -1608,7 +1806,7 @@ ${studentAnswer}
           const existingFallback = await this.prisma.examStudent.findFirst({
             where: { examId, username: fallbackUsername },
           });
-          
+
           if (existingFallback) {
             errors.push({
               name: studentData.name,
@@ -1616,7 +1814,7 @@ ${studentAnswer}
             });
             continue;
           }
-          
+
           // 使用后缀用户名
           const password = customPassword || AccountGenerator.generateMemorablePassword();
           const examStudent = await this.prisma.examStudent.create({
@@ -1705,19 +1903,20 @@ ${studentAnswer}
     const notSubmittedCount = totalStudents - submittedCount;
 
     // 成绩统计
-    const scores = submissions.map(s => s.score).filter(s => s !== null);
+    const scores = submissions.map((s) => s.score).filter((s) => s !== null);
     const scoreStats = {
       average: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
       highest: scores.length > 0 ? Math.max(...scores) : 0,
       lowest: scores.length > 0 ? Math.min(...scores) : 0,
-      passRate: scores.length > 0 ? (scores.filter(s => s >= 60).length / scores.length) * 100 : 0,
+      passRate:
+        scores.length > 0 ? (scores.filter((s) => s >= 60).length / scores.length) * 100 : 0,
     };
 
     // 题目分析
     const questionStats = [];
     for (const examQuestion of exam.examQuestions) {
       const questionAnswers = [];
-      
+
       for (const submission of submissions) {
         if (submission.answers) {
           const answers = JSON.parse(submission.answers);
@@ -1725,18 +1924,22 @@ ${studentAnswer}
           if (answer !== undefined) {
             questionAnswers.push({
               answer: answer,
-              score: submission.gradingDetails ? 
-                JSON.parse(submission.gradingDetails)[examQuestion.question.id]?.score || 0 : 0,
+              score: submission.gradingDetails
+                ? JSON.parse(submission.gradingDetails)[examQuestion.question.id]?.score || 0
+                : 0,
               maxScore: examQuestion.score,
             });
           }
         }
       }
 
-      const correctAnswers = questionAnswers.filter(qa => qa.score === qa.maxScore).length;
-      const correctRate = questionAnswers.length > 0 ? (correctAnswers / questionAnswers.length) * 100 : 0;
-      const averageScore = questionAnswers.length > 0 ? 
-        questionAnswers.reduce((sum, qa) => sum + qa.score, 0) / questionAnswers.length : 0;
+      const correctAnswers = questionAnswers.filter((qa) => qa.score === qa.maxScore).length;
+      const correctRate =
+        questionAnswers.length > 0 ? (correctAnswers / questionAnswers.length) * 100 : 0;
+      const averageScore =
+        questionAnswers.length > 0
+          ? questionAnswers.reduce((sum, qa) => sum + qa.score, 0) / questionAnswers.length
+          : 0;
 
       questionStats.push({
         questionId: examQuestion.question.id,
@@ -1751,7 +1954,7 @@ ${studentAnswer}
 
     // 知识点分析
     const knowledgePointMap = new Map();
-    questionStats.forEach(qs => {
+    questionStats.forEach((qs) => {
       const kp = qs.knowledgePoint || '未分类';
       if (!knowledgePointMap.has(kp)) {
         knowledgePointMap.set(kp, {
@@ -1763,18 +1966,19 @@ ${studentAnswer}
           totalAnswers: 0,
         });
       }
-      
+
       const kpData = knowledgePointMap.get(kp);
       kpData.questionCount++;
       kpData.totalScore += qs.averageScore;
-      kpData.maxScore += exam.examQuestions.find(eq => eq.question.id === qs.questionId)?.score || 0;
-      
+      kpData.maxScore +=
+        exam.examQuestions.find((eq) => eq.question.id === qs.questionId)?.score || 0;
+
       const questionAnswers = submissions.length;
       kpData.totalAnswers += questionAnswers;
       kpData.correctCount += (qs.correctRate / 100) * questionAnswers;
     });
 
-    const knowledgePointStats = Array.from(knowledgePointMap.values()).map(kp => ({
+    const knowledgePointStats = Array.from(knowledgePointMap.values()).map((kp) => ({
       knowledgePoint: kp.knowledgePoint,
       questionCount: kp.questionCount,
       averageScore: kp.questionCount > 0 ? kp.totalScore / kp.questionCount : 0,
@@ -1803,17 +2007,19 @@ ${studentAnswer}
       res.write(`data: ${JSON.stringify({ type: 'start', message: '开始生成AI分析报告...' })}\n\n`);
 
       // 获取考试数据和分析数据
-      res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在获取考试数据...' })}\n\n`);
-      
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', message: '正在获取考试数据...' })}\n\n`
+      );
+
       const exam = await this.prisma.exam.findUnique({
         where: { id: examId },
         include: {
           examQuestions: {
             include: {
-              question: true
-            }
-          }
-        }
+              question: true,
+            },
+          },
+        },
       });
 
       if (!exam) {
@@ -1826,42 +2032,43 @@ ${studentAnswer}
 
       // 获取用户的默认AI Provider设置
       res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在获取AI配置...' })}\n\n`);
-      
+
       const aiProvider = await this.prisma.aIProvider.findFirst({
         where: {
           isActive: true,
-          OR: [
-            { isGlobal: true },
-            { createdBy: userId }
-          ]
+          OR: [{ isGlobal: true }, { createdBy: userId }],
         },
-        orderBy: [
-          { isGlobal: 'asc' },
-          { createdAt: 'desc' }
-        ]
+        orderBy: [{ isGlobal: 'asc' }, { createdAt: 'desc' }],
       });
 
       if (!aiProvider) {
-        res.write(`data: ${JSON.stringify({ type: 'error', message: '未找到可用的AI Provider，请先在设置页面配置AI服务' })}\n\n`);
+        res.write(
+          `data: ${JSON.stringify({ type: 'error', message: '未找到可用的AI Provider，请先在设置页面配置AI服务' })}\n\n`
+        );
         res.end();
         return;
       }
 
       // 构建分析报告的提示词
-      res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在构建分析提示词...' })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', message: '正在构建分析提示词...' })}\n\n`
+      );
       const prompt = await this.buildAnalysisPrompt(exam, analytics, userId);
 
       // 调用AI服务生成报告
-      res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在调用AI服务生成报告...' })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', message: '正在调用AI服务生成报告...' })}\n\n`
+      );
       const report = await this.callAIServiceStream(aiProvider, prompt, res);
 
       // 发送完成信号
       res.write(`data: ${JSON.stringify({ type: 'complete', report: report })}\n\n`);
       res.end();
-
     } catch (error) {
       console.error('生成AI报告失败:', error);
-      res.write(`data: ${JSON.stringify({ type: 'error', message: `生成AI分析报告失败: ${error.message}` })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({ type: 'error', message: `生成AI分析报告失败: ${error.message}` })}\n\n`
+      );
       res.end();
     }
   }
@@ -1869,17 +2076,17 @@ ${studentAnswer}
   private async buildAnalysisPrompt(exam: any, analytics: any, userId?: string): Promise<string> {
     // 获取用户自定义的分析提示词模板
     let promptTemplate = '';
-    
+
     if (userId) {
       const userSetting = await this.prisma.userSetting.findFirst({
         where: {
           userId: userId,
-          key: 'ANALYSIS_PROMPT_TEMPLATE'
-        }
+          key: 'ANALYSIS_PROMPT_TEMPLATE',
+        },
       });
       promptTemplate = userSetting?.value || '';
     }
-    
+
     // 如果用户没有自定义模板，使用系统默认模板
     if (!promptTemplate) {
       promptTemplate = `请基于以下考试数据生成一份详细的分析报告：
@@ -1916,13 +2123,21 @@ ${studentAnswer}
     }
 
     // 替换变量
-    const questionStatsText = analytics.questionStats?.map((q: any, index: number) => 
-      `第${index + 1}题 - 正确率：${q.correctRate?.toFixed(1) || 0}%，平均得分：${q.averageScore?.toFixed(1) || 0}分`
-    ).join('\n') || '无题目数据';
+    const questionStatsText =
+      analytics.questionStats
+        ?.map(
+          (q: any, index: number) =>
+            `第${index + 1}题 - 正确率：${q.correctRate?.toFixed(1) || 0}%，平均得分：${q.averageScore?.toFixed(1) || 0}分`
+        )
+        .join('\n') || '无题目数据';
 
-    const knowledgePointStatsText = analytics.knowledgePointStats?.map((kp: any) => 
-      `${kp.knowledgePoint || '未分类'} - 掌握率：${kp.masteryRate?.toFixed(1) || 0}%，平均得分：${kp.averageScore?.toFixed(1) || 0}分`
-    ).join('\n') || '无知识点数据';
+    const knowledgePointStatsText =
+      analytics.knowledgePointStats
+        ?.map(
+          (kp: any) =>
+            `${kp.knowledgePoint || '未分类'} - 掌握率：${kp.masteryRate?.toFixed(1) || 0}%，平均得分：${kp.averageScore?.toFixed(1) || 0}分`
+        )
+        .join('\n') || '无知识点数据';
 
     return promptTemplate
       .replace(/{examTitle}/g, exam.title || '')
@@ -1935,7 +2150,10 @@ ${studentAnswer}
       .replace(/{lowestScore}/g, analytics.scoreStats?.lowest?.toString() || '0')
       .replace(/{passRate}/g, analytics.scoreStats?.passRate?.toFixed(1) || '0')
       .replace(/{submittedCount}/g, analytics.participationStats?.submittedCount?.toString() || '0')
-      .replace(/{participationRate}/g, analytics.participationStats?.participationRate?.toFixed(1) || '0')
+      .replace(
+        /{participationRate}/g,
+        analytics.participationStats?.participationRate?.toFixed(1) || '0'
+      )
       .replace(/{questionStats}/g, questionStatsText)
       .replace(/{knowledgePointStats}/g, knowledgePointStatsText);
   }
@@ -1952,20 +2170,20 @@ ${studentAnswer}
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model: model,
           messages: [
             {
               role: 'user',
-              content: prompt
-            }
+              content: prompt,
+            },
           ],
           temperature: 0.7,
           max_tokens: 3000,
-          stream: true // 启用流式响应
-        })
+          stream: true, // 启用流式响应
+        }),
       });
 
       console.log('AI服务响应状态:', response.status);
@@ -1992,7 +2210,7 @@ ${studentAnswer}
             if (line.startsWith('data: ')) {
               const data = line.slice(6);
               if (data === '[DONE]') continue;
-              
+
               try {
                 const parsed = JSON.parse(data);
                 const content = parsed.choices?.[0]?.delta?.content;
