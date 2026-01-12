@@ -17,7 +17,7 @@ import SettingsPage from "./pages/settings/SettingsPage";
 import ExamEntryPage from "./pages/exam/ExamEntryPage";
 import ExamLoginPage from "./pages/exam/ExamLoginPage";
 import ExamTakePage from "./pages/exam/ExamTakePage";
-import ExamGradingPage from "./pages/exams/ExamGradingPage";
+import ExamGradingPageSimple from "./pages/exams/ExamGradingPageSimple";
 import HomePage from "./pages/HomePage";
 import UsersPage from "./pages/UsersPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -150,7 +150,7 @@ function App() {
                 path="exams/:id/grading"
                 element={
                   <ProtectedRoute requiredRole="TEACHER">
-                    <ExamGradingPage />
+                    <ExamGradingPageSimple />
                   </ProtectedRoute>
                 }
               />
