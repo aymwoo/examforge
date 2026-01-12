@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Upload } from "lucide-react";
 import ExamLayout from "@/components/ExamLayout";
+import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { getExamById, type Exam } from "@/services/exams";
 import api from "@/services/api";
 
@@ -31,6 +34,9 @@ export default function ExamStudentsPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [examStudents, setExamStudents] = useState<ExamStudent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -57,6 +63,31 @@ export default function ExamStudentsPage() {
     }
   };
 
+  const handleImportStudents = async () => {
+    if (!importText.trim()) return;
+    
+    setImporting(true);
+    try {
+      const lines = importText.trim().split('\n');
+      const studentsData = lines.map(line => {
+        const name = line.trim();
+        return { name };
+      }).filter(student => student.name);
+
+      await api.post(`/api/exams/${id}/students/import-temporary`, {
+        students: studentsData
+      });
+
+      setShowImportModal(false);
+      setImportText("");
+      loadData();
+    } catch (err: any) {
+      alert(err.response?.data?.message || '导入失败');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <ExamLayout activeTab="students">
@@ -71,7 +102,16 @@ export default function ExamStudentsPage() {
     <ExamLayout activeTab="students">
       <div className="space-y-8">
         <div className="rounded-3xl border-2 border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-indigo-900 mb-6">学生管理</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-indigo-900">学生管理</h2>
+            <Button
+              onClick={() => setShowImportModal(true)}
+              className="bg-indigo-500 hover:bg-indigo-600 text-white flex items-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              临时导入学生
+            </Button>
+          </div>
           
           {/* 统计信息 */}
           <div className="grid gap-4 sm:grid-cols-4 mb-8">
@@ -168,6 +208,41 @@ export default function ExamStudentsPage() {
             )}
           </div>
         </div>
+
+        {/* 临时导入学生模态框 */}
+        <Modal
+          isOpen={showImportModal}
+          onClose={() => {
+            setShowImportModal(false);
+            setImportText("");
+          }}
+          title="临时导入学生名册"
+          onConfirm={handleImportStudents}
+          confirmText={importing ? "导入中..." : "确认导入"}
+          confirmDisabled={importing || !importText.trim()}
+        >
+          <div className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <p className="text-sm text-yellow-800">
+                <strong>注意：</strong>此功能仅为当前考试临时导入学生，不会添加到系统数据库中。
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                学生姓名列表（每行一个姓名）
+              </label>
+              <textarea
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                placeholder="张三&#10;李四&#10;王五"
+                className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              />
+            </div>
+            <div className="text-sm text-gray-600">
+              系统将自动为每个学生生成临时账号，仅在此次考试中有效。
+            </div>
+          </div>
+        </Modal>
       </div>
     </ExamLayout>
   );

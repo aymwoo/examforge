@@ -211,6 +211,13 @@ export class ExamController {
     return this.examService.generateStudentAccounts(examId, body.count, body.prefix);
   }
 
+  @Post(':id/students/import-temporary')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Import temporary students for exam' })
+  importTemporaryStudents(@Param('id') id: string, @Body() body: { students: { name: string }[] }) {
+    return this.examService.importTemporaryStudents(id, body.students);
+  }
+
   @Get(':id/students')
   @ApiOperation({ summary: 'Get exam students' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
