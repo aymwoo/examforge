@@ -67,7 +67,13 @@ export default function ProfilePage() {
     setLoading(true);
     
     try {
-      const response = await api.put('/api/users/profile', formData);
+      // 只发送允许的字段
+      const updateData = {
+        name: formData.name,
+        email: formData.email
+      };
+      
+      const response = await api.put('/api/users/profile', updateData);
       
       // 更新本地存储的用户信息
       localStorage.setItem('user', JSON.stringify(response.data));
