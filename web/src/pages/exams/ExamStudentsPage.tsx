@@ -150,7 +150,6 @@ export default function ExamStudentsPage() {
   const loadClasses = async () => {
     try {
       const response = await api.get('/api/classes');
-      console.log('Classes API response:', response.data); // Debug log
       setClasses(response.data.data || response.data || []);
     } catch (err) {
       console.error('加载班级失败:', err);
@@ -219,11 +218,20 @@ export default function ExamStudentsPage() {
 
   // 按登录模式分组学生
   const getStudentsByMode = () => {
+    console.log('All students:', examStudents.map(s => ({ name: s.displayName, accountType: s.accountType })));
+    
     const groups = {
       PERMANENT: examStudents.filter(s => s.accountType === 'PERMANENT'),
       TEMPORARY_IMPORT: examStudents.filter(s => s.accountType === 'TEMPORARY_IMPORT'),
       TEMPORARY_REGISTER: examStudents.filter(s => s.accountType === 'TEMPORARY_REGISTER'),
     };
+    
+    console.log('Grouped students:', {
+      PERMANENT: groups.PERMANENT.length,
+      TEMPORARY_IMPORT: groups.TEMPORARY_IMPORT.length,
+      TEMPORARY_REGISTER: groups.TEMPORARY_REGISTER.length
+    });
+    
     return groups;
   };
 
