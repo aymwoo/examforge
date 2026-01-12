@@ -344,6 +344,9 @@ export default function HomePage() {
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <h3 className="text-xl font-bold text-green-900 mb-2">{exam.title}</h3>
+                      {exam.creator && (
+                        <p className="text-green-600 text-xs mb-2">创建者: {exam.creator.name}</p>
+                      )}
                       {exam.description && (
                         <p className="text-green-700 text-sm mb-3">{exam.description}</p>
                       )}
