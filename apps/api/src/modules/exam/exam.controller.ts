@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Delete,
   Body,
   Param,
@@ -145,6 +146,17 @@ export class ExamController {
     @Body() body: { order: number; score?: number },
   ) {
     return this.examService.updateQuestionOrder(examId, questionId, body.order, body.score);
+  }
+
+  @Patch(':id/questions/batch-scores')
+  @ApiOperation({ summary: 'Batch update question scores' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiResponse({ status: 200, description: 'Scores updated successfully' })
+  batchUpdateQuestionScores(
+    @Param('id') examId: string,
+    @Body() body: { updates: { questionId: string, score: number }[] }
+  ) {
+    return this.examService.batchUpdateQuestionScores(examId, body.updates);
   }
 
   // 学生管理API

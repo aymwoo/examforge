@@ -1,14 +1,17 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import Button from "@/components/ui/Button";
 import QuestionImageManager from "@/components/QuestionImageManager";
-import { createQuestion, type Question } from "@/services/questions";
+import { createQuestion, getQuestionById, updateQuestion, type Question } from "@/services/questions";
 
 
 export default function NewQuestionPage() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = !!id;
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState<Partial<Question>>({
@@ -29,6 +32,33 @@ export default function NewQuestionPage() {
     knowledgePoint: "",
     isPublic: true,
   });
+
+  useEffect(() => {
+    if (isEditMode && id) {
+      loadQuestion();
+    }
+  }, [isEditMode, id]);
+
+  const loadQuestion = async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const question = await getQuestionById(id);
+      setForm({
+        ...question,
+        options: question.options || [
+          { label: "A", content: "" },
+          { label: "B", content: "" },
+          { label: "C", content: "" },
+          { label: "D", content: "" },
+        ]
+      });
+    } catch (err: any) {
+      setError(err.response?.data?.message || '加载题目失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleInputChange = (field: string, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -76,7 +106,11 @@ export default function NewQuestionPage() {
     setSaving(true);
     setError(null);
     try {
-      await createQuestion(form);
+      if (isEditMode && id) {
+        await updateQuestion(id, form);
+      } else {
+        await createQuestion(form);
+      }
       navigate("/questions");
     } catch (err: unknown) {
       const axiosError = err as {
@@ -84,7 +118,7 @@ export default function NewQuestionPage() {
         message?: string;
       };
       setError(
-        axiosError.response?.data?.message || axiosError.message || "创建失败",
+        axiosError.response?.data?.message || axiosError.message || (isEditMode ? "更新失败" : "创建失败"),
       );
     } finally {
       setSaving(false);
@@ -96,6 +130,18 @@ export default function NewQuestionPage() {
     setError(null);
   };
 
+  if (loading) {
+    return (
+      <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <p className="text-ink-700">加载中...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -106,12 +152,12 @@ export default function NewQuestionPage() {
               返回
             </Button>
             <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
-              新增题目
+              {isEditMode ? "编辑题目" : "新增题目"}
             </h1>
           </div>
           <Button onClick={handleSubmit} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
-            {saving ? "保存中..." : "保存"}
+            {saving ? (isEditMode ? "更新中..." : "保存中...") : (isEditMode ? "更新" : "保存")}
           </Button>
         </div>
 

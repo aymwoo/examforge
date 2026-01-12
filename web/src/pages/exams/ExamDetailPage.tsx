@@ -1,9 +1,128 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import ExamLayout from "@/components/ExamLayout";
 import { getExamById, type Exam } from "@/services/exams";
 import { QuestionType, QuestionTypeLabels } from "@examforge/shared-types";
+import { Filter, Settings, CheckSquare, Square, GripVertical } from "lucide-react";
+import api from "@/services/api";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+// 可拖拽的题目组件
+function SortableQuestion({ examQuestion, index, onSelect, isSelected, onDetailClick, onImageClick, onEditClick, hasImages, getImages, canEdit }: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: examQuestion.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="p-6 hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-b-0">
+      <div className="flex items-start gap-4">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing mt-1">
+          <GripVertical className="h-4 w-4 text-gray-400" />
+        </div>
+        <button
+          onClick={() => onSelect(examQuestion.question.id)}
+          className="mt-1 text-blue-600 hover:text-blue-800"
+        >
+          {isSelected ? (
+            <CheckSquare className="h-4 w-4" />
+          ) : (
+            <Square className="h-4 w-4" />
+          )}
+        </button>
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+              第 {examQuestion.order} 题
+            </span>
+            {hasImages(examQuestion.question) && (
+              <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                </svg>
+                有图片
+              </span>
+            )}
+          </div>
+          <div className="text-gray-800 mb-2">
+            {examQuestion.question?.content}
+          </div>
+          {examQuestion.question?.options && Array.isArray(examQuestion.question.options) && examQuestion.question.options.length > 0 && (
+            <div className="text-sm text-gray-600 space-y-1">
+              {examQuestion.question.options.map((option: any, optIndex: number) => (
+                <div key={optIndex}>
+                  {option.label}: {option.content}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-2 ml-4">
+          <div className="text-lg font-bold text-blue-600">
+            {examQuestion.score} 分
+          </div>
+          {examQuestion.question?.difficulty && (
+            <div className="text-sm text-gray-500">
+              难度: {examQuestion.question.difficulty}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => onDetailClick(examQuestion.question)}
+              className="text-blue-600 hover:text-blue-800 text-sm underline"
+            >
+              查看详情
+            </button>
+            {hasImages(examQuestion.question) && (
+              <button
+                onClick={() => onImageClick(examQuestion.question)}
+                className="text-green-600 hover:text-green-800 text-sm underline"
+              >
+                查看图片
+              </button>
+            )}
+            {canEdit(examQuestion.question) && (
+              <button
+                onClick={() => onEditClick(examQuestion.question.id)}
+                className="text-orange-600 hover:text-orange-800 text-sm underline"
+              >
+                编辑
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ExamDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +133,18 @@ export default function ExamDetailPage() {
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string>("");
+  const [showBatchScoreModal, setShowBatchScoreModal] = useState(false);
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
+  const [batchScore, setBatchScore] = useState<number>(10);
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -70,6 +201,121 @@ export default function ExamDetailPage() {
     return currentUser.id && question?.createdBy === currentUser.id;
   };
 
+  const handleQuestionSelect = (questionId: string) => {
+    const newSelected = new Set(selectedQuestions);
+    if (newSelected.has(questionId)) {
+      newSelected.delete(questionId);
+    } else {
+      newSelected.add(questionId);
+    }
+    setSelectedQuestions(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (!exam?.examQuestions) return;
+    const filteredQuestions = getFilteredQuestions();
+    if (selectedQuestions.size === filteredQuestions.length) {
+      setSelectedQuestions(new Set());
+    } else {
+      setSelectedQuestions(new Set(filteredQuestions.map(eq => eq.question.id)));
+    }
+  };
+
+  const handleBatchUpdateScores = async () => {
+    if (!id || selectedQuestions.size === 0) return;
+    try {
+      const updates = Array.from(selectedQuestions).map(questionId => ({
+        questionId,
+        score: batchScore
+      }));
+      
+      await api.patch(`/api/exams/${id}/questions/batch-scores`, { updates });
+      setShowBatchScoreModal(false);
+      setSelectedQuestions(new Set());
+      loadExam();
+    } catch (err: any) {
+      alert(err.response?.data?.message || '批量设置分值失败');
+    }
+  };
+
+  const getFilteredQuestions = () => {
+    if (!exam?.examQuestions) return [];
+    return exam.examQuestions.filter(eq => {
+      if (typeFilter && eq.question?.type !== typeFilter) return false;
+      return true;
+    });
+  };
+
+  const getQuestionsByType = () => {
+    const filtered = getFilteredQuestions();
+    const grouped: Record<string, any[]> = {};
+    
+    filtered.forEach(eq => {
+      const type = eq.question?.type || 'UNKNOWN';
+      if (!grouped[type]) {
+        grouped[type] = [];
+      }
+      grouped[type].push(eq);
+    });
+    
+    // 按order排序每个组内的题目
+    Object.keys(grouped).forEach(type => {
+      grouped[type].sort((a, b) => a.order - b.order);
+    });
+    
+    return grouped;
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    if (!exam?.examQuestions) return;
+
+    // 找到被拖拽的题目和目标位置的题目
+    const activeQuestion = exam.examQuestions.find(eq => eq.id === active.id);
+    const overQuestion = exam.examQuestions.find(eq => eq.id === over.id);
+
+    if (!activeQuestion || !overQuestion) return;
+
+    // 检查是否在同一题型内拖拽
+    if (activeQuestion.question?.type !== overQuestion.question?.type) {
+      alert('只能在相同题型内调整顺序');
+      return;
+    }
+
+    // 获取当前题型的所有题目
+    const currentType = activeQuestion.question?.type;
+    const typeQuestions = exam.examQuestions
+      .filter(eq => eq.question?.type === currentType)
+      .sort((a, b) => a.order - b.order);
+
+    const oldIndex = typeQuestions.findIndex(eq => eq.id === active.id);
+    const newIndex = typeQuestions.findIndex(eq => eq.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    // 重新排序
+    const reorderedQuestions = arrayMove(typeQuestions, oldIndex, newIndex);
+
+    try {
+      // 更新每个题目的order
+      const updates = reorderedQuestions.map((eq, index) => ({
+        questionId: eq.questionId,
+        order: eq.order, // 保持原有的全局order，只在类型内调整
+      }));
+
+      // 这里需要调用API更新顺序
+      // 暂时先重新加载数据
+      await loadExam();
+    } catch (error) {
+      console.error('更新题目顺序失败:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-slatebg text-ink-900 antialiased min-h-screen flex items-center justify-center">
@@ -109,95 +355,48 @@ export default function ExamDetailPage() {
             </Button>
           </div>
           {exam.examQuestions && exam.examQuestions.length > 0 ? (
-            <div className="space-y-4">
-              {exam.examQuestions.map((examQuestion: any, index: number) => (
-                <div 
-                  key={examQuestion.id} 
-                  className="bg-white border border-blue-200 rounded-xl p-6 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => setSelectedQuestion(examQuestion.question)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-3">
-                        <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                          第 {index + 1} 题
-                        </span>
-                        <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
-                          {QuestionTypeLabels[examQuestion.question?.type as keyof typeof QuestionTypeLabels] || examQuestion.question?.type || '未知类型'}
-                        </span>
-                        {hasImages(examQuestion.question) && (
-                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                            </svg>
-                            有图片
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-gray-800 mb-2">
-                        {examQuestion.question?.content}
-                      </div>
-                      {examQuestion.question?.options && Array.isArray(examQuestion.question.options) && examQuestion.question.options.length > 0 && (
-                        <div className="text-sm text-gray-600 space-y-1">
-                          {examQuestion.question.options.map((option: any, optIndex: number) => (
-                            <div key={optIndex}>
-                              {option.label}: {option.content}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="space-y-6">
+                {/* 按题型分组显示 */}
+                {Object.entries(getQuestionsByType()).map(([type, questions]) => (
+                  <div key={type} className="bg-white rounded-xl border border-blue-200 overflow-hidden">
+                    <div className="bg-blue-50 px-6 py-3 border-b border-blue-200">
+                      <h3 className="font-semibold text-blue-900">
+                        {QuestionTypeLabels[type as keyof typeof QuestionTypeLabels] || type} ({questions.length} 题)
+                      </h3>
                     </div>
-                    <div className="flex flex-col items-end gap-2 ml-4">
-                      <div className="text-lg font-bold text-blue-600">
-                        {examQuestion.score} 分
-                      </div>
-                      {examQuestion.question?.difficulty && (
-                        <div className="text-sm text-gray-500">
-                          难度: {examQuestion.question.difficulty}
-                        </div>
-                      )}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedQuestion(examQuestion.question);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 text-sm underline"
-                        >
-                          查看详情
-                        </button>
-                        {hasImages(examQuestion.question) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const images = getImages(examQuestion.question);
+                    <SortableContext items={questions.map(q => q.id)} strategy={verticalListSortingStrategy}>
+                      <div className="divide-y divide-gray-200">
+                        {questions.map((examQuestion: any) => (
+                          <SortableQuestion
+                            key={examQuestion.id}
+                            examQuestion={examQuestion}
+                            isSelected={selectedQuestions.has(examQuestion.question.id)}
+                            onSelect={handleQuestionSelect}
+                            onDetailClick={setSelectedQuestion}
+                            onImageClick={(question: any) => {
+                              const images = getImages(question);
                               if (images.length > 0) {
                                 setSelectedImage(images[0]);
                                 setShowImageModal(true);
                               }
                             }}
-                            className="text-green-600 hover:text-green-800 text-sm underline"
-                          >
-                            查看图片
-                          </button>
-                        )}
-                        {canEdit(examQuestion.question) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/questions/${examQuestion.question.id}/edit`);
-                            }}
-                            className="text-orange-600 hover:text-orange-800 text-sm underline"
-                          >
-                            编辑
-                          </button>
-                        )}
+                            onEditClick={(questionId: string) => navigate(`/questions/${questionId}/edit`)}
+                            hasImages={hasImages}
+                            getImages={getImages}
+                            canEdit={canEdit}
+                          />
+                        ))}
                       </div>
-                    </div>
+                    </SortableContext>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </DndContext>
           ) : (
             <div className="text-center py-12">
               <p className="text-blue-700 mb-4">暂无题目，请添加题目</p>
@@ -317,6 +516,37 @@ export default function ExamDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 批量设置分值模态框 */}
+      {showBatchScoreModal && (
+        <Modal
+          isOpen={showBatchScoreModal}
+          onClose={() => {
+            setShowBatchScoreModal(false);
+            setSelectedQuestions(new Set());
+          }}
+          title="批量设置分值"
+          onConfirm={handleBatchUpdateScores}
+          confirmText="确定设置"
+        >
+          <div className="space-y-4">
+            <p>将为 {selectedQuestions.size} 道题目设置分值：</p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                分值
+              </label>
+              <input
+                type="number"
+                value={batchScore}
+                onChange={(e) => setBatchScore(Number(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                min="1"
+                max="100"
+              />
+            </div>
+          </div>
+        </Modal>
       )}
 
       {/* 图片查看模态框 */}

@@ -47,6 +47,11 @@ function App() {
               <QuestionDetailPage />
             </ProtectedRoute>
           } />
+          <Route path="questions/:id/edit" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <NewQuestionPage />
+            </ProtectedRoute>
+          } />
           <Route path="exams" element={
             <ProtectedRoute requiredRole="TEACHER">
               <ExamsPage />
