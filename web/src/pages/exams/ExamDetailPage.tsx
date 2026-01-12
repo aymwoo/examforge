@@ -534,7 +534,7 @@ export default function ExamDetailPage() {
                     setCollapsedTypes(allTypes);
                   }
                 }}
-                className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-sm rounded"
+                className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg"
               >
                 {typeOrder.every(type => collapsedTypes.has(type)) ? '展开全部' : '折叠全部'}
               </button>
