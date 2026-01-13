@@ -119,17 +119,23 @@ model ExamQuestion {
 }
 
 model Submission {
-  id            String   @id @default(cuid())
-  examId        String
-  examStudentId String?  @map("exam_student_id")
-  answers       String
-  score         Float?
-  isAutoGraded  Boolean  @default(false)
-  isReviewed    Boolean  @default(false) // 教师是否已复核
-  reviewedBy    String?  @map("reviewed_by") // 复核教师ID
-  reviewedAt    DateTime? @map("reviewed_at") // 复核时间
-  gradingDetails String? @map("grading_details") // JSON格式存储详细评分信息
-  submittedAt   DateTime @default(now()) @map("submitted_at")
+  id                 String    @id @default(cuid())
+  examId             String
+  examStudentId      String?   @map("exam_student_id")
+  answers            String
+  score              Float?
+  isAutoGraded       Boolean   @default(false)
+  isReviewed         Boolean   @default(false) // 教师是否已复核
+  reviewedBy         String?   @map("reviewed_by") // 复核教师ID
+  reviewedAt         DateTime? @map("reviewed_at") // 复核时间
+  gradingDetails     String?   @map("grading_details") // JSON格式存储详细评分信息
+  aiAnalysisReport   String?   @map("ai_analysis_report")
+  aiAnalysisUpdatedAt DateTime? @map("ai_analysis_updated_at")
+  aiAnalysisStatus   String?   @map("ai_analysis_status")
+  aiAnalysisPromptUsed String? @map("ai_analysis_prompt_used")
+  aiAnalysisProvider String?   @map("ai_analysis_provider")
+  aiAnalysisModel    String?   @map("ai_analysis_model")
+  submittedAt        DateTime  @default(now()) @map("submitted_at")
 
   exam        Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
   examStudent ExamStudent? @relation(fields: [examStudentId], references: [id], onDelete: Cascade)
@@ -158,16 +164,17 @@ model ExamStudent {
 }
 
 model Student {
-  id          String   @id @default(cuid())
-  studentId   String   @unique @map("student_id") // 学号
-  name        String
-  gender      String?  // 性别
-  classId     String?  @map("class_id")
-  password    String
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(cuid())
+  studentId        String   @unique @map("student_id") // 学号
+  name             String
+  gender           String?  // 性别
+  classId          String?  @map("class_id")
+  password         String
+  aiAnalysisPrompt String?  @map("ai_analysis_prompt")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
-  class       Class?       @relation(fields: [classId], references: [id])
+  class        Class?       @relation(fields: [classId], references: [id])
   examStudents ExamStudent[]
 
   @@map("students")
@@ -211,6 +218,29 @@ model UserSetting {
 
   @@unique([userId, key])
   @@map("user_settings")
+}
+
+model StudentAiAnalysisReport {
+  id           String   @id @default(cuid())
+  submissionId String   @unique @map("submission_id")
+  examId       String   @map("exam_id")
+  examStudentId String? @map("exam_student_id")
+  studentId    String?  @map("student_id")
+
+  status       String   @default("PENDING")
+  progress     Int      @default(0)
+  providerId   String?  @map("provider_id")
+  model        String?
+  promptUsed   String?  @map("prompt_used")
+  report       String?
+  errorMessage String?  @map("error_message")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([examId, examStudentId])
+  @@index([studentId])
+  @@map("student_ai_analysis_reports")
 }
 
 model ImportRecord {

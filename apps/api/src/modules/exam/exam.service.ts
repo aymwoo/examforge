@@ -66,6 +66,13 @@ export class ExamService {
             id: true,
           },
         },
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            username: true,
+          },
+        },
       },
     });
 
@@ -106,6 +113,13 @@ export class ExamService {
         status: exam.status,
         submissionCount: exam.submissions.length,
         totalStudents: exam.examStudents.length,
+        creator: exam.creator
+          ? {
+              id: exam.creator.id,
+              name: exam.creator.name,
+              username: exam.creator.username,
+            }
+          : null,
       })),
     };
 

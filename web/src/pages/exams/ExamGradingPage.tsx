@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   User,
@@ -14,6 +14,13 @@ import Modal from "@/components/ui/Modal";
 import ExamLayout from "@/components/ExamLayout";
 import { useToast } from "@/components/ui/Toast";
 import api from "@/services/api";
+import {
+  buildStudentAiAnalysisStreamUrl,
+  getStudentAiAnalysisBySubmission,
+  type StudentAiAnalysisReport,
+} from "@/services/student-ai-analysis";
+import MDEditor from "@uiw/react-md-editor";
+import "@uiw/react-md-editor/markdown-editor.css";
 
 interface Student {
   id: string;
@@ -92,6 +99,18 @@ export default function ExamGradingPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAnswerModal, setShowAnswerModal] = useState(false);
 
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisStreaming, setAnalysisStreaming] = useState(false);
+  const [analysisProgressMessage, setAnalysisProgressMessage] = useState<
+    string | null
+  >(null);
+  const [analysisProgress, setAnalysisProgress] = useState<number>(0);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisText, setAnalysisText] = useState<string>("");
+  const [analysisRecord, setAnalysisRecord] =
+    useState<StudentAiAnalysisReport | null>(null);
+  const sseAbortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     loadExamAndSubmissions();
   }, [examId]);
@@ -118,6 +137,203 @@ export default function ExamGradingPage() {
       setLoading(false);
     }
   };
+
+  const closeAnalysisStream = () => {
+    if (sseAbortRef.current) {
+      sseAbortRef.current.abort();
+      sseAbortRef.current = null;
+    }
+  };
+
+  const startAnalysisStream = (options?: { force?: boolean }) => {
+    if (!examId || !selectedSubmission) return;
+
+    closeAnalysisStream();
+
+    setAnalysisError(null);
+    setAnalysisText("");
+    setAnalysisProgress(0);
+    setAnalysisProgressMessage("正在连接...");
+    setAnalysisStreaming(true);
+
+    const url = buildStudentAiAnalysisStreamUrl({
+      examId,
+      submissionId: selectedSubmission.id,
+      force: options?.force,
+    });
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setAnalysisStreaming(false);
+      setAnalysisError("未登录或登录已失效，请重新登录");
+      return;
+    }
+
+    const abortController = new AbortController();
+    sseAbortRef.current = abortController;
+
+    (async () => {
+      try {
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "text/event-stream",
+          },
+          signal: abortController.signal,
+        });
+
+        if (response.status === 401) {
+          setAnalysisStreaming(false);
+          setAnalysisError("未授权(401)，请重新登录");
+          closeAnalysisStream();
+          return;
+        }
+
+        if (!response.ok || !response.body) {
+          setAnalysisStreaming(false);
+          setAnalysisError(`连接失败(${response.status})`);
+          closeAnalysisStream();
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          let eventSeparatorIndex = buffer.indexOf("\n\n");
+          while (eventSeparatorIndex !== -1) {
+            const rawEvent = buffer.slice(0, eventSeparatorIndex);
+            buffer = buffer.slice(eventSeparatorIndex + 2);
+
+            const dataLines = rawEvent
+              .split("\n")
+              .filter((line) => line.startsWith("data:"))
+              .map((line) => line.slice(5).trimStart());
+
+            const dataText = dataLines.join("\n");
+            if (dataText) {
+              try {
+                const data = JSON.parse(dataText);
+                switch (data.type) {
+                  case "start":
+                    setAnalysisProgressMessage(data.message || "开始生成...");
+                    setAnalysisProgress(5);
+                    break;
+                  case "progress":
+                    if (typeof data.progress === "number") {
+                      setAnalysisProgress(data.progress);
+                    }
+                    setAnalysisProgressMessage(data.message || "生成中...");
+                    break;
+                  case "stream":
+                    if (data.content) {
+                      setAnalysisText((prev) => prev + data.content);
+                    }
+                    break;
+                  case "complete":
+                    setAnalysisStreaming(false);
+                    setAnalysisProgress(100);
+                    setAnalysisProgressMessage("完成");
+                    if (typeof data.report === "string") {
+                      setAnalysisText(data.report);
+                    }
+                    closeAnalysisStream();
+                    return;
+                  case "error":
+                    setAnalysisStreaming(false);
+                    setAnalysisError(data.message || "生成失败");
+                    closeAnalysisStream();
+                    return;
+                }
+              } catch (e) {
+                console.error("Failed to parse SSE data", e);
+              }
+            }
+
+            eventSeparatorIndex = buffer.indexOf("\n\n");
+          }
+        }
+
+        setAnalysisStreaming(false);
+        setAnalysisError("连接中断，请重试");
+        closeAnalysisStream();
+      } catch (err: any) {
+        if (err?.name === "AbortError") {
+          return;
+        }
+        setAnalysisStreaming(false);
+        setAnalysisError("连接中断，请重试");
+        closeAnalysisStream();
+      }
+    })();
+  };
+
+  const openAnalysisModal = async () => {
+    if (!selectedSubmission) {
+      setShowAnswerModal(true);
+      return;
+    }
+
+    setShowAnswerModal(true);
+    setAnalysisLoading(true);
+    setAnalysisError(null);
+    setAnalysisProgress(0);
+    setAnalysisProgressMessage(null);
+    setAnalysisText("");
+
+    try {
+      const report = await getStudentAiAnalysisBySubmission(
+        selectedSubmission.id,
+      );
+      setAnalysisRecord(report);
+
+      if (report?.status === "COMPLETED" && report.report) {
+        setAnalysisText(report.report);
+        setAnalysisProgress(100);
+        setAnalysisProgressMessage("已生成");
+      } else {
+        startAnalysisStream();
+      }
+    } catch (err: any) {
+      setAnalysisError(
+        err.response?.data?.message || err.message || "获取报告失败",
+      );
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showAnswerModal) {
+      closeAnalysisStream();
+      setAnalysisStreaming(false);
+    }
+  }, [showAnswerModal]);
+
+  useEffect(() => {
+    // if submission changes while modal open, refresh
+    if (showAnswerModal) {
+      setAnalysisRecord(null);
+      setAnalysisText("");
+      setAnalysisProgress(0);
+      setAnalysisProgressMessage(null);
+      setAnalysisError(null);
+      closeAnalysisStream();
+    }
+  }, [selectedSubmission?.id]);
+
+  useEffect(() => {
+    return () => {
+      closeAnalysisStream();
+    };
+  }, []);
 
   const loadAISuggestions = async (submission: Submission) => {
     setGradingLoading(true);
@@ -369,7 +585,6 @@ export default function ExamGradingPage() {
 
       toast.success("评分复核完成！");
       await loadExamAndSubmissions();
-      setSelectedSubmission(null);
     } catch (err: any) {
       setError(err.response?.data?.message || "保存失败");
     }
@@ -441,7 +656,7 @@ export default function ExamGradingPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 提交列表 */}
           <div className="lg:col-span-1">
             <div className="rounded-2xl border border-border bg-white p-4">
@@ -582,11 +797,11 @@ export default function ExamGradingPage() {
                   <div className="flex items-center gap-3">
                     <Button
                       variant="outline"
-                      onClick={() => setShowAnswerModal(true)}
+                      onClick={openAnalysisModal}
                       className="flex items-center gap-2"
                     >
                       <Eye className="h-4 w-4" />
-                      查看答题详情
+                      AI分析
                     </Button>
                     {gradingLoading && (
                       <div className="flex items-center gap-2 text-blue-600">
@@ -600,7 +815,7 @@ export default function ExamGradingPage() {
                 {Object.keys(aiSuggestions).length > 0 ? (
                   <div className="space-y-6">
                     {/* 考试概览 */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                       <h4 className="font-semibold text-blue-800 mb-2">
                         答题概览
                       </h4>
@@ -717,19 +932,37 @@ export default function ExamGradingPage() {
                                       <div className="space-y-1">
                                         {JSON.parse(question.options).map(
                                           (
-                                            option: string,
+                                            option:
+                                              | string
+                                              | {
+                                                  label?: string;
+                                                  content: string;
+                                                },
                                             optIndex: number,
-                                          ) => (
-                                            <div
-                                              key={optIndex}
-                                              className="text-sm text-ink-600"
-                                            >
-                                              {String.fromCharCode(
-                                                65 + optIndex,
-                                              )}
-                                              . {option}
-                                            </div>
-                                          ),
+                                          ) => {
+                                            const optionText =
+                                              typeof option === "string"
+                                                ? option
+                                                : option.content;
+                                            const optionLabel =
+                                              typeof option === "string"
+                                                ? String.fromCharCode(
+                                                    65 + optIndex,
+                                                  )
+                                                : option.label ||
+                                                  String.fromCharCode(
+                                                    65 + optIndex,
+                                                  );
+
+                                            return (
+                                              <div
+                                                key={optIndex}
+                                                className="text-sm text-ink-600"
+                                              >
+                                                {optionLabel}. {optionText}
+                                              </div>
+                                            );
+                                          },
                                         )}
                                       </div>
                                     </div>
@@ -860,7 +1093,8 @@ export default function ExamGradingPage() {
                                   <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
                                     置信度:{" "}
                                     {Math.round(
-                                      suggestion.aiSuggestion.confidence * 100,
+                                      (suggestion.aiSuggestion?.confidence ||
+                                        0) * 100,
                                     )}
                                     %
                                   </span>
@@ -872,8 +1106,9 @@ export default function ExamGradingPage() {
                                       建议得分:
                                     </span>
                                     <span className="ml-2 bg-blue-100 px-2 py-1 rounded font-semibold">
-                                      {suggestion.aiSuggestion.suggestedScore}/
-                                      {suggestion.maxScore}
+                                      {suggestion.aiSuggestion
+                                        ?.suggestedScore || 0}
+                                      /{suggestion.maxScore}
                                     </span>
                                   </div>
                                   <div>
@@ -881,7 +1116,7 @@ export default function ExamGradingPage() {
                                       评分理由:
                                     </span>
                                     <p className="mt-1 text-blue-600">
-                                      {suggestion.aiSuggestion.reasoning}
+                                      {suggestion.aiSuggestion?.reasoning}
                                     </p>
                                   </div>
                                   <div>
@@ -889,7 +1124,7 @@ export default function ExamGradingPage() {
                                       改进建议:
                                     </span>
                                     <p className="mt-1 text-blue-600">
-                                      {suggestion.aiSuggestion.suggestions}
+                                      {suggestion.aiSuggestion?.suggestions}
                                     </p>
                                   </div>
                                 </div>
@@ -1028,7 +1263,10 @@ export default function ExamGradingPage() {
                     </div>
                     {!gradingLoading && (
                       <Button
-                        onClick={() => loadAISuggestions(selectedSubmission)}
+                        onClick={() =>
+                          selectedSubmission &&
+                          loadAISuggestions(selectedSubmission)
+                        }
                         className="flex items-center gap-2 mx-auto"
                       >
                         <Bot className="h-4 w-4" />
@@ -1051,207 +1289,97 @@ export default function ExamGradingPage() {
       <Modal
         isOpen={showAnswerModal}
         onClose={() => setShowAnswerModal(false)}
-        title={`${selectedSubmission?.student.displayName || selectedSubmission?.student.username} - 答题详情`}
+        title={`AI分析 - ${selectedSubmission?.student.displayName || selectedSubmission?.student.username || ""}`}
+        maxWidthClassName="max-w-5xl"
       >
-        {selectedSubmission && exam && (
-          <div className="space-y-6">
-            {/* 答题统计 */}
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-800 mb-3">答题统计</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                {(() => {
-                  const totalQuestions = exam.examQuestions?.length || 0;
-                  const answeredQuestions =
-                    exam.examQuestions?.filter((examQuestion: any) => {
-                      const answer =
-                        selectedSubmission.answers[examQuestion.question.id];
-                      return (
-                        answer !== undefined &&
-                        answer !== null &&
-                        answer !== "" &&
-                        (Array.isArray(answer) ? answer.length > 0 : true)
-                      );
-                    }).length || 0;
-                  const unansweredQuestions =
-                    totalQuestions - answeredQuestions;
-                  const completionRate =
-                    totalQuestions > 0
-                      ? Math.round((answeredQuestions / totalQuestions) * 100)
-                      : 0;
+        {!selectedSubmission ? (
+          <div className="text-sm text-ink-700">请先选择一个学生提交。</div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm text-ink-700">
+                {analysisLoading && "正在读取已生成报告..."}
+                {!analysisLoading && analysisStreaming && (
+                  <>
+                    <span className="font-semibold text-ink-900">生成中</span>
+                    {analysisProgressMessage
+                      ? `：${analysisProgressMessage}`
+                      : ""}
+                  </>
+                )}
+                {!analysisLoading &&
+                  !analysisStreaming &&
+                  analysisProgressMessage && (
+                    <span>{analysisProgressMessage}</span>
+                  )}
+              </div>
 
-                  return (
-                    <>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {totalQuestions}
-                        </div>
-                        <div className="text-blue-700">总题数</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">
-                          {answeredQuestions}
-                        </div>
-                        <div className="text-green-700">已答题</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-red-600">
-                          {unansweredQuestions}
-                        </div>
-                        <div className="text-red-700">未答题</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-600">
-                          {completionRate}%
-                        </div>
-                        <div className="text-purple-700">完成率</div>
-                      </div>
-                    </>
-                  );
-                })()}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => startAnalysisStream({ force: true })}
+                  disabled={analysisLoading || analysisStreaming}
+                >
+                  重新生成
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (analysisText) {
+                      navigator.clipboard.writeText(analysisText);
+                      toast.success("已复制到剪贴板");
+                    }
+                  }}
+                  disabled={!analysisText}
+                >
+                  复制
+                </Button>
               </div>
             </div>
 
-            {/* 每道题的答题情况 */}
-            <div className="space-y-4">
-              {exam.examQuestions?.map((examQuestion: any, index: number) => {
-                const question = examQuestion.question;
-                const studentAnswer = selectedSubmission.answers[question.id];
-                const hasAnswer =
-                  studentAnswer !== undefined &&
-                  studentAnswer !== null &&
-                  studentAnswer !== "";
+            {(analysisLoading || analysisStreaming) && (
+              <div>
+                <div className="h-2 w-full rounded-full bg-ink-100 overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, analysisProgress))}%`,
+                    }}
+                  />
+                </div>
+                <div className="mt-1 text-xs text-ink-600">
+                  {analysisProgress}%
+                </div>
+              </div>
+            )}
 
-                return (
-                  <div key={question.id} className="border rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h5 className="font-semibold text-gray-900 mb-1">
-                          第 {index + 1} 题
-                          <span className="ml-2 text-sm bg-gray-100 px-2 py-1 rounded">
-                            {question.type === "SINGLE_CHOICE"
-                              ? "单选题"
-                              : question.type === "MULTIPLE_CHOICE"
-                                ? "多选题"
-                                : question.type === "FILL_BLANK"
-                                  ? "填空题"
-                                  : question.type === "SHORT_ANSWER"
-                                    ? "简答题"
-                                    : question.type === "ESSAY"
-                                      ? "论述题"
-                                      : question.type}
-                          </span>
-                        </h5>
-                        <p className="text-gray-700 text-sm">
-                          {question.content}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">
-                          {examQuestion.score} 分
-                        </span>
-                        <div
-                          className={`w-3 h-3 rounded-full ${
-                            hasAnswer ? "bg-green-500" : "bg-red-500"
-                          }`}
-                        />
-                      </div>
-                    </div>
+            {analysisError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {analysisError}
+              </div>
+            )}
 
-                    {/* 选择题选项 */}
-                    {(question.type === "SINGLE_CHOICE" ||
-                      question.type === "MULTIPLE_CHOICE") &&
-                      question.options && (
-                        <div className="mb-3 bg-gray-50 rounded p-3">
-                          <p className="text-sm font-medium text-gray-700 mb-2">
-                            选项:
-                          </p>
-                          <div className="space-y-1">
-                            {JSON.parse(question.options).map(
-                              (option: string, optIndex: number) => {
-                                const isSelected =
-                                  question.type === "SINGLE_CHOICE"
-                                    ? studentAnswer === option
-                                    : Array.isArray(studentAnswer) &&
-                                      studentAnswer.includes(option);
-
-                                return (
-                                  <div
-                                    key={optIndex}
-                                    className={`text-sm p-2 rounded ${
-                                      isSelected
-                                        ? "bg-blue-100 border border-blue-300"
-                                        : "bg-white"
-                                    }`}
-                                  >
-                                    {String.fromCharCode(65 + optIndex)}.{" "}
-                                    {option}
-                                    {isSelected && (
-                                      <span className="ml-2 text-blue-600 font-medium">
-                                        ✓ 已选择
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              },
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                    {/* 学生答案 */}
-                    <div
-                      className={`rounded p-3 ${
-                        hasAnswer
-                          ? "bg-blue-50 border border-blue-200"
-                          : "bg-red-50 border border-red-200"
-                      }`}
-                    >
-                      <p className="text-sm font-medium mb-2">
-                        学生答案:
-                        {!hasAnswer && (
-                          <span className="ml-2 text-red-600">(未作答)</span>
-                        )}
-                      </p>
-                      {hasAnswer ? (
-                        <div className="text-gray-900">
-                          {question.type === "MULTIPLE_CHOICE" &&
-                          Array.isArray(studentAnswer) ? (
-                            <div className="space-y-1">
-                              {studentAnswer.map(
-                                (answer: string, idx: number) => (
-                                  <div key={idx} className="text-sm">
-                                    • {answer}
-                                  </div>
-                                ),
-                              )}
-                            </div>
-                          ) : (
-                            <div className="whitespace-pre-wrap text-sm">
-                              {studentAnswer}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-gray-500 italic text-sm">
-                          学生未回答此题
-                        </p>
-                      )}
-                    </div>
-
-                    {/* 参考答案 */}
-                    {question.answer && (
-                      <div className="mt-3 bg-green-50 border border-green-200 rounded p-3">
-                        <p className="text-sm font-medium text-green-700 mb-1">
-                          参考答案:
-                        </p>
-                        <p className="text-sm text-green-600">
-                          {question.answer}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="rounded-lg border border-border bg-white p-3 max-h-[65vh] overflow-auto">
+              {analysisRecord?.status && (
+                <div className="mb-2 text-xs text-ink-600">
+                  状态：{analysisRecord.status}
+                </div>
+              )}
+              {analysisText ? (
+                <div className="prose prose-sm max-w-none">
+                  <MDEditor.Markdown source={analysisText} />
+                </div>
+              ) : (
+                <div className="text-sm text-ink-700">
+                  {analysisLoading
+                    ? "加载中..."
+                    : analysisStreaming
+                      ? "正在生成报告内容..."
+                      : "暂无报告，点击“重新生成”开始。"}
+                </div>
+              )}
             </div>
           </div>
         )}

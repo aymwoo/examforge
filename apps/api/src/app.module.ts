@@ -14,6 +14,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AIProviderModule } from './modules/ai-provider/ai-provider.module';
 import { ClassModule } from './modules/class/class.module';
 import { StudentModule } from './modules/student/student.module';
+import { StudentAiAnalysisModule } from './modules/student-ai-analysis/student-ai-analysis.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { StudentModule } from './modules/student/student.module';
     AIProviderModule,
     ClassModule,
     StudentModule,
+    StudentAiAnalysisModule,
   ],
 })
 export class AppModule {}

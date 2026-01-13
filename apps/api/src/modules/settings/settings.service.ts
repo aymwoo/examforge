@@ -85,22 +85,29 @@ export class SettingsService {
     const settingsMap = new Map(settings.map((s) => [s.key, s.value]));
 
     const provider = (settingsMap.get(SettingKey.AI_PROVIDER) || AIProvider.OPENAI) as AIProvider;
-    
+
     // Check if it's a custom provider (UUID format)
-    if (provider !== AIProvider.OPENAI && provider !== AIProvider.QWEN && provider !== AIProvider.CUSTOM) {
+    if (
+      provider !== AIProvider.OPENAI &&
+      provider !== AIProvider.QWEN &&
+      provider !== AIProvider.CUSTOM
+    ) {
       // It's a custom provider ID, get from ai_providers table
       const customProvider = await this.prisma.aIProvider.findUnique({
         where: { id: provider, isActive: true },
       });
-      
+
       if (customProvider) {
         return {
           aiProvider: provider,
           aiApiKey: customProvider.apiKey,
           aiBaseUrl: customProvider.baseUrl || '',
           aiModel: customProvider.model,
-          promptTemplate: settingsMap.get(SettingKey.PROMPT_TEMPLATE) || this.getDefaultPromptTemplate(),
-          gradingPromptTemplate: settingsMap.get(SettingKey.GRADING_PROMPT_TEMPLATE) || this.getDefaultGradingPromptTemplate(),
+          promptTemplate:
+            settingsMap.get(SettingKey.PROMPT_TEMPLATE) || this.getDefaultPromptTemplate(),
+          gradingPromptTemplate:
+            settingsMap.get(SettingKey.GRADING_PROMPT_TEMPLATE) ||
+            this.getDefaultGradingPromptTemplate(),
         };
       }
     }
@@ -116,14 +123,15 @@ export class SettingsService {
       promptTemplate:
         settingsMap.get(SettingKey.PROMPT_TEMPLATE) || this.getDefaultPromptTemplate(),
       gradingPromptTemplate:
-        settingsMap.get(SettingKey.GRADING_PROMPT_TEMPLATE) || this.getDefaultGradingPromptTemplate(),
+        settingsMap.get(SettingKey.GRADING_PROMPT_TEMPLATE) ||
+        this.getDefaultGradingPromptTemplate(),
     };
   }
 
   async getUserSettings(userId: string): Promise<SystemSettings> {
     const [systemSettings, userSettings] = await Promise.all([
       this.getSettings(),
-      this.prisma.userSetting.findMany({ where: { userId } })
+      this.prisma.userSetting.findMany({ where: { userId } }),
     ]);
 
     const userSettingsMap = new Map(userSettings.map((s) => [s.key, s.value]));
@@ -132,19 +140,26 @@ export class SettingsService {
     const userProvider = userSettingsMap.get('AI_PROVIDER');
     if (userProvider && userProvider !== systemSettings.aiProvider) {
       // User has a different provider, get its settings
-      if (userProvider !== AIProvider.OPENAI && userProvider !== AIProvider.QWEN && userProvider !== AIProvider.CUSTOM) {
+      if (
+        userProvider !== AIProvider.OPENAI &&
+        userProvider !== AIProvider.QWEN &&
+        userProvider !== AIProvider.CUSTOM
+      ) {
         const customProvider = await this.prisma.aIProvider.findUnique({
           where: { id: userProvider, isActive: true },
         });
-        
+
         if (customProvider) {
           return {
             aiProvider: userProvider,
             aiApiKey: customProvider.apiKey,
             aiBaseUrl: customProvider.baseUrl || '',
             aiModel: customProvider.model,
-            promptTemplate: userSettingsMap.get(UserSettingKey.PROMPT_TEMPLATE) || systemSettings.promptTemplate,
-            gradingPromptTemplate: userSettingsMap.get(UserSettingKey.GRADING_PROMPT_TEMPLATE) || systemSettings.gradingPromptTemplate,
+            promptTemplate:
+              userSettingsMap.get(UserSettingKey.PROMPT_TEMPLATE) || systemSettings.promptTemplate,
+            gradingPromptTemplate:
+              userSettingsMap.get(UserSettingKey.GRADING_PROMPT_TEMPLATE) ||
+              systemSettings.gradingPromptTemplate,
           };
         }
       }
@@ -152,24 +167,24 @@ export class SettingsService {
 
     return {
       ...systemSettings,
-      promptTemplate: userSettingsMap.get(UserSettingKey.PROMPT_TEMPLATE) || systemSettings.promptTemplate,
-      gradingPromptTemplate: userSettingsMap.get(UserSettingKey.GRADING_PROMPT_TEMPLATE) || systemSettings.gradingPromptTemplate,
+      promptTemplate:
+        userSettingsMap.get(UserSettingKey.PROMPT_TEMPLATE) || systemSettings.promptTemplate,
+      gradingPromptTemplate:
+        userSettingsMap.get(UserSettingKey.GRADING_PROMPT_TEMPLATE) ||
+        systemSettings.gradingPromptTemplate,
     };
   }
 
   async getAvailableProviders(userId?: string, userRole?: string): Promise<AIModelConfig[]> {
     // Get custom providers from database
     const where: any = { isActive: true };
-    
+
     if (userId && userRole) {
       if (userRole === 'ADMIN') {
         // Admin can see all providers
       } else {
         // Teachers can see global providers and their own
-        where.OR = [
-          { isGlobal: true },
-          { createdBy: userId },
-        ];
+        where.OR = [{ isGlobal: true }, { createdBy: userId }];
       }
     } else {
       // If no user context, only show global providers
@@ -178,14 +193,11 @@ export class SettingsService {
 
     const customProviders = await this.prisma.aIProvider.findMany({
       where,
-      orderBy: [
-        { isGlobal: 'desc' },
-        { createdAt: 'desc' },
-      ],
+      orderBy: [{ isGlobal: 'desc' }, { createdAt: 'desc' }],
     });
 
     // Convert custom providers to AIModelConfig format
-    const customConfigs: AIModelConfig[] = customProviders.map(provider => ({
+    const customConfigs: AIModelConfig[] = customProviders.map((provider) => ({
       id: provider.id,
       name: provider.name,
       provider: 'custom' as any,

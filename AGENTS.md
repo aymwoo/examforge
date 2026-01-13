@@ -1,4 +1,9 @@
 # AGENTS.md — ExamForge (Monorepo) Agent Guide
+⚠️ 规则：
+- 不允许执行任何需要用户交互输入的命令
+- 所有命令必须是 non-interactive
+- 若某命令可能阻塞，必须改写为非交互形式
+- 若无法避免，必须仅输出命令，不执行
 
 ## Repo layout
 

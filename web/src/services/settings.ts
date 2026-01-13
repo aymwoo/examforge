@@ -43,7 +43,9 @@ export const getUserSettings = async (): Promise<SystemSettings> => {
 };
 
 export const getJsonStructureTemplate = async (): Promise<string> => {
-  const response = await api.get<{ template: string }>("/api/settings/json-structure");
+  const response = await api.get<{ template: string }>(
+    "/api/settings/json-structure",
+  );
   return response.data.template;
 };
 
@@ -75,7 +77,9 @@ export const deleteAIProvider = async (providerId: string): Promise<void> => {
   await api.delete(`/api/ai-providers/${providerId}`);
 };
 
-export const getAIProviderDetails = async (providerId: string): Promise<{
+export const getAIProviderDetails = async (
+  providerId: string,
+): Promise<{
   id: string;
   name: string;
   apiKey: string;

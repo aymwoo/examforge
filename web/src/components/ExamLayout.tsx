@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   BarChart3,
   CheckSquare,
-  Eye,
   Download,
   Trash2,
   FileText,
@@ -27,14 +26,7 @@ import { useToast } from "@/components/ui/Toast";
 
 interface ExamLayoutProps {
   children: ReactNode;
-  activeTab:
-    | "questions"
-    | "students"
-    | "analytics"
-    | "grading"
-    | "preview"
-    | "export"
-    | "delete";
+  activeTab: "questions" | "students" | "analytics" | "grading" | "export";
 }
 
 export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
@@ -414,28 +406,51 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
                     <Play className="h-4 w-4" />
                     进入考试
                   </Button>
+
                   {exam.status === "PUBLISHED" ? (
-                    <Button
-                      onClick={handleWithdrawExam}
-                      disabled={updating}
-                      size="sm"
-                      className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
-                    >
-                      <Square className="h-4 w-4" />
-                      {updating ? "撤回中..." : "撤回考试"}
-                    </Button>
+                    <>
+                      <Button
+                        onClick={handleWithdrawExam}
+                        disabled={updating}
+                        size="sm"
+                        className="flex items-center gap-2 bg-gray-500 hover:bg-gray-600 text-white"
+                      >
+                        <Square className="h-4 w-4" />
+                        {updating ? "撤回中..." : "撤回考试"}
+                      </Button>
+                      <Button
+                        onClick={handleDeleteExam}
+                        disabled={updating}
+                        size="sm"
+                        className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        删除考试
+                      </Button>
+                    </>
                   ) : (
-                    <Button
-                      onClick={handlePublishExam}
-                      disabled={
-                        updating || (exam.examQuestions?.length || 0) === 0
-                      }
-                      size="sm"
-                      className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white"
-                    >
-                      <Play className="h-4 w-4" />
-                      {updating ? "发布中..." : "发布考试"}
-                    </Button>
+                    <>
+                      <Button
+                        onClick={handlePublishExam}
+                        disabled={
+                          updating || (exam.examQuestions?.length || 0) === 0
+                        }
+                        size="sm"
+                        className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white"
+                      >
+                        <Play className="h-4 w-4" />
+                        {updating ? "发布中..." : "发布考试"}
+                      </Button>
+                      <Button
+                        onClick={handleDeleteExam}
+                        disabled={updating}
+                        size="sm"
+                        className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        删除考试
+                      </Button>
+                    </>
                   )}
                 </div>
                 <div className="text-sm text-blue-600">
@@ -488,17 +503,6 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
               )}
             </button>
             <button
-              onClick={() => navigate(`/exams/${id}/analytics`)}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
-                activeTab === "analytics"
-                  ? "border-b-2 border-purple-500 text-purple-700 bg-purple-50"
-                  : "text-gray-600 hover:text-purple-700 hover:bg-purple-50"
-              }`}
-            >
-              <BarChart3 className="h-4 w-4" />
-              统计分析
-            </button>
-            <button
               onClick={() => navigate(`/exams/${id}/grading`)}
               className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
                 activeTab === "grading"
@@ -510,15 +514,15 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
               评分管理
             </button>
             <button
-              onClick={() => window.open(`/exam/${id}/login`, "_blank")}
+              onClick={() => navigate(`/exams/${id}/analytics`)}
               className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
-                activeTab === "preview"
-                  ? "border-b-2 border-cyan-500 text-cyan-700 bg-cyan-50"
-                  : "text-gray-600 hover:text-cyan-700 hover:bg-cyan-50"
+                activeTab === "analytics"
+                  ? "border-b-2 border-purple-500 text-purple-700 bg-purple-50"
+                  : "text-gray-600 hover:text-purple-700 hover:bg-purple-50"
               }`}
             >
-              <Eye className="h-4 w-4" />
-              预览考试
+              <BarChart3 className="h-4 w-4" />
+              统计分析
             </button>
             <button
               className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
@@ -529,17 +533,6 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
             >
               <Download className="h-4 w-4" />
               导出数据
-            </button>
-            <button
-              onClick={handleDeleteExam}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
-                activeTab === "delete"
-                  ? "border-b-2 border-red-500 text-red-700 bg-red-50"
-                  : "text-gray-600 hover:text-red-700 hover:bg-red-50"
-              }`}
-            >
-              <Trash2 className="h-4 w-4" />
-              删除考试
             </button>
           </div>
         </div>

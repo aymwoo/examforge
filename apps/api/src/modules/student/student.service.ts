@@ -1,9 +1,103 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
 @Injectable()
 export class StudentService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async listStudentsForPromptManagement(
+    paginationDto: PaginationDto & { search?: string },
+    currentUser: any
+  ) {
+    if (currentUser.role !== 'ADMIN' && currentUser.role !== 'TEACHER') {
+      throw new ForbiddenException('只有教师或管理员可以管理学生提示词');
+    }
+
+    const { page = 1, limit = 20 } = paginationDto;
+    const skip = (page - 1) * limit;
+    const search = (paginationDto.search || '').trim();
+
+    const where: any = {};
+    if (search) {
+      where.OR = [{ name: { contains: search } }, { studentId: { contains: search } }];
+    }
+
+    if (currentUser.role === 'TEACHER') {
+      where.class = { createdBy: currentUser.sub };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.student.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: [{ updatedAt: 'desc' }],
+        select: {
+          id: true,
+          studentId: true,
+          name: true,
+          gender: true,
+          classId: true,
+          aiAnalysisPrompt: true,
+          class: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      }),
+      this.prisma.student.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async updateStudentAiAnalysisPrompt(studentId: string, prompt: string, currentUser: any) {
+    if (currentUser.role !== 'ADMIN' && currentUser.role !== 'TEACHER') {
+      throw new ForbiddenException('只有教师或管理员可以管理学生提示词');
+    }
+
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: { class: true },
+    });
+
+    if (!student) {
+      throw new NotFoundException('学生信息不存在');
+    }
+
+    if (currentUser.role === 'TEACHER') {
+      if (!student.classId) {
+        throw new ForbiddenException('该学生未分配班级，您无权修改');
+      }
+
+      if (!student.class || student.class.createdBy !== currentUser.sub) {
+        throw new ForbiddenException('您只能修改自己班级的学生');
+      }
+    }
+
+    const normalized = (prompt || '').trim();
+    if (normalized.length > 5000) {
+      throw new ForbiddenException('提示词过长（最多5000字符）');
+    }
+
+    await this.prisma.student.update({
+      where: { id: studentId },
+      data: { aiAnalysisPrompt: normalized },
+    });
+
+    return { success: true };
+  }
 
   async getProfile(userId: string, isStudent: boolean) {
     if (!isStudent) {
@@ -16,11 +110,11 @@ export class StudentService {
         class: {
           include: {
             _count: {
-              select: { students: true }
-            }
-          }
-        }
-      }
+              select: { students: true },
+            },
+          },
+        },
+      },
     });
 
     if (!student) {
@@ -33,12 +127,14 @@ export class StudentService {
       name: student.name,
       gender: student.gender,
       classId: student.classId,
-      class: student.class ? {
-        id: student.class.id,
-        name: student.class.name,
-        description: student.class.description,
-        studentCount: student.class._count.students
-      } : null
+      class: student.class
+        ? {
+            id: student.class.id,
+            name: student.class.name,
+            description: student.class.description,
+            studentCount: student.class._count.students,
+          }
+        : null,
     };
   }
 
@@ -49,11 +145,11 @@ export class StudentService {
         class: {
           include: {
             _count: {
-              select: { students: true }
-            }
-          }
-        }
-      }
+              select: { students: true },
+            },
+          },
+        },
+      },
     });
 
     if (!student) {
@@ -69,12 +165,14 @@ export class StudentService {
       name: student.name,
       gender: student.gender,
       classId: student.classId,
-      class: student.class ? {
-        id: student.class.id,
-        name: student.class.name,
-        description: student.class.description,
-        studentCount: student.class._count.students
-      } : null
+      class: student.class
+        ? {
+            id: student.class.id,
+            name: student.class.name,
+            description: student.class.description,
+            studentCount: student.class._count.students,
+          }
+        : null,
     };
   }
 
@@ -83,8 +181,8 @@ export class StudentService {
     const student = await this.prisma.student.findUnique({
       where: { studentId },
       include: {
-        class: true
-      }
+        class: true,
+      },
     });
 
     if (!student) {
@@ -96,24 +194,24 @@ export class StudentService {
 
     // 获取学生参与的所有考试
     const examStudents = await this.prisma.examStudent.findMany({
-      where: { 
+      where: {
         OR: [
           { studentId: student.id }, // 临时学生
-          { 
-            student: { id: student.id } // 固定学生
-          }
-        ]
+          {
+            student: { id: student.id }, // 固定学生
+          },
+        ],
       },
       include: {
         exam: true,
         submissions: {
           orderBy: { submittedAt: 'desc' },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
 
-    return examStudents.map(examStudent => ({
+    return examStudents.map((examStudent) => ({
       id: examStudent.exam.id,
       title: examStudent.exam.title,
       description: examStudent.exam.description,
@@ -122,11 +220,14 @@ export class StudentService {
       duration: examStudent.exam.duration,
       totalScore: examStudent.exam.totalScore,
       status: examStudent.exam.status,
-      submission: examStudent.submissions.length > 0 ? {
-        id: examStudent.submissions[0].id,
-        score: examStudent.submissions[0].score,
-        submittedAt: examStudent.submissions[0].submittedAt
-      } : null
+      submission:
+        examStudent.submissions.length > 0
+          ? {
+              id: examStudent.submissions[0].id,
+              score: examStudent.submissions[0].score,
+              submittedAt: examStudent.submissions[0].submittedAt,
+            }
+          : null,
     }));
   }
 
@@ -152,7 +253,7 @@ export class StudentService {
 
       // 检查教师是否是该班级的创建者
       const classInfo = await this.prisma.class.findUnique({
-        where: { id: student.classId }
+        where: { id: student.classId },
       });
 
       if (!classInfo || classInfo.createdBy !== currentUser.sub) {
@@ -171,24 +272,24 @@ export class StudentService {
 
     // 获取学生参与的所有考试
     const examStudents = await this.prisma.examStudent.findMany({
-      where: { 
+      where: {
         OR: [
           { studentId: userId }, // 临时学生
-          { 
-            student: { id: userId } // 固定学生
-          }
-        ]
+          {
+            student: { id: userId }, // 固定学生
+          },
+        ],
       },
       include: {
         exam: true,
         submissions: {
           orderBy: { submittedAt: 'desc' },
-          take: 1
-        }
-      }
+          take: 1,
+        },
+      },
     });
 
-    return examStudents.map(examStudent => ({
+    return examStudents.map((examStudent) => ({
       id: examStudent.exam.id,
       title: examStudent.exam.title,
       description: examStudent.exam.description,
@@ -197,11 +298,14 @@ export class StudentService {
       duration: examStudent.exam.duration,
       totalScore: examStudent.exam.totalScore,
       status: examStudent.exam.status,
-      submission: examStudent.submissions.length > 0 ? {
-        id: examStudent.submissions[0].id,
-        score: examStudent.submissions[0].score,
-        submittedAt: examStudent.submissions[0].submittedAt
-      } : null
+      submission:
+        examStudent.submissions.length > 0
+          ? {
+              id: examStudent.submissions[0].id,
+              score: examStudent.submissions[0].score,
+              submittedAt: examStudent.submissions[0].submittedAt,
+            }
+          : null,
     }));
   }
 }
