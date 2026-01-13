@@ -8,6 +8,7 @@ export interface SystemSettings {
   promptTemplate: string;
   gradingPromptTemplate: string;
   analysisPromptTemplate: string;
+  studentAiAnalysisPromptTemplate: string;
 }
 
 export interface AIModelConfig {

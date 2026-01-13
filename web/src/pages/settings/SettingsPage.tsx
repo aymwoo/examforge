@@ -35,6 +35,7 @@ export default function SettingsPage() {
     promptTemplate: "",
     gradingPromptTemplate: "",
     analysisPromptTemplate: "",
+    studentAiAnalysisPromptTemplate: "",
   });
 
   const [studentSearch, setStudentSearch] = useState("");
@@ -114,6 +115,40 @@ export default function SettingsPage() {
         setSettings((prev) => ({
           ...prev,
           analysisPromptTemplate: defaultAnalysisPrompt,
+        }));
+      }
+
+      // 如果评分管理-学生AI分析提示词为空，设置默认值
+      if (!userSettingsData.studentAiAnalysisPromptTemplate) {
+        const defaultStudentAiAnalysisPrompt = `你是一名严格但建设性的阅卷专家与学习教练。
+
+请基于下列“评分详情数据(JSON)”生成该学生的个人学习诊断报告。
+
+要求：
+- 用中文回答
+- 重点分析扣分原因、常见错误类型、薄弱知识点、作答策略问题
+- 给出可执行的改进建议（短期1周/中期1月）
+
+输出格式（Markdown）：
+- 总体表现概述
+- 主要失分原因（按重要性排序）
+- 薄弱知识点与专项建议
+- 作答策略与时间分配建议
+- 1周提升计划
+- 1月提升计划
+
+【学生信息】
+{studentLabel}
+
+【该学生的个性化分析提示词】
+{studentPrompt}
+
+【评分详情数据(JSON)】
+{payload}`;
+
+        setSettings((prev) => ({
+          ...prev,
+          studentAiAnalysisPromptTemplate: defaultStudentAiAnalysisPrompt,
         }));
       }
 
@@ -311,6 +346,10 @@ export default function SettingsPage() {
       await updateUserSetting(
         "ANALYSIS_PROMPT_TEMPLATE",
         settings.analysisPromptTemplate,
+      );
+      await updateUserSetting(
+        "STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE",
+        settings.studentAiAnalysisPromptTemplate,
       );
       setError("提示词设置保存成功");
     } catch (err: unknown) {
@@ -1101,6 +1140,63 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 )}
+
+                {/* 评分管理-学生AI分析提示词配置 */}
+                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1 mt-6">
+                  <div className="mb-6 flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-ink-900">
+                      评分管理 AI分析提示词配置
+                    </h2>
+                    <Button
+                      onClick={() => {
+                        const variables = `
+支持的变量：
+- {studentLabel} - 学生显示名/账号
+- {studentPrompt} - 学生个性化提示词（来自学生设置）
+- {payload} - 评分详情JSON（包含考试、学生、得分等）`;
+
+                        setSettings((prev) => ({
+                          ...prev,
+                          studentAiAnalysisPromptTemplate:
+                            prev.studentAiAnalysisPromptTemplate + variables,
+                        }));
+                      }}
+                      variant="outline"
+                      size="sm"
+                    >
+                      插入支持变量
+                    </Button>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      学生个人AI分析提示词模板
+                    </label>
+                    <textarea
+                      className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
+                      value={settings.studentAiAnalysisPromptTemplate}
+                      onChange={(e) =>
+                        handleInputChange(
+                          "studentAiAnalysisPromptTemplate",
+                          e.target.value,
+                        )
+                      }
+                      placeholder="输入评分管理-学生AI分析提示词模板..."
+                    />
+                    <p className="mt-1 text-xs text-ink-700">
+                      用于评分管理页面对单个学生生成AI分析报告。此为您的个人设置。
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={handleSavePrompts}
+                    disabled={saving}
+                    className="mt-4 w-full"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? "保存中..." : "保存评分管理AI提示词设置"}
+                  </Button>
+                </div>
 
                 {/* 分析报告提示词配置 */}
                 <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1 mt-6">

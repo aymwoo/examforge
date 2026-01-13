@@ -14,11 +14,13 @@ export enum SettingKey {
   AI_MODEL = 'AI_MODEL',
   PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
   GRADING_PROMPT_TEMPLATE = 'GRADING_PROMPT_TEMPLATE',
+  STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE = 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE',
 }
 
 export enum UserSettingKey {
   PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
   GRADING_PROMPT_TEMPLATE = 'GRADING_PROMPT_TEMPLATE',
+  STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE = 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE',
 }
 
 export interface AIModelConfig {
@@ -74,6 +76,7 @@ export interface SystemSettings {
   aiModel: string;
   promptTemplate: string;
   gradingPromptTemplate: string;
+  studentAiAnalysisPromptTemplate: string;
 }
 
 @Injectable()
@@ -108,6 +111,9 @@ export class SettingsService {
           gradingPromptTemplate:
             settingsMap.get(SettingKey.GRADING_PROMPT_TEMPLATE) ||
             this.getDefaultGradingPromptTemplate(),
+          studentAiAnalysisPromptTemplate:
+            settingsMap.get(SettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
+            this.getDefaultStudentAiAnalysisPromptTemplate(),
         };
       }
     }
@@ -125,6 +131,9 @@ export class SettingsService {
       gradingPromptTemplate:
         settingsMap.get(SettingKey.GRADING_PROMPT_TEMPLATE) ||
         this.getDefaultGradingPromptTemplate(),
+      studentAiAnalysisPromptTemplate:
+        settingsMap.get(SettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
+        this.getDefaultStudentAiAnalysisPromptTemplate(),
     };
   }
 
@@ -160,6 +169,9 @@ export class SettingsService {
             gradingPromptTemplate:
               userSettingsMap.get(UserSettingKey.GRADING_PROMPT_TEMPLATE) ||
               systemSettings.gradingPromptTemplate,
+            studentAiAnalysisPromptTemplate:
+              userSettingsMap.get(UserSettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
+              systemSettings.studentAiAnalysisPromptTemplate,
           };
         }
       }
@@ -172,6 +184,9 @@ export class SettingsService {
       gradingPromptTemplate:
         userSettingsMap.get(UserSettingKey.GRADING_PROMPT_TEMPLATE) ||
         systemSettings.gradingPromptTemplate,
+      studentAiAnalysisPromptTemplate:
+        userSettingsMap.get(UserSettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
+        systemSettings.studentAiAnalysisPromptTemplate,
     };
   }
 
@@ -309,5 +324,34 @@ export class SettingsService {
 }
 
 请只返回JSON格式的评分结果，不要包含其他说明文字。`;
+  }
+
+  private getDefaultStudentAiAnalysisPromptTemplate(): string {
+    return `你是一名严格但建设性的阅卷专家与学习教练。
+
+请基于下列“该学生的评分详情数据”，生成一份该学生的个人学习诊断报告。
+
+要求：
+- 用中文回答
+- 重点分析扣分原因、常见错误类型、薄弱知识点、作答策略问题
+- 给出可执行的改进建议（短期1周/中期1月）
+- 如果评分详情不足以判断，请明确说明缺失信息并提出你需要的补充字段
+
+输出格式（Markdown）：
+- 总体表现概述
+- 主要失分原因（按重要性排序）
+- 薄弱知识点与专项建议
+- 作答策略与时间分配建议
+- 1周提升计划
+- 1月提升计划
+
+【学生信息】
+{studentLabel}
+
+【该学生的个性化分析提示词】
+{studentPrompt}
+
+【评分详情数据(JSON)】
+{payload}`;
   }
 }

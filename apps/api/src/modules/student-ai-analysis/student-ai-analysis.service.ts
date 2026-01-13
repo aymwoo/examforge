@@ -6,10 +6,14 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { PrismaService } from '@/prisma/prisma.service';
+import { SettingsService } from '@/modules/settings/settings.service';
 
 @Injectable()
 export class StudentAiAnalysisService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settingsService: SettingsService
+  ) {}
 
   async getBySubmission(submissionId: string, currentUser: any) {
     const report = await this.prisma.studentAiAnalysisReport.findUnique({
@@ -104,11 +108,16 @@ export class StudentAiAnalysisService {
       return;
     }
 
-    const studentPrompt = submission.examStudent?.student?.aiAnalysisPrompt || '';
+    const studentPrompt = (submission.examStudent?.student as any)?.aiAnalysisPrompt || '';
+    const teacherId = user?.sub || user?.id;
+    const teacherSettings = teacherId
+      ? await this.settingsService.getUserSettings(teacherId)
+      : null;
 
     this.sse(res, { type: 'progress', message: '正在构建分析提示词...', progress: 15 });
 
     const prompt = this.buildStudentAnalysisPrompt({
+      template: teacherSettings?.studentAiAnalysisPromptTemplate,
       exam: submission.exam,
       submission: {
         id: submission.id,
@@ -225,6 +234,7 @@ export class StudentAiAnalysisService {
   }
 
   private buildStudentAnalysisPrompt(input: {
+    template?: string | null;
     exam: any;
     submission: {
       id: string;
@@ -240,10 +250,6 @@ export class StudentAiAnalysisService {
     const totalScore = input.exam?.totalScore || 0;
 
     const accountLabel = input.examStudent?.displayName || input.examStudent?.username || '';
-
-    const teacherStudentPromptPart = input.studentPrompt
-      ? `\n\n【老师为该学生设置的个性化分析提示词】\n${input.studentPrompt}\n`
-      : '';
 
     const payload = {
       exam: {
@@ -264,10 +270,42 @@ export class StudentAiAnalysisService {
       },
     };
 
-    return `你是一名严格但建设性的阅卷专家与学习教练。\n
-请基于下列“该学生的评分详情数据”，生成一份该学生的个人学习诊断报告。\n
-要求：\n- 用中文回答\n- 重点分析扣分原因、常见错误类型、薄弱知识点、作答策略问题\n- 给出可执行的改进建议（短期1周/中期1月）\n- 如果评分详情不足以判断，请明确说明缺失信息并提出你需要的补充字段\n
-【学生信息】\n${accountLabel}\n${teacherStudentPromptPart}\n【评分详情数据(JSON)】\n${JSON.stringify(payload, null, 2)}\n`;
+    const template = input.template || '';
+
+    // Keep backward compatibility: if template is blank, fall back to the old hardcoded prompt.
+    const fallbackPrompt = `你是一名严格但建设性的阅卷专家与学习教练。
+
+请基于下列“该学生的评分详情数据”，生成一份该学生的个人学习诊断报告。
+
+要求：
+- 用中文回答
+- 重点分析扣分原因、常见错误类型、薄弱知识点、作答策略问题
+- 给出可执行的改进建议（短期1周/中期1月）
+- 如果评分详情不足以判断，请明确说明缺失信息并提出你需要的补充字段
+
+输出格式（Markdown）：
+- 总体表现概述
+- 主要失分原因（按重要性排序）
+- 薄弱知识点与专项建议
+- 作答策略与时间分配建议
+- 1周提升计划
+- 1月提升计划
+
+【学生信息】
+{studentLabel}
+
+【该学生的个性化分析提示词】
+{studentPrompt}
+
+【评分详情数据(JSON)】
+{payload}`;
+
+    const finalTemplate = template.trim() ? template : fallbackPrompt;
+
+    return finalTemplate
+      .replaceAll('{studentLabel}', accountLabel)
+      .replaceAll('{studentPrompt}', input.studentPrompt || '')
+      .replaceAll('{payload}', JSON.stringify(payload, null, 2));
   }
 
   private safeJsonParse(value: string | null) {
