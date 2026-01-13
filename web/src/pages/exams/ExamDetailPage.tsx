@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronUp,
   Trash2,
+  Download,
 } from "lucide-react";
 import api from "@/services/api";
 import {
@@ -297,6 +298,12 @@ export default function ExamDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  // Export states
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportProgress, setExportProgress] = useState(0);
+  const [exportMessage, setExportMessage] = useState("");
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string>("");
   const [showBatchScoreModal, setShowBatchScoreModal] = useState(false);
   const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(
@@ -577,6 +584,60 @@ export default function ExamDetailPage() {
       setWarningMessage(err.response?.data?.message || "批量删除题目失败");
       setShowWarningModal(true);
     }
+
+  };
+
+  const handleExport = async () => {
+    if (!id) return;
+    setShowExportModal(true);
+    setIsExporting(true);
+    setExportProgress(0);
+    setExportMessage("准备导出...");
+    setExportError(null);
+
+    const eventSource = new EventSource(
+      `http://localhost:3000/api/exams/${id}/export/progress`,
+    );
+
+    eventSource.onopen = () => {
+      console.log("Export SSE connection opened");
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "progress") {
+          setExportProgress(data.percentage);
+          setExportMessage(data.message);
+        } else if (data.type === "complete") {
+          setExportProgress(100);
+          setExportMessage("导出完成，正在下载...");
+          // Trigger download
+          window.location.href = `http://localhost:3000${data.downloadUrl}`;
+          setTimeout(() => {
+            setShowExportModal(false);
+            setIsExporting(false);
+            eventSource.close();
+          }, 1000);
+        } else if (data.type === "error") {
+          setExportError(data.message);
+          setIsExporting(false);
+          eventSource.close();
+        }
+      } catch (e) {
+        console.error("Parse error", e);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("EventSource failed:", err);
+      // Only set error if we haven't completed (sometimes browser closes connection early)
+      if (exportProgress < 100) {
+        setExportError("连接中断，请重试");
+        setIsExporting(false);
+      }
+      eventSource.close();
+    };
   };
 
   if (loading) {
@@ -659,6 +720,13 @@ export default function ExamDetailPage() {
                 className="bg-blue-500 hover:bg-blue-600 text-white"
               >
                 添加题目
+              </Button>
+              <Button
+                onClick={handleExport}
+                className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                导出数据
               </Button>
             </div>
           </div>
@@ -979,6 +1047,34 @@ export default function ExamDetailPage() {
             确定要删除 <strong>{selectedQuestions.size}</strong> 道题目吗？
           </p>
           <p className="text-sm text-gray-600">此操作不可恢复。</p>
+        </div>
+      </Modal>
+      {/* 导出进度模态框 */}
+      <Modal
+        isOpen={showExportModal}
+        onClose={() => !isExporting && setShowExportModal(false)}
+        title="正在导出考试数据"
+      >
+        <div className="p-4">
+          {exportError ? (
+            <div className="text-center text-red-600">
+              <p className="mb-4">{exportError}</p>
+              <Button onClick={() => setShowExportModal(false)}>关闭</Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                <div
+                  className="bg-blue-600 h-4 rounded-full transition-all duration-300"
+                  style={{ width: `${exportProgress}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>{exportMessage}</span>
+                <span>{exportProgress}%</span>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </ExamLayout>

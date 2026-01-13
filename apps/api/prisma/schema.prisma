@@ -93,6 +93,14 @@ model Exam {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  // AI分析报告（考试整体）
+  aiAnalysisReport     String?   @map("ai_analysis_report")
+  aiAnalysisStatus     String?   @map("ai_analysis_status")
+  aiAnalysisPromptUsed String?   @map("ai_analysis_prompt_used")
+  aiAnalysisProviderId String?   @map("ai_analysis_provider_id")
+  aiAnalysisModel      String?   @map("ai_analysis_model")
+  aiAnalysisUpdatedAt  DateTime? @map("ai_analysis_updated_at")
+
   // 关联关系
   creator       User?          @relation("CreatedBy", fields: [createdBy], references: [id])
   examQuestions ExamQuestion[]
@@ -237,6 +245,9 @@ model StudentAiAnalysisReport {
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+
+  // 关联关系
+  examStudent ExamStudent? @relation(fields: [examStudentId], references: [id])
 
   @@index([examId, examStudentId])
   @@index([studentId])

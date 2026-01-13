@@ -518,4 +518,23 @@ export class ExamController {
       res.end();
     }
   }
+
+  @Get(':id/export/progress')
+  @ApiOperation({ summary: 'Export exam data progress stream' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  async exportExam(@Param('id') examId: string, @Res() res: Response) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    return this.examService.exportExam(examId, res);
+  }
+
+  @Get('download-export/:filename')
+  @ApiOperation({ summary: 'Download exported exam file' })
+  @ApiParam({ name: 'filename', description: 'Filename to download' })
+  async downloadExport(@Param('filename') filename: string, @Res() res: Response) {
+    return this.examService.downloadExport(filename, res);
+  }
 }

@@ -15,6 +15,12 @@ import { BatchCreateExamStudentsDto } from './dto/batch-create-exam-students.dto
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AccountGenerator } from '../../common/utils/account-generator';
 import * as bcrypt from 'bcrypt';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as archiver from 'archiver';
+import PDFDocument from 'pdfkit';
+import * as XLSX from 'xlsx';
+import { Response } from 'express';
 
 @Injectable()
 export class ExamService {
@@ -2246,5 +2252,267 @@ ${studentAnswer}
       console.error('AI服务调用异常:', error);
       throw new Error(`AI服务调用失败: ${error.message}`);
     }
+  }
+
+  // 辅助方法：生成PDF报告
+  private async generatePdfReport(
+    doc: InstanceType<typeof PDFDocument>,
+    exam: any,
+    analytics: any
+  ): Promise<void> {
+    // 注册字体
+    const fontPath = path.join(process.cwd(), 'assets', 'fonts', 'NotoSansSC-Regular.ttf');
+    // 如果没有自定义字体，使用标准字体（不支持中文）或者寻找系统字体
+    // 这里假设有一个支持中文的字体文件，或者临时使用标准字体
+    if (fs.existsSync(fontPath)) {
+      doc.font(fontPath);
+    } else {
+      // Fallback
+      doc.font('Helvetica');
+    }
+
+    doc.fontSize(24).text(`${exam.title} - 考试分析报告`, { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`考试时间: ${new Date().toLocaleDateString()}`);
+    doc.text(`总分: ${exam.totalScore}`);
+    doc.moveDown();
+
+    if (exam.aiAnalysisReport) {
+      doc.fontSize(16).text('AI 智能分析');
+      doc.moveDown();
+      doc.fontSize(12).text(exam.aiAnalysisReport);
+      doc.addPage();
+    }
+
+    // 统计概览
+    if (analytics) {
+      doc.fontSize(16).text('统计概览');
+      doc.moveDown();
+      doc.fontSize(12);
+      doc.text(`平均分: ${analytics.scoreStats?.average?.toFixed(1) || 0}`);
+      doc.text(`及格率: ${analytics.scoreStats?.passRate?.toFixed(1) || 0}%`);
+      doc.text(`最高分: ${analytics.scoreStats?.highest || 0}`);
+      doc.text(`最低分: ${analytics.scoreStats?.lowest || 0}`);
+      doc.moveDown();
+    }
+
+    // 题目详情
+    doc.fontSize(16).text('题目详情');
+    doc.moveDown();
+    exam.examQuestions.forEach((eq: any, index: number) => {
+      doc.fontSize(14).text(`第 ${index + 1} 题 (${eq.score}分)`);
+      doc.fontSize(12).text(`题目: ${eq.question.content}`);
+      doc.text(`类型: ${eq.question.type}`);
+      doc.text(`难度: ${eq.question.difficulty}`);
+      if (eq.question.answer) {
+        doc.text(`答案: ${eq.question.answer}`);
+      }
+      doc.moveDown();
+    });
+  }
+
+  private async generateStudentPdfReport(
+    doc: InstanceType<typeof PDFDocument>,
+    studentReport: any,
+    exam: any
+  ): Promise<void> {
+    const fontPath = path.join(process.cwd(), 'assets', 'fonts', 'NotoSansSC-Regular.ttf');
+    if (fs.existsSync(fontPath)) {
+      doc.font(fontPath);
+    } else {
+      doc.font('Helvetica');
+    }
+
+    const studentName =
+      studentReport.examStudent?.student?.name ||
+      studentReport.examStudent?.displayName ||
+      studentReport.examStudent?.username ||
+      '未知学生';
+
+    doc.fontSize(24).text(`${studentName} - 个人考试分析报告`, { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(14).text(`考试: ${exam.title}`);
+    doc.moveDown();
+
+    if (studentReport.report) {
+      doc.fontSize(12).text(studentReport.report);
+    } else {
+      doc.fontSize(12).text('暂无AI分析报告');
+    }
+  }
+
+  async exportExam(examId: string, res: Response) {
+    const tempDir = path.join(process.cwd(), 'temp', 'exports', examId);
+    const downloadFileName = `exam_export_${examId}_${Date.now()}.zip`;
+    const zipFilePath = path.join(process.cwd(), 'temp', 'downloads', downloadFileName);
+
+    // 确保目录存在
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const downloadsDir = path.dirname(zipFilePath);
+    if (!fs.existsSync(downloadsDir)) {
+      fs.mkdirSync(downloadsDir, { recursive: true });
+    }
+
+    try {
+      // 1. 获取数据 (10%)
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', percentage: 10, message: '正在获取考试数据...' })}\n\n`
+      );
+
+      const exam = await this.prisma.exam.findUnique({
+        where: { id: examId },
+        include: {
+          examQuestions: { include: { question: true }, orderBy: { order: 'asc' } },
+          examStudents: { include: { student: true } },
+          submissions: true,
+        },
+      });
+
+      if (!exam) throw new Error('Exam not found');
+
+      const analytics = await this.getExamAnalytics(examId);
+
+      // 2. 生成 Excel (20%)
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', percentage: 20, message: '正在生成 Excel 数据...' })}\n\n`
+      );
+
+      const excelData = exam.examQuestions.map((eq: any) => ({
+        序号: eq.order,
+        题型: eq.question.type,
+        内容: eq.question.content,
+        选项: eq.question.options,
+        答案: eq.question.answer,
+        分值: eq.score,
+        难度: eq.question.difficulty,
+        解析: eq.question.explanation,
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Exam Questions');
+      XLSX.writeFile(workbook, path.join(tempDir, 'exam_data.xlsx'));
+
+      // 3. 生成 JSON (30%)
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', percentage: 30, message: '正在生成 JSON 数据...' })}\n\n`
+      );
+      fs.writeFileSync(path.join(tempDir, 'exam_data.json'), JSON.stringify(exam, null, 2));
+
+      // 4. 生成考试 PDF 报告 (50%)
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', percentage: 40, message: '正在生成考试分析报告 PDF...' })}\n\n`
+      );
+      const examPdfDoc = new PDFDocument();
+      const examPdfStream = fs.createWriteStream(path.join(tempDir, 'exam_report.pdf'));
+      examPdfDoc.pipe(examPdfStream);
+      await this.generatePdfReport(examPdfDoc, exam, analytics);
+      examPdfDoc.end();
+
+      // 5. 生成学生 PDF 报告 (80%)
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', percentage: 50, message: '正在生成学生分析报告...' })}\n\n`
+      );
+
+      const studentReportsDir = path.join(tempDir, 'students');
+      if (!fs.existsSync(studentReportsDir)) {
+        fs.mkdirSync(studentReportsDir);
+      }
+
+      // 获取所有有报告的学生
+      const studentReports = await this.prisma.studentAiAnalysisReport.findMany({
+        where: { examId: examId },
+        include: {
+          examStudent: {
+            include: { student: true },
+          },
+        },
+      });
+
+      let processedCount = 0;
+      const totalReports = studentReports.length;
+
+      for (const report of studentReports) {
+        const studentName =
+          report.examStudent?.student?.name ||
+          report.examStudent?.displayName ||
+          report.examStudent?.username ||
+          'unknown';
+        const safeName = studentName.replace(/[\\/:*?"<>|]/g, '_');
+        const studentPdfPath = path.join(studentReportsDir, `${safeName}_report.pdf`);
+
+        const doc = new PDFDocument();
+        const stream = fs.createWriteStream(studentPdfPath);
+        doc.pipe(stream);
+        await this.generateStudentPdfReport(doc, report, exam);
+        doc.end();
+
+        processedCount++;
+        // 每处理 5 个更新一次进度
+        if (processedCount % 5 === 0 || processedCount === totalReports) {
+          const currentPercent = 50 + Math.floor((processedCount / totalReports) * 30);
+          res.write(
+            `data: ${JSON.stringify({ type: 'progress', percentage: currentPercent, message: `正在生成学生报告 (${processedCount}/${totalReports})...` })}\n\n`
+          );
+        }
+      }
+
+      // 6. 打包 ZIP (95%)
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', percentage: 90, message: '正在打包文件...' })}\n\n`
+      );
+
+      const output = fs.createWriteStream(zipFilePath);
+      const archive = archiver.create('zip', { zlib: { level: 9 } });
+
+      output.on('close', () => {
+        // 7. 完成 (100%)
+        res.write(
+          `data: ${JSON.stringify({ type: 'complete', downloadUrl: `/api/exams/download-export/${downloadFileName}` })}\n\n`
+        );
+        res.end();
+
+        // 清理临时文件目录 (保留zip文件供下载)
+        // setTimeout(() => fs.rm(tempDir, { recursive: true, force: true }, () => {}), 1000);
+        // 可以在这里做，也可以在下载后做，暂且保留
+      });
+
+      archive.on('error', (err: any) => {
+        throw err;
+      });
+
+      archive.pipe(output);
+      archive.directory(tempDir, false);
+      await archive.finalize();
+    } catch (error) {
+      console.error('Export failed:', error);
+      res.write(
+        `data: ${JSON.stringify({ type: 'error', message: error.message || '导出失败' })}\n\n`
+      );
+      res.end();
+    }
+  }
+
+  async downloadExport(filename: string, res: Response) {
+    const filePath = path.join(process.cwd(), 'temp', 'downloads', filename);
+
+    if (!fs.existsSync(filePath)) {
+      throw new NotFoundException('文件不存在或已过期');
+    }
+
+    res.download(filePath, filename, (err) => {
+      if (err) {
+        console.error('Download error:', err);
+      } else {
+        // 下载完成后删除文件
+        try {
+          fs.unlinkSync(filePath);
+          // 同时尝试清理对应的源文件夹，这里简化处理，只删zip
+        } catch (e) {
+          console.error('Cleanup error:', e);
+        }
+      }
+    });
   }
 }
