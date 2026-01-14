@@ -95,9 +95,8 @@ export default function SettingsPage() {
       );
       setSettings({
         ...userSettingsData,
-      }); // Use user-specific settings
+      });
 
-      // 如果分析提示词为空，设置系统默认值
       if (!userSettingsData.analysisPromptTemplate) {
         const defaultAnalysisPrompt = `请基于以下考试数据生成一份详细的分析报告：
 
@@ -137,11 +136,10 @@ export default function SettingsPage() {
         }));
       }
 
-      // 如果评分管理-学生AI分析提示词为空，设置默认值
       if (!userSettingsData.studentAiAnalysisPromptTemplate) {
         const defaultStudentAiAnalysisPrompt = `你是一名严格但建设性的阅卷专家与学习教练。
 
-请基于下列“评分详情数据(JSON)”生成该学生的个人学习诊断报告。
+请基于下列"评分详情数据(JSON)"生成该学生的个人学习诊断报告。
 
 要求：
 - 用中文回答
@@ -172,9 +170,8 @@ export default function SettingsPage() {
       }
 
       setProviders(providersData);
-      setSelectedProvider(settingsData.aiProvider); // System AI provider
+      setSelectedProvider(settingsData.aiProvider);
 
-      // 设置当前编辑的provider
       const currentProvider = providersData.find(
         (p) => p.id === settingsData.aiProvider,
       );
@@ -212,7 +209,6 @@ export default function SettingsPage() {
       setStudents(result.data);
       setStudentsTotalPages(result.meta.totalPages || 1);
 
-      // keep selected student stable; otherwise pick first
       if (result.data.length > 0) {
         const stillExists = selectedStudentId
           ? result.data.some((s) => s.id === selectedStudentId)
@@ -226,7 +222,6 @@ export default function SettingsPage() {
         setStudentPromptDraft("");
       }
     } catch (err) {
-      // non-blocking
       console.error("Failed to load students for prompt management", err);
     }
   };
@@ -252,7 +247,6 @@ export default function SettingsPage() {
       ].includes(providerId);
 
       if (isSystemProvider) {
-        // For system providers, use system settings
         setEditingProvider({
           ...provider,
           apiKey: providerId === settings.aiProvider ? settings.aiApiKey : "",
@@ -266,7 +260,6 @@ export default function SettingsPage() {
               : provider.defaultModel || "",
         });
       } else {
-        // For custom providers, fetch full details including API key
         getAIProviderDetails(providerId)
           .then((details) => {
             setEditingProvider({
@@ -312,20 +305,16 @@ export default function SettingsPage() {
       ].includes(selectedProvider);
 
       if (isSystemProvider) {
-        // For system providers, save all settings to system_settings
         await updateSetting("AI_PROVIDER", selectedProvider);
         await updateSetting("AI_API_KEY", editingProvider.apiKey || "");
         await updateSetting("AI_BASE_URL", editingProvider.baseUrl || "");
         await updateSetting("AI_MODEL", editingProvider.model || "");
       } else {
-        // For custom providers, save provider details to ai_providers table
         await updateSetting("AI_PROVIDER", selectedProvider);
-        // Clear system settings for custom providers
         await updateSetting("AI_API_KEY", "");
         await updateSetting("AI_BASE_URL", "");
         await updateSetting("AI_MODEL", "");
 
-        // Update the provider name in ai_providers table
         const originalProvider = providers.find(
           (p) => p.id === selectedProvider,
         );
@@ -339,7 +328,6 @@ export default function SettingsPage() {
         }
       }
 
-      // 更新本地状态
       setSettings((prev) => ({
         ...prev,
         aiProvider: selectedProvider,
@@ -348,7 +336,6 @@ export default function SettingsPage() {
         aiModel: isSystemProvider ? editingProvider.model || "" : "",
       }));
 
-      // Update local providers list with new name
       setProviders((prev) =>
         prev.map((p) =>
           p.id === selectedProvider ? { ...p, name: editingProvider.name } : p,
@@ -473,7 +460,6 @@ export default function SettingsPage() {
     setSettings((prev) => ({ ...prev, [field]: value }));
     setError(null);
 
-    // Mark specific template as changed
     if (field === "promptTemplate") {
       setPromptTemplateChanged(true);
     } else if (field === "gradingPromptTemplate") {
@@ -603,8 +589,7 @@ export default function SettingsPage() {
     isGlobal?: boolean;
   }) => {
     const createdProvider = await createAIProvider(providerData);
-    await loadSettings(); // Reload to show new provider
-    // Auto-select the newly created provider
+    await loadSettings();
     handleProviderSelect(createdProvider.id);
   };
 
@@ -615,8 +600,7 @@ export default function SettingsPage() {
 
     try {
       await deleteAIProvider(providerId);
-      await loadSettings(); // Reload to update provider list
-      // If deleted provider was selected, clear selection
+      await loadSettings();
       if (selectedProvider === providerId) {
         setSelectedProvider("");
         setEditingProvider(null);
@@ -663,7 +647,6 @@ export default function SettingsPage() {
 
           {!loading && (
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* 左侧：AI Provider 配置 */}
               <div className="flex flex-col">
                 <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1">
                   <div className="mb-6 flex items-center justify-between">
@@ -680,7 +663,6 @@ export default function SettingsPage() {
                     </Button>
                   </div>
 
-                  {/* 当前系统默认 AI Provider 显示 */}
                   <div className="mb-4 rounded-xl border border-gray-300 bg-gray-50 p-3">
                     <div className="flex items-center justify-between">
                       <div>
@@ -702,7 +684,6 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* AI Provider 按钮列表 */}
                   <div className="mb-6">
                     <label className="mb-3 block text-sm font-semibold text-ink-900">
                       选择 AI Provider{" "}
@@ -791,7 +772,6 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* 编辑选中的 Provider */}
                   {editingProvider && (
                     <div className="space-y-4">
                       {(() => {
@@ -807,7 +787,6 @@ export default function SettingsPage() {
 
                         return (
                           <>
-                            {/* Provider Name field - only editable for custom providers */}
                             {(() => {
                               const isSystemProvider = [
                                 "gpt-4",
@@ -1013,7 +992,6 @@ export default function SettingsPage() {
                     </div>
                   )}
 
-                  {/* Delete button for custom providers */}
                   {(() => {
                     const isSystemProvider = [
                       "gpt-4",
@@ -1046,9 +1024,8 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* 右侧：提示词配置 */}
-              <div className="flex flex-col space-y-6">
-                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1">
+              <div className="grid grid-cols-1 gap-6 max-w-4xl">
+                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-ink-900">
                       试卷生成提示词配置
@@ -1102,7 +1079,7 @@ export default function SettingsPage() {
                   </Button>
                 </div>
 
-                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1">
+                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-ink-900">
                       AI评分提示词配置
@@ -1158,160 +1135,7 @@ export default function SettingsPage() {
                   </Button>
                 </div>
 
-                {/* 学生提示词管理 */}
-                {isTeacher && (
-                  <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1 mt-6">
-                    <div className="mb-6 flex items-center justify-between">
-                      <h2 className="text-lg font-semibold text-ink-900">
-                        学生提示词管理
-                      </h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-border p-4">
-                        <label className="mb-2 block text-sm font-semibold text-ink-900">
-                          搜索学生（姓名/学号）
-                        </label>
-                        <input
-                          className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
-                          value={studentSearch}
-                          onChange={(e) => {
-                            setStudentSearch(e.target.value);
-                            setStudentPage(1);
-                          }}
-                          placeholder="例如：张三 / 2024001"
-                        />
-
-                        <div className="mt-4 space-y-2 max-h-[320px] overflow-auto">
-                          {students.map((s) => (
-                            <button
-                              key={s.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedStudentId(s.id);
-                                setStudentPromptDraft(s.aiAnalysisPrompt || "");
-                                setError(null);
-                              }}
-                              className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
-                                selectedStudentId === s.id
-                                  ? "border-ink-900 bg-ink-50"
-                                  : "border-border bg-white hover:bg-ink-50"
-                              }`}
-                            >
-                              <div className="font-semibold text-ink-900">
-                                {s.name}（{s.studentId}）
-                              </div>
-                              <div className="text-xs text-ink-700">
-                                班级：{s.class?.name || "未分配"}
-                              </div>
-                            </button>
-                          ))}
-
-                          {students.length === 0 && (
-                            <div className="text-sm text-ink-700">
-                              暂无学生数据
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="mt-4 flex items-center justify-between">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={studentPage <= 1}
-                            onClick={() =>
-                              setStudentPage((p) => Math.max(1, p - 1))
-                            }
-                          >
-                            上一页
-                          </Button>
-                          <div className="text-xs text-ink-700">
-                            第 {studentPage} / {studentsTotalPages} 页
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={studentPage >= studentsTotalPages}
-                            onClick={() =>
-                              setStudentPage((p) =>
-                                Math.min(studentsTotalPages, p + 1),
-                              )
-                            }
-                          >
-                            下一页
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-border p-4">
-                        <label className="mb-2 block text-sm font-semibold text-ink-900">
-                          选中学生的 AI 分析提示词
-                        </label>
-                        <textarea
-                          className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[220px] font-mono"
-                          value={studentPromptDraft}
-                          onChange={(e) =>
-                            setStudentPromptDraft(e.target.value)
-                          }
-                          placeholder="为该学生设置个性化分析目标/侧重点（可为空）..."
-                          disabled={!selectedStudentId}
-                        />
-                        <p className="mt-1 text-xs text-ink-700">
-                          老师为某个学生单独配置，生成“AI分析”报告时会被拼接到提示词中。
-                        </p>
-                        <Button
-                          onClick={async () => {
-                            if (!selectedStudentId) return;
-                            setSavingStudentPrompt(true);
-                            setError(null);
-                            try {
-                              await updateStudentAiAnalysisPrompt(
-                                selectedStudentId,
-                                studentPromptDraft,
-                              );
-                              // refresh list item
-                              setStudents((prev) =>
-                                prev.map((s) =>
-                                  s.id === selectedStudentId
-                                    ? {
-                                        ...s,
-                                        aiAnalysisPrompt: studentPromptDraft,
-                                      }
-                                    : s,
-                                ),
-                              );
-                              setError("学生提示词保存成功");
-                            } catch (err: unknown) {
-                              const axiosError = err as {
-                                response?: { data?: { message?: string } };
-                                message?: string;
-                              };
-                              setError(
-                                axiosError.response?.data?.message ||
-                                  axiosError.message ||
-                                  "保存学生提示词失败",
-                              );
-                            } finally {
-                              setSavingStudentPrompt(false);
-                            }
-                          }}
-                          disabled={savingStudentPrompt || !selectedStudentId}
-                          className={`mt-4 w-full ${
-                            gradingPromptTemplateChanged
-                              ? "bg-ink-900 hover:bg-ink-800 text-white"
-                              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                          }`}
-                        >
-                          <Save className="h-4 w-4 mr-2" />
-                          {savingStudentPrompt ? "保存中..." : "保存学生提示词"}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 评分管理-学生AI分析提示词配置 */}
-                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1 mt-6">
+                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-ink-900">
                       评分管理 AI分析提示词配置
@@ -1376,8 +1200,7 @@ export default function SettingsPage() {
                   </Button>
                 </div>
 
-                {/* 分析报告提示词配置 */}
-                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1 mt-6">
+                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-ink-900">
                       分析报告提示词配置
@@ -1433,6 +1256,154 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               </div>
+
+              {isTeacher && (
+                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+                  <div className="mb-6 flex items-center justify-between">
+                    <h2 className="text-lg font-semibold text-ink-900">
+                      学生提示词管理
+                    </h2>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-border p-4">
+                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                        搜索学生（姓名/学号）
+                      </label>
+                      <input
+                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                        value={studentSearch}
+                        onChange={(e) => {
+                          setStudentSearch(e.target.value);
+                          setStudentPage(1);
+                        }}
+                        placeholder="例如：张三 / 2024001"
+                      />
+
+                      <div className="mt-4 space-y-2 max-h-[320px] overflow-auto">
+                        {students.map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudentId(s.id);
+                              setStudentPromptDraft(s.aiAnalysisPrompt || "");
+                              setError(null);
+                            }}
+                            className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
+                              selectedStudentId === s.id
+                                ? "border-ink-900 bg-ink-50"
+                                : "border-border bg-white hover:bg-ink-50"
+                            }`}
+                          >
+                            <div className="font-semibold text-ink-900">
+                              {s.name}（{s.studentId}）
+                            </div>
+                            <div className="text-xs text-ink-700">
+                              班级：{s.class?.name || "未分配"}
+                            </div>
+                          </button>
+                        ))}
+
+                        {students.length === 0 && (
+                          <div className="text-sm text-ink-700">
+                            暂无学生数据
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={studentPage <= 1}
+                          onClick={() =>
+                            setStudentPage((p) => Math.max(1, p - 1))
+                          }
+                        >
+                          上一页
+                        </Button>
+                        <div className="text-xs text-ink-700">
+                          第 {studentPage} / {studentsTotalPages} 页
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={studentPage >= studentsTotalPages}
+                          onClick={() =>
+                            setStudentPage((p) =>
+                              Math.min(studentsTotalPages, p + 1),
+                            )
+                          }
+                        >
+                          下一页
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-border p-4">
+                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                        选中学生的 AI 分析提示词
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[220px] font-mono"
+                        value={studentPromptDraft}
+                        onChange={(e) => setStudentPromptDraft(e.target.value)}
+                        placeholder="为该学生设置个性化分析目标/侧重点（可为空）..."
+                        disabled={!selectedStudentId}
+                      />
+                      <p className="mt-1 text-xs text-ink-700">
+                        老师为某个学生单独配置，生成"AI分析"报告时会被拼接到提示词中。
+                      </p>
+                      <Button
+                        onClick={async () => {
+                          if (!selectedStudentId) return;
+                          setSavingStudentPrompt(true);
+                          setError(null);
+                          try {
+                            await updateStudentAiAnalysisPrompt(
+                              selectedStudentId,
+                              studentPromptDraft,
+                            );
+                            setStudents((prev) =>
+                              prev.map((s) =>
+                                s.id === selectedStudentId
+                                  ? {
+                                      ...s,
+                                      aiAnalysisPrompt: studentPromptDraft,
+                                    }
+                                  : s,
+                              ),
+                            );
+                            setError("学生提示词保存成功");
+                          } catch (err: unknown) {
+                            const axiosError = err as {
+                              response?: { data?: { message?: string } };
+                              message?: string;
+                            };
+                            setError(
+                              axiosError.response?.data?.message ||
+                                axiosError.message ||
+                                "保存学生提示词失败",
+                            );
+                          } finally {
+                            setSavingStudentPrompt(false);
+                          }
+                        }}
+                        disabled={savingStudentPrompt || !selectedStudentId}
+                        className={`mt-4 w-full ${
+                          gradingPromptTemplateChanged
+                            ? "bg-ink-900 hover:bg-ink-800 text-white"
+                            : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                        }`}
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        {savingStudentPrompt ? "保存中..." : "保存学生提示词"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
