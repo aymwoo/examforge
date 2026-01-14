@@ -19,7 +19,7 @@ import ExamLoginPage from "./pages/exam/ExamLoginPage";
 import ExamTakePage from "./pages/exam/ExamTakePage";
 import ExamGradingPage from "./pages/exams/ExamGradingPage";
 import HomePage from "./pages/HomePage";
-import UsersPage from "./pages/UsersPage";
+
 import ProfilePage from "./pages/ProfilePage";
 import DocsPage from "./pages/DocsPage";
 import AddQuestionsPage from "./pages/exams/AddQuestionsPage";
@@ -195,14 +195,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="users"
-                element={
-                  <ProtectedRoute requiredRole="ADMIN">
-                    <UsersPage />
-                  </ProtectedRoute>
-                }
-              />
+
               <Route path="profile" element={<ProfilePage />} />
               <Route path="docs" element={<DocsPage />} />
               <Route

@@ -11,14 +11,12 @@ import {
   ChevronDown,
   Home,
   HelpCircle,
-  UserCog,
 } from "lucide-react";
 import { getCurrentUser, hasRole, logout } from "../../utils/auth";
 
 export default function Layout() {
   const [user, setUser] = useState(() => getCurrentUser());
   const canAccessSettings = hasRole("TEACHER");
-  const canAccessUserManagement = hasRole("ADMIN");
 
   useEffect(() => {
     const syncUser = () => {
@@ -141,15 +139,7 @@ export default function Layout() {
                       </Link>
                     </>
                   )}
-                  {canAccessUserManagement && (
-                    <Link
-                      to="/users"
-                      className="flex items-center gap-2 hover:text-primary"
-                    >
-                      <UserCog className="h-4 w-4" />
-                      用户
-                    </Link>
-                  )}
+
                   <Link
                     to="/docs"
                     className="flex items-center gap-2 hover:text-primary"
