@@ -166,6 +166,7 @@ model ExamStudent {
   exam        Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
   student     Student?     @relation(fields: [studentId], references: [studentId])
   submissions Submission[]
+  aiAnalysisReports StudentAiAnalysisReport[]
 
   @@unique([examId, username])
   @@map("exam_students")

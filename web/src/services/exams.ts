@@ -12,6 +12,15 @@ export interface Exam {
   endTime?: string;
   createdAt: string;
   updatedAt: string;
+
+  createdBy?: string;
+  creator?: {
+    id: string;
+    name?: string | null;
+    username?: string | null;
+    role?: string;
+  } | null;
+
   examQuestions?: ExamQuestion[];
   submissionCount?: number;
   totalStudents?: number;

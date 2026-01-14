@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Plus, Copy, Trash2, Edit } from "lucide-react";
+import { Plus, Copy, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import { listExams, deleteExam, copyExam, type Exam } from "@/services/exams";
+import { listExams, deleteExam, copyExam } from "@/services/exams";
+import type { Exam } from "@/services/exams";
 import { getCurrentUser } from "@/utils/auth";
 
 export default function ExamsPage() {
@@ -59,22 +60,25 @@ export default function ExamsPage() {
       setSelectedExam(null);
       loadExams(page);
     } catch (err: any) {
-      alert(err.response?.data?.message || '删除失败');
+      alert(err.response?.data?.message || "删除失败");
     }
   };
 
   const handleCopyExam = async (exam: Exam) => {
     try {
-      const copiedExam = await copyExam(exam.id);
-      alert('考试复制成功！');
+      await copyExam(exam.id);
+      alert("考试复制成功！");
       loadExams(page);
     } catch (err: any) {
-      alert(err.response?.data?.message || '复制失败');
+      alert(err.response?.data?.message || "复制失败");
     }
   };
 
   const canDeleteExam = (exam: Exam) => {
-    return currentUser?.role === 'ADMIN' || exam.createdBy === currentUser?.id;
+    // API 返回可能没有 createdBy，优先使用 creator.id
+    return (
+      currentUser?.role === "ADMIN" || exam.creator?.id === currentUser?.id
+    );
   };
 
   const handlePageChange = (newPage: number) => {
@@ -178,27 +182,47 @@ export default function ExamsPage() {
                       <span>{exam.totalScore}</span>
                     </span>
                     <span className="flex items-center gap-1">
+                      <span className="font-semibold text-ink-900">
+                        题目数:
+                      </span>
+                      <span>{exam.examQuestions?.length ?? 0}</span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="font-semibold text-ink-900">
+                        学生数:
+                      </span>
+                      <span>{exam.totalStudents ?? 0}</span>
+                    </span>
+
+                    <span className="flex items-center gap-1">
                       <span className="font-semibold text-ink-900">状态:</span>
                       <span
                         className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${
                           exam.status === "PUBLISHED"
                             ? "bg-green-100 text-green-800"
                             : exam.status === "ARCHIVED"
-                            ? "bg-gray-100 text-gray-800"
-                            : "bg-yellow-100 text-yellow-800"
+                              ? "bg-gray-100 text-gray-800"
+                              : "bg-yellow-100 text-yellow-800"
                         }`}
                       >
-                        {exam.status === "PUBLISHED" ? "已发布" : 
-                         exam.status === "ARCHIVED" ? "已归档" : "草稿"}
+                        {exam.status === "PUBLISHED"
+                          ? "已发布"
+                          : exam.status === "ARCHIVED"
+                            ? "已归档"
+                            : "草稿"}
                       </span>
                     </span>
                     <span className="flex items-center gap-1 text-ink-700">
                       <span>创建者:</span>
-                      <span>{exam.creator?.name || exam.creator?.username || '未知'}</span>
+                      <span>
+                        {exam.creator?.name || exam.creator?.username || "未知"}
+                      </span>
                     </span>
                     <span className="flex items-center gap-1 text-ink-700">
                       <span>创建于:</span>
-                      <span>{new Date(exam.createdAt).toLocaleDateString("zh-CN")}</span>
+                      <span>
+                        {new Date(exam.createdAt).toLocaleDateString("zh-CN")}
+                      </span>
                     </span>
                   </div>
                 </div>
@@ -242,7 +266,9 @@ export default function ExamsPage() {
           confirmVariant="danger"
         >
           <p>确定要删除考试 "{selectedExam?.title}" 吗？</p>
-          <p className="text-red-600 text-sm mt-2">此操作将删除考试及其所有相关数据，且不可撤销。</p>
+          <p className="text-red-600 text-sm mt-2">
+            此操作将删除考试及其所有相关数据，且不可撤销。
+          </p>
         </Modal>
       </div>
     </div>

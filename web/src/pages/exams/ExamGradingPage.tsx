@@ -97,6 +97,8 @@ export default function ExamGradingPage() {
 
   const APPROVE_LIST_PREVIEW_COUNT = 10;
   const [error, setError] = useState<string | null>(null);
+  // 点击某个提交后，加载评分详情失败时，仅在右侧 Tab 区域提示
+  const [gradingLoadError, setGradingLoadError] = useState<string | null>(null);
   const [showAnswerModal, setShowAnswerModal] = useState(false);
 
   const [analysisLoading, setAnalysisLoading] = useState(false);
@@ -337,6 +339,7 @@ export default function ExamGradingPage() {
 
   const loadAISuggestions = async (submission: Submission) => {
     setGradingLoading(true);
+    setGradingLoadError(null);
     try {
       // 这个方法现在只是从数据库读取已存储的评分数据
       const response = await api.post(
@@ -358,7 +361,13 @@ export default function ExamGradingPage() {
       setManualScores(initialScores);
     } catch (err: any) {
       console.error("加载评分数据失败:", err);
-      setError("评分数据加载失败，可能需要重新提交考试");
+
+      // 保持在当前页面/Tab，不跳转，只在右侧区域提示
+      setAiSuggestions({});
+      setManualScores({});
+      setGradingLoadError(
+        err.response?.data?.message || "评分数据加载失败，可能需要重新提交考试",
+      );
     } finally {
       setGradingLoading(false);
     }
@@ -367,6 +376,8 @@ export default function ExamGradingPage() {
   const handleSubmissionSelect = (submission: Submission) => {
     setSelectedSubmission(submission);
     setAiSuggestions({});
+    setManualScores({});
+    setGradingLoadError(null);
 
     // 优先使用预存储的评分详情
     if (submission.gradingDetails && submission.gradingDetails.details) {
@@ -402,6 +413,7 @@ export default function ExamGradingPage() {
 
       setAiSuggestions(suggestions);
       setManualScores(initialScores);
+      setGradingLoadError(null);
       setGradingLoading(false);
     } else {
       // 如果没有预评分数据，尝试从API获取（兼容旧数据）
@@ -812,7 +824,27 @@ export default function ExamGradingPage() {
                   </div>
                 </div>
 
-                {Object.keys(aiSuggestions).length > 0 ? (
+                {gradingLoadError ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 mt-0.5" />
+                      <div>
+                        <div className="font-semibold">数据加载失败</div>
+                        <div className="mt-1">{gradingLoadError}</div>
+                        <div className="mt-3">
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              loadAISuggestions(selectedSubmission)
+                            }
+                          >
+                            重试加载
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : Object.keys(aiSuggestions).length > 0 ? (
                   <div className="space-y-6">
                     {/* 考试概览 */}
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
