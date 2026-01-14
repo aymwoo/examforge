@@ -365,9 +365,10 @@ export default function ExamGradingPage() {
       // 保持在当前页面/Tab，不跳转，只在右侧区域提示
       setAiSuggestions({});
       setManualScores({});
-      setGradingLoadError(
-        err.response?.data?.message || "评分数据加载失败，可能需要重新提交考试",
-      );
+      const errorMessage =
+        err.response?.data?.message || "评分数据加载失败，可能需要重新提交考试";
+      setGradingLoadError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setGradingLoading(false);
     }

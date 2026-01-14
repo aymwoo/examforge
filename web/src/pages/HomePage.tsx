@@ -14,6 +14,76 @@ import {
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
 
+interface StatsCardProps {
+  title: string;
+  value: string | number;
+  percentage?: string;
+  icon: React.ReactNode;
+  colorClass: "blue" | "green" | "orange" | "purple";
+  children?: React.ReactNode;
+}
+
+const colorMap = {
+  blue: {
+    bg: "bg-blue-50",
+    text: "text-blue-500",
+    border: "border-blue-50/50",
+  },
+  green: {
+    bg: "bg-green-50",
+    text: "text-green-500",
+    border: "border-green-50/50",
+  },
+  orange: {
+    bg: "bg-orange-50",
+    text: "text-orange-500",
+    border: "border-orange-50/50",
+  },
+  purple: {
+    bg: "bg-purple-50",
+    text: "text-purple-500",
+    border: "border-purple-50/50",
+  },
+};
+
+const StatsCard: React.FC<StatsCardProps> = ({
+  title,
+  value,
+  percentage,
+  icon,
+  colorClass,
+  children,
+}) => {
+  const colors = colorMap[colorClass];
+
+  return (
+    <div
+      className={`bg-white rounded-2xl p-6 relative overflow-hidden shadow-soft border ${colors.border} hover:shadow-lg transition-all duration-300 h-64 flex flex-col justify-between group`}
+    >
+      <div>
+        <div className="flex items-center gap-3 mb-2">
+          <div className={`p-2 ${colors.bg} rounded-lg ${colors.text}`}>
+            {icon}
+          </div>
+          <span className="font-semibold text-gray-700 text-lg">{title}</span>
+        </div>
+        <div className="flex items-end justify-between">
+          <div className="text-5xl font-bold text-gray-800 mt-2 ml-1">
+            {value}
+          </div>
+          {percentage && (
+            <span className={`${colors.text} text-sm font-bold mb-1`}>
+              {percentage}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-auto relative w-full z-10">{children}</div>
+    </div>
+  );
+};
+
 interface OngoingExam {
   id: string;
   title: string;
@@ -79,180 +149,142 @@ export default function HomePage() {
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* 统计卡片 */}
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-          {/* 正在进行 - 脉冲动画 */}
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 p-8 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-            <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full blur-lg"></div>
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-4 bg-white/15 rounded-3xl backdrop-blur-md border border-white/20 shadow-lg">
-                  <Clock className="h-7 w-7 text-white drop-shadow-sm" />
-                </div>
-                <div className="text-right">
-                  <p className="text-4xl font-black text-white mb-1 tracking-tight">
-                    {dashboardData?.ongoingExams || 0}
-                  </p>
-                  <p className="text-blue-100 text-sm font-semibold tracking-wide">
-                    正在进行
-                  </p>
-                </div>
-              </div>
-              {/* 考试试卷图标 */}
-              <div className="flex justify-center">
-                <div className="relative">
-                  <svg
-                    className="w-16 h-16 text-white/60"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
-                    <circle cx="8" cy="12" r="1" className="text-white/80" />
-                    <circle cx="8" cy="15" r="1" className="text-white/80" />
-                    <circle cx="8" cy="18" r="1" className="text-white/80" />
-                    <rect
-                      x="10"
-                      y="11.5"
-                      width="6"
-                      height="1"
-                      className="text-white/80"
-                    />
-                    <rect
-                      x="10"
-                      y="14.5"
-                      width="6"
-                      height="1"
-                      className="text-white/80"
-                    />
-                    <rect
-                      x="10"
-                      y="17.5"
-                      width="4"
-                      height="1"
-                      className="text-white/80"
-                    />
-                  </svg>
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          {/* 正在进行 */}
+          <StatsCard
+            title="正在进行"
+            value={dashboardData?.ongoingExams || 0}
+            icon={<Clock size={20} />}
+            colorClass="blue"
+          >
+            <svg
+              className="w-full h-16 -ml-2"
+              viewBox="0 0 200 60"
+              fill="none"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M0,50 Q25,45 50,35 T100,25 T150,15 T200,5"
+                stroke="#3b82f6"
+                strokeWidth="2"
+                fill="none"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                d="M0,50 Q25,45 50,35 T100,25 T150,15 T200,5 L200,60 L0,60 Z"
+                fill="url(#blueGradient)"
+                opacity="0.3"
+              />
+              <defs>
+                <linearGradient
+                  id="blueGradient"
+                  x1="0%"
+                  y1="0%"
+                  x2="0%"
+                  y2="100%"
+                >
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </StatsCard>
 
-          {/* 参与学生 - 用户头像堆叠 */}
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 p-8 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-            <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full blur-lg"></div>
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-4 bg-white/15 rounded-3xl backdrop-blur-md border border-white/20 shadow-lg">
-                  <Users className="h-7 w-7 text-white drop-shadow-sm" />
-                </div>
-                <div className="text-right">
-                  <p className="text-4xl font-black text-white mb-1 tracking-tight">
-                    {dashboardData?.totalStudents || 0}
-                  </p>
-                  <p className="text-emerald-100 text-sm font-semibold tracking-wide">
-                    参与学生
-                  </p>
-                </div>
+          {/* 参与学生 */}
+          <StatsCard
+            title="参与学生"
+            value={dashboardData?.totalStudents || 0}
+            percentage="80%"
+            icon={<Users size={20} />}
+            colorClass="green"
+          >
+            <div className="mb-2">
+              <div className="w-full h-2 bg-green-100 rounded-full mb-4 relative overflow-hidden">
+                <div className="absolute left-0 top-0 bottom-0 bg-green-500 w-[80%] rounded-full"></div>
               </div>
-              {/* 用户头像堆叠效果 */}
-              <div className="flex justify-center">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <div
-                      key={i}
-                      className={`w-8 h-8 bg-white/30 rounded-full border-2 border-white/50 flex items-center justify-center text-xs text-white font-semibold animate-bounce`}
-                      style={{ animationDelay: `${i * 0.1}s` }}
-                    >
-                      {i}
-                    </div>
-                  ))}
-                  <div className="w-8 h-8 bg-white/20 rounded-full border-2 border-white/30 flex items-center justify-center text-xs text-white">
-                    +
-                  </div>
+              <div className="flex justify-between items-center text-xs font-medium text-gray-400">
+                <div className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center shadow-sm">
+                  1
+                </div>
+                <div className="w-6 h-6 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
+                  2
+                </div>
+                <div className="w-6 h-6 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
+                  3
+                </div>
+                <div className="w-6 h-6 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
+                  4
+                </div>
+                <div className="w-6 h-6 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
+                  5
                 </div>
               </div>
             </div>
-          </div>
+          </StatsCard>
 
-          {/* 已提交 - 检查标记动画 */}
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 p-8 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-            <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full blur-lg"></div>
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-4 bg-white/15 rounded-3xl backdrop-blur-md border border-white/20 shadow-lg">
-                  <FileText className="h-7 w-7 text-white drop-shadow-sm" />
-                </div>
-                <div className="text-right">
-                  <p className="text-4xl font-black text-white mb-1 tracking-tight">
-                    {dashboardData?.totalSubmissions || 0}
-                  </p>
-                  <p className="text-amber-100 text-sm font-semibold tracking-wide">
-                    已提交
-                  </p>
-                </div>
-              </div>
-              {/* 检查标记动画 */}
-              <div className="flex justify-center">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-6 h-6 text-white animate-pulse"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={3}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-white/40 rounded-full animate-ping"></div>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* 已提交 */}
+          <StatsCard
+            title="已提交"
+            value={dashboardData?.totalSubmissions || 0}
+            icon={<FileText size={20} />}
+            colorClass="orange"
+          >
+            <svg
+              className="w-full h-16 -ml-2"
+              viewBox="0 0 200 60"
+              fill="none"
+              preserveAspectRatio="none"
+            >
+              <path
+                d="M0,45 L20,40 L35,48 L50,35 L65,42 L80,30 L95,38 L110,25 L125,32 L140,20 L155,28 L170,15 L185,22 L200,10"
+                stroke="#f97316"
+                strokeWidth="2"
+                fill="none"
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                d="M0,45 L20,40 L35,48 L50,35 L65,42 L80,30 L95,38 L110,25 L125,32 L140,20 L155,28 L170,15 L185,22 L200,10 L200,60 L0,60 Z"
+                fill="url(#orangeGradient)"
+                opacity="0.3"
+              />
+              <defs>
+                <linearGradient
+                  id="orangeGradient"
+                  x1="0%"
+                  y1="0%"
+                  x2="0%"
+                  y2="100%"
+                >
+                  <stop offset="0%" stopColor="#f97316" />
+                  <stop offset="100%" stopColor="#f97316" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </StatsCard>
 
-          {/* 题目数量 - 书本堆叠效果 */}
-          <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-500 via-violet-600 to-violet-700 p-8 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-105 cursor-pointer">
-            <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
-            <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full blur-lg"></div>
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="p-4 bg-white/15 rounded-3xl backdrop-blur-md border border-white/20 shadow-lg">
-                  <BookOpen className="h-7 w-7 text-white drop-shadow-sm" />
-                </div>
-                <div className="text-right">
-                  <p className="text-4xl font-black text-white mb-1 tracking-tight">
-                    {dashboardData?.totalQuestions || 0}
-                  </p>
-                  <p className="text-violet-100 text-sm font-semibold tracking-wide">
-                    题目数量
-                  </p>
-                </div>
+          {/* 题目数量 */}
+          <StatsCard
+            title="题目数量"
+            value={dashboardData?.totalQuestions || 0}
+            percentage="90%"
+            icon={<BookOpen size={20} />}
+            colorClass="purple"
+          >
+            <div className="mb-8 w-full">
+              <div className="h-4 w-full bg-purple-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-500 rounded-full"
+                  style={{ width: "90%" }}
+                ></div>
               </div>
-              {/* 书本堆叠效果 */}
-              <div className="flex justify-center">
-                <div className="relative">
-                  <div className="w-10 h-2 bg-white/30 rounded-sm transform rotate-2"></div>
-                  <div className="w-10 h-2 bg-white/40 rounded-sm transform -rotate-1 -mt-1"></div>
-                  <div className="w-10 h-2 bg-white/50 rounded-sm transform rotate-1 -mt-1"></div>
-                  <div className="w-10 h-2 bg-white/60 rounded-sm -mt-1"></div>
-                </div>
-              </div>
-              <Button
-                onClick={() => navigate("/questions")}
-                className="mt-4 w-full bg-white/20 hover:bg-white/30 text-white border-0 backdrop-blur-md text-sm py-2 font-semibold transition-all duration-300 hover:scale-105"
-              >
-                查看题库
-              </Button>
             </div>
-          </div>
+            <Button
+              onClick={() => navigate("/questions")}
+              className="w-full bg-purple-50 hover:bg-purple-100 text-purple-600 border-0 text-sm py-2 font-semibold transition-all duration-300"
+            >
+              查看题库
+            </Button>
+          </StatsCard>
         </div>
 
         {/* 产品特性介绍 */}
