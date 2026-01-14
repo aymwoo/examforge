@@ -1018,235 +1018,238 @@ export default function SettingsPage() {
                     );
                   })()}
                 </div>
-                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-                  <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-ink-900">
-                      试卷生成提示词配置
-                    </h2>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleInsertJsonStructure}
-                        variant="outline"
-                        size="sm"
-                      >
-                        插入JSON结构
-                      </Button>
-                      <Button
-                        onClick={handleResetToDefault}
-                        variant="outline"
-                        size="sm"
-                      >
-                        重置默认
-                      </Button>
+                <div className="space-y-8">
+                  <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+                    <div className="mb-6 flex items-center justify-between">
+                      <h2 className="text-lg font-semibold text-ink-900">
+                        试卷生成提示词配置
+                      </h2>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleInsertJsonStructure}
+                          variant="outline"
+                          size="sm"
+                        >
+                          插入JSON结构
+                        </Button>
+                        <Button
+                          onClick={handleResetToDefault}
+                          variant="outline"
+                          size="sm"
+                        >
+                          重置默认
+                        </Button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-ink-900">
-                      提示词模板
-                    </label>
-                    <textarea
-                      className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
-                      value={settings.promptTemplate}
-                      onChange={(e) =>
-                        handleInputChange("promptTemplate", e.target.value)
-                      }
-                      placeholder="输入AI提示词模板..."
-                    />
-                    <p className="mt-1 text-xs text-ink-700">
-                      提示词模板用于指导AI如何根据试卷图像生成题目。支持变量占位符。此为您的个人设置。
-                    </p>
-                  </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                        提示词模板
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
+                        value={settings.promptTemplate}
+                        onChange={(e) =>
+                          handleInputChange("promptTemplate", e.target.value)
+                        }
+                        placeholder="输入AI提示词模板..."
+                      />
+                      <p className="mt-1 text-xs text-ink-700">
+                        提示词模板用于指导AI如何根据试卷图像生成题目。支持变量占位符。此为您的个人设置。
+                      </p>
+                    </div>
 
-                  <Button
-                    onClick={handleSavePromptTemplate}
-                    disabled={savingPromptTemplate || !promptTemplateChanged}
-                    className={`mt-4 w-full ${
-                      promptTemplateChanged
-                        ? "bg-ink-900 hover:bg-ink-800 text-white"
-                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                    }`}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {savingPromptTemplate ? "保存中..." : "保存提示词设置"}
-                  </Button>
-                </div>
-
-                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-                  <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-ink-900">
-                      AI评分提示词配置
-                    </h2>
                     <Button
-                      onClick={handleInsertGradingVariables}
-                      variant="outline"
-                      size="sm"
+                      onClick={handleSavePromptTemplate}
+                      disabled={savingPromptTemplate || !promptTemplateChanged}
+                      className={`mt-4 w-full ${
+                        promptTemplateChanged
+                          ? "bg-ink-900 hover:bg-ink-800 text-white"
+                          : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                      }`}
                     >
-                      插入支持变量
+                      <Save className="h-4 w-4 mr-2" />
+                      {savingPromptTemplate ? "保存中..." : "保存提示词设置"}
                     </Button>
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-ink-900">
-                      评分提示词模板
-                    </label>
-                    <textarea
-                      className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
-                      value={settings.gradingPromptTemplate}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "gradingPromptTemplate",
-                          e.target.value,
-                        )
+                  <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+                    <div className="mb-6 flex items-center justify-between">
+                      <h2 className="text-lg font-semibold text-ink-900">
+                        AI评分提示词配置
+                      </h2>
+                      <Button
+                        onClick={handleInsertGradingVariables}
+                        variant="outline"
+                        size="sm"
+                      >
+                        插入支持变量
+                      </Button>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                        评分提示词模板
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
+                        value={settings.gradingPromptTemplate}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "gradingPromptTemplate",
+                            e.target.value,
+                          )
+                        }
+                        placeholder="输入AI评分提示词模板..."
+                      />
+                      <p className="mt-1 text-xs text-ink-700">
+                        评分提示词模板用于指导AI如何评分学生答案。支持变量：
+                        {"{questionContent}"}, {"{questionType}"},{" "}
+                        {"{referenceAnswer}"}, {"{studentAnswer}"},{" "}
+                        {"{maxScore}"}
+                        。此为您的个人设置。
+                      </p>
+                    </div>
+
+                    <Button
+                      onClick={handleSaveGradingPromptTemplate}
+                      disabled={
+                        savingGradingPromptTemplate ||
+                        !gradingPromptTemplateChanged
                       }
-                      placeholder="输入AI评分提示词模板..."
-                    />
-                    <p className="mt-1 text-xs text-ink-700">
-                      评分提示词模板用于指导AI如何评分学生答案。支持变量：
-                      {"{questionContent}"}, {"{questionType}"},{" "}
-                      {"{referenceAnswer}"}, {"{studentAnswer}"}, {"{maxScore}"}
-                      。此为您的个人设置。
-                    </p>
+                      className={`mt-4 w-full ${
+                        gradingPromptTemplateChanged
+                          ? "bg-ink-900 hover:bg-ink-800 text-white"
+                          : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                      }`}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {savingGradingPromptTemplate
+                        ? "保存中..."
+                        : "保存评分提示词设置"}
+                    </Button>
                   </div>
 
-                  <Button
-                    onClick={handleSaveGradingPromptTemplate}
-                    disabled={
-                      savingGradingPromptTemplate ||
-                      !gradingPromptTemplateChanged
-                    }
-                    className={`mt-4 w-full ${
-                      gradingPromptTemplateChanged
-                        ? "bg-ink-900 hover:bg-ink-800 text-white"
-                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                    }`}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {savingGradingPromptTemplate
-                      ? "保存中..."
-                      : "保存评分提示词设置"}
-                  </Button>
-                </div>
-
-                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-                  <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-ink-900">
-                      评分管理 AI分析提示词配置
-                    </h2>
-                    <Button
-                      onClick={() => {
-                        const variables = `
+                  <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+                    <div className="mb-6 flex items-center justify-between">
+                      <h2 className="text-lg font-semibold text-ink-900">
+                        评分管理 AI分析提示词配置
+                      </h2>
+                      <Button
+                        onClick={() => {
+                          const variables = `
 支持的变量：
 - {studentLabel} - 学生显示名/账号
 - {studentPrompt} - 学生个性化提示词（来自学生设置）
 - {payload} - 评分详情JSON（包含考试、学生、得分等）`;
 
-                        setSettings((prev) => ({
-                          ...prev,
-                          studentAiAnalysisPromptTemplate:
-                            prev.studentAiAnalysisPromptTemplate + variables,
-                        }));
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      插入支持变量
-                    </Button>
-                  </div>
+                          setSettings((prev) => ({
+                            ...prev,
+                            studentAiAnalysisPromptTemplate:
+                              prev.studentAiAnalysisPromptTemplate + variables,
+                          }));
+                        }}
+                        variant="outline"
+                        size="sm"
+                      >
+                        插入支持变量
+                      </Button>
+                    </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-ink-900">
-                      学生个人AI分析提示词模板
-                    </label>
-                    <textarea
-                      className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
-                      value={settings.studentAiAnalysisPromptTemplate}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "studentAiAnalysisPromptTemplate",
-                          e.target.value,
-                        )
-                      }
-                      placeholder="输入评分管理-学生AI分析提示词模板..."
-                    />
-                    <p className="mt-1 text-xs text-ink-700">
-                      用于评分管理页面对单个学生生成AI分析报告。此为您的个人设置。
-                    </p>
-                  </div>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                        学生个人AI分析提示词模板
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
+                        value={settings.studentAiAnalysisPromptTemplate}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "studentAiAnalysisPromptTemplate",
+                            e.target.value,
+                          )
+                        }
+                        placeholder="输入评分管理-学生AI分析提示词模板..."
+                      />
+                      <p className="mt-1 text-xs text-ink-700">
+                        用于评分管理页面对单个学生生成AI分析报告。此为您的个人设置。
+                      </p>
+                    </div>
 
-                  <Button
-                    onClick={handleSaveStudentAiAnalysisPromptTemplate}
-                    disabled={
-                      savingStudentAiAnalysisPromptTemplate ||
-                      !studentAiAnalysisPromptTemplateChanged
-                    }
-                    className={`mt-4 w-full ${
-                      studentAiAnalysisPromptTemplateChanged
-                        ? "bg-ink-900 hover:bg-ink-800 text-white"
-                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                    }`}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {savingStudentAiAnalysisPromptTemplate
-                      ? "保存中..."
-                      : "保存评分管理AI提示词设置"}
-                  </Button>
-                </div>
-
-                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-                  <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-ink-900">
-                      分析报告提示词配置
-                    </h2>
                     <Button
-                      onClick={handleInsertAnalysisVariables}
-                      variant="outline"
-                      size="sm"
+                      onClick={handleSaveStudentAiAnalysisPromptTemplate}
+                      disabled={
+                        savingStudentAiAnalysisPromptTemplate ||
+                        !studentAiAnalysisPromptTemplateChanged
+                      }
+                      className={`mt-4 w-full ${
+                        studentAiAnalysisPromptTemplateChanged
+                          ? "bg-ink-900 hover:bg-ink-800 text-white"
+                          : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                      }`}
                     >
-                      插入支持变量
+                      <Save className="h-4 w-4 mr-2" />
+                      {savingStudentAiAnalysisPromptTemplate
+                        ? "保存中..."
+                        : "保存评分管理AI提示词设置"}
                     </Button>
                   </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold text-ink-900">
-                      分析报告提示词模板
-                    </label>
-                    <textarea
-                      className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
-                      value={settings.analysisPromptTemplate}
-                      onChange={(e) =>
-                        handleInputChange(
-                          "analysisPromptTemplate",
-                          e.target.value,
-                        )
-                      }
-                      placeholder="输入AI分析报告提示词模板..."
-                    />
-                    <p className="mt-1 text-xs text-ink-700">
-                      分析报告提示词模板用于指导AI如何生成考试分析报告。支持变量：
-                      {"{examTitle}"}, {"{examDescription}"}, {"{scoreStats}"},{" "}
-                      {"{questionStats}"}, {"{knowledgePointStats}"}
-                      等。此为您的个人设置。
-                    </p>
-                  </div>
+                  <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+                    <div className="mb-6 flex items-center justify-between">
+                      <h2 className="text-lg font-semibold text-ink-900">
+                        分析报告提示词配置
+                      </h2>
+                      <Button
+                        onClick={handleInsertAnalysisVariables}
+                        variant="outline"
+                        size="sm"
+                      >
+                        插入支持变量
+                      </Button>
+                    </div>
 
-                  <Button
-                    onClick={handleSaveAnalysisPromptTemplate}
-                    disabled={
-                      savingAnalysisPromptTemplate ||
-                      !analysisPromptTemplateChanged
-                    }
-                    className={`mt-4 w-full ${
-                      analysisPromptTemplateChanged
-                        ? "bg-ink-900 hover:bg-ink-800 text-white"
-                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                    }`}
-                  >
-                    <Save className="h-4 w-4 mr-2" />
-                    {savingAnalysisPromptTemplate
-                      ? "保存中..."
-                      : "保存分析提示词设置"}
-                  </Button>
+                    <div>
+                      <label className="mb-2 block text-sm font-semibold text-ink-900">
+                        分析报告提示词模板
+                      </label>
+                      <textarea
+                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
+                        value={settings.analysisPromptTemplate}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "analysisPromptTemplate",
+                            e.target.value,
+                          )
+                        }
+                        placeholder="输入AI分析报告提示词模板..."
+                      />
+                      <p className="mt-1 text-xs text-ink-700">
+                        分析报告提示词模板用于指导AI如何生成考试分析报告。支持变量：
+                        {"{examTitle}"}, {"{examDescription}"}, {"{scoreStats}"}
+                        , {"{questionStats}"}, {"{knowledgePointStats}"}
+                        等。此为您的个人设置。
+                      </p>
+                    </div>
+
+                    <Button
+                      onClick={handleSaveAnalysisPromptTemplate}
+                      disabled={
+                        savingAnalysisPromptTemplate ||
+                        !analysisPromptTemplateChanged
+                      }
+                      className={`mt-4 w-full ${
+                        analysisPromptTemplateChanged
+                          ? "bg-ink-900 hover:bg-ink-800 text-white"
+                          : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                      }`}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {savingAnalysisPromptTemplate
+                        ? "保存中..."
+                        : "保存分析提示词设置"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
