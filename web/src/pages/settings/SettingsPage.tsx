@@ -1,25 +1,18 @@
 import { useEffect, useState } from "react";
-import { Save, Plus, Check, Lock, Trash2, Settings, Users, MessageSquare, Cpu } from "lucide-react";
+import { Save, Plus, Lock, Trash2, Settings, Users, MessageSquare, Cpu, Star, Globe, User, Edit, Zap } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import {
-  getSettings,
   getUserSettings,
-  updateSetting,
   updateUserSetting,
-  getProviders,
   getJsonStructureTemplate,
-  createAIProvider,
-  getAIProviderDetails,
-  deleteAIProvider,
-  updateAIProvider,
+  getDefaultProviderId,
+  setDefaultProvider,
   type SystemSettings,
-  type AIModelConfig,
 } from "@/services/settings";
 import { listStudentsForPromptManagement } from "@/services/students";
 import { testAIConnection } from "@/services/settings";
 import { getCurrentUser } from "@/utils/auth";
-import AddAIProviderModal from "@/components/modals/AddAIProviderModal";
 import api from "@/services/api";
 
 // User interface for Users tab
@@ -67,13 +60,8 @@ export default function SettingsPage() {
     }>
   >([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-  const [providers, setProviders] = useState<AIModelConfig[]>([]);
-  const [selectedProvider, setSelectedProvider] = useState<string>("");
-  const [editingProvider, setEditingProvider] = useState<AIModelConfig | null>(null);
-  const [hasChanges, setHasChanges] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   const [savingPromptTemplate, setSavingPromptTemplate] = useState(false);
   const [savingGradingPromptTemplate, setSavingGradingPromptTemplate] = useState(false);
   const [savingAnalysisPromptTemplate, setSavingAnalysisPromptTemplate] = useState(false);
@@ -82,8 +70,6 @@ export default function SettingsPage() {
   const [gradingPromptTemplateChanged, setGradingPromptTemplateChanged] = useState(false);
   const [analysisPromptTemplateChanged, setAnalysisPromptTemplateChanged] = useState(false);
   const [studentAiAnalysisPromptTemplateChanged, setStudentAiAnalysisPromptTemplateChanged] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [showAddProviderModal, setShowAddProviderModal] = useState(false);
 
   // Users tab state
   const [users, setUsers] = useState<User[]>([]);
@@ -103,9 +89,7 @@ export default function SettingsPage() {
     setLoading(true);
     setError(null);
     try {
-      const [settingsData, userSettingsData, providersData] = await Promise.all(
-        [getSettings(), getUserSettings(), getProviders()],
-      );
+      const userSettingsData = await getUserSettings();
       setSettings({ ...userSettingsData });
 
       if (!userSettingsData.analysisPromptTemplate) {
@@ -171,19 +155,6 @@ export default function SettingsPage() {
 {payload}`;
         setSettings((prev) => ({ ...prev, studentAiAnalysisPromptTemplate: defaultStudentAiAnalysisPrompt }));
       }
-
-      setProviders(providersData);
-      setSelectedProvider(settingsData.aiProvider);
-
-      const currentProvider = providersData.find((p) => p.id === settingsData.aiProvider);
-      if (currentProvider) {
-        setEditingProvider({
-          ...currentProvider,
-          apiKey: settingsData.aiApiKey,
-          baseUrl: settingsData.aiBaseUrl,
-          model: settingsData.aiModel,
-        });
-      }
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
       setError(axiosError.response?.data?.message || axiosError.message || "加载设置失败");
@@ -237,89 +208,6 @@ export default function SettingsPage() {
       loadUsers();
     }
   }, [activeTab, isAdmin]);
-
-  // AI Provider handlers
-  const handleProviderSelect = (providerId: string) => {
-    setSelectedProvider(providerId);
-    const provider = providers.find((p) => p.id === providerId);
-    if (provider) {
-      const isSystemProvider = ["gpt-4", "gpt-3.5-turbo", "qwen-turbo", "qwen-plus", "qwen-max"].includes(providerId);
-      if (isSystemProvider) {
-        setEditingProvider({
-          ...provider,
-          apiKey: providerId === settings.aiProvider ? settings.aiApiKey : "",
-          baseUrl: providerId === settings.aiProvider ? settings.aiBaseUrl : provider.defaultBaseUrl || "",
-          model: providerId === settings.aiProvider ? settings.aiModel : provider.defaultModel || "",
-        });
-      } else {
-        getAIProviderDetails(providerId)
-          .then((details) => {
-            setEditingProvider({
-              ...provider,
-              apiKey: details.apiKey,
-              baseUrl: details.baseUrl || provider.defaultBaseUrl || "",
-              model: details.model || provider.defaultModel || "",
-            });
-          })
-          .catch((err) => {
-            console.error("Failed to load provider details:", err);
-            setEditingProvider({
-              ...provider,
-              apiKey: "",
-              baseUrl: provider.defaultBaseUrl || "",
-              model: provider.defaultModel || "",
-            });
-          });
-      }
-    }
-    setHasChanges(false);
-  };
-
-  const handleProviderFieldChange = (field: string, value: string) => {
-    if (editingProvider) {
-      setEditingProvider((prev) => (prev ? { ...prev, [field]: value } : null));
-      setHasChanges(true);
-    }
-  };
-
-  const handleSaveProvider = async () => {
-    if (!editingProvider) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const isSystemProvider = ["gpt-4", "gpt-3.5-turbo", "qwen-turbo", "qwen-plus", "qwen-max"].includes(selectedProvider);
-      if (isSystemProvider) {
-        await updateSetting("AI_PROVIDER", selectedProvider);
-        await updateSetting("AI_API_KEY", editingProvider.apiKey || "");
-        await updateSetting("AI_BASE_URL", editingProvider.baseUrl || "");
-        await updateSetting("AI_MODEL", editingProvider.model || "");
-      } else {
-        await updateSetting("AI_PROVIDER", selectedProvider);
-        await updateSetting("AI_API_KEY", "");
-        await updateSetting("AI_BASE_URL", "");
-        await updateSetting("AI_MODEL", "");
-        const originalProvider = providers.find((p) => p.id === selectedProvider);
-        if (originalProvider && editingProvider.name !== originalProvider.name) {
-          await updateAIProvider(selectedProvider, { name: editingProvider.name });
-        }
-      }
-      setSettings((prev) => ({
-        ...prev,
-        aiProvider: selectedProvider,
-        aiApiKey: isSystemProvider ? editingProvider.apiKey || "" : "",
-        aiBaseUrl: isSystemProvider ? editingProvider.baseUrl || "" : "",
-        aiModel: isSystemProvider ? editingProvider.model || "" : "",
-      }));
-      setProviders((prev) => prev.map((p) => p.id === selectedProvider ? { ...p, name: editingProvider.name } : p));
-      setHasChanges(false);
-      setError("AI Provider 设置保存成功");
-    } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
-      setError(axiosError.response?.data?.message || axiosError.message || "保存设置失败");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleSavePromptTemplate = async () => {
     setSavingPromptTemplate(true);
@@ -428,23 +316,6 @@ export default function SettingsPage() {
     setSettings((prev) => ({ ...prev, promptTemplate: defaultTemplate }));
   };
 
-  const handleTestAIConnection = async () => {
-    if (!editingProvider?.apiKey) {
-      setError("请先配置 API Key");
-      return;
-    }
-    setTestResult(null);
-    try {
-      const result = await testAIConnection("Hello, please respond with just 'Connection successful!'");
-      setTestResult(`AI 连接测试成功！AI响应: ${result.response}`);
-    } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
-      const errorMessage = axiosError.response?.data?.message || axiosError.message || "AI 连接测试失败";
-      setError(errorMessage);
-      setTestResult(`测试失败: ${errorMessage}`);
-    }
-  };
-
   const handleInsertGradingVariables = () => {
     const variables = `
 支持的变量：
@@ -472,33 +343,6 @@ export default function SettingsPage() {
 - {questionStats} - 题目统计数据
 - {knowledgePointStats} - 知识点统计数据`;
     setSettings((prev) => ({ ...prev, analysisPromptTemplate: prev.analysisPromptTemplate + variables }));
-  };
-
-  const handleCreateAIProvider = async (providerData: {
-    name: string;
-    apiKey: string;
-    baseUrl: string;
-    model: string;
-    isGlobal?: boolean;
-  }) => {
-    const createdProvider = await createAIProvider(providerData);
-    await loadSettings();
-    handleProviderSelect(createdProvider.id);
-  };
-
-  const handleDeleteAIProvider = async (providerId: string) => {
-    if (!confirm("确定要删除这个 AI Provider 吗？此操作不可撤销。")) return;
-    try {
-      await deleteAIProvider(providerId);
-      await loadSettings();
-      if (selectedProvider === providerId) {
-        setSelectedProvider("");
-        setEditingProvider(null);
-      }
-      setError("AI Provider 删除成功");
-    } catch (err: any) {
-      setError(err.response?.data?.message || err.message || "删除失败");
-    }
   };
 
   // User management handlers
@@ -623,23 +467,7 @@ export default function SettingsPage() {
           )}
 
           {!loading && activeTab === "ai-provider" && (
-            <AIProviderTab
-              settings={settings}
-              providers={providers}
-              selectedProvider={selectedProvider}
-              editingProvider={editingProvider}
-              hasChanges={hasChanges}
-              saving={saving}
-              testResult={testResult}
-              isTeacher={isTeacher}
-              currentUser={currentUser}
-              onProviderSelect={handleProviderSelect}
-              onProviderFieldChange={handleProviderFieldChange}
-              onSaveProvider={handleSaveProvider}
-              onTestAIConnection={handleTestAIConnection}
-              onDeleteAIProvider={handleDeleteAIProvider}
-              onShowAddProviderModal={() => setShowAddProviderModal(true)}
-            />
+            <AIProviderTab />
           )}
 
           {!loading && activeTab === "prompts" && (
@@ -684,12 +512,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <AddAIProviderModal
-        isOpen={showAddProviderModal}
-        onClose={() => setShowAddProviderModal(false)}
-        onSave={handleCreateAIProvider}
-        userRole={currentUser?.role || "TEACHER"}
-      />
+
 
       {/* User Modal */}
       <Modal
@@ -772,196 +595,423 @@ export default function SettingsPage() {
   );
 }
 
+// AI Provider interface for the tab
+interface AIProviderItem {
+  id: string;
+  name: string;
+  apiKey: string;
+  baseUrl?: string;
+  model: string;
+  isGlobal: boolean;
+  isActive: boolean;
+  createdBy?: string;
+  creator?: {
+    id: string;
+    name: string;
+    username: string;
+  };
+  createdAt: string;
+}
+
 // AI Provider Tab Component
-function AIProviderTab({
-  settings, providers, selectedProvider, editingProvider, hasChanges, saving, testResult, isTeacher, currentUser,
-  onProviderSelect, onProviderFieldChange, onSaveProvider, onTestAIConnection, onDeleteAIProvider, onShowAddProviderModal
-}: any) {
-  const isSystemProvider = (id: string) => ["gpt-4", "gpt-3.5-turbo", "qwen-turbo", "qwen-plus", "qwen-max"].includes(id);
-  const isProviderEditable = editingProvider && (!isTeacher || !isSystemProvider(editingProvider.id || ""));
+function AIProviderTab() {
+  const [providers, setProviders] = useState<AIProviderItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<AIProviderItem | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    apiKey: '',
+    baseUrl: '',
+    model: '',
+    isGlobal: false,
+    isActive: true,
+  });
+  const [defaultProviderId, setDefaultProviderIdState] = useState<string | null>(null);
+
+  const currentUser = getCurrentUser();
+  const userRole = currentUser?.role || 'TEACHER';
+
+  const loadProviders = async () => {
+    try {
+      const [providersResponse, defaultId] = await Promise.all([
+        api.get('/api/ai-providers'),
+        getDefaultProviderId().catch(() => null),
+      ]);
+      setProviders(providersResponse.data);
+      setDefaultProviderIdState(defaultId);
+    } catch (error) {
+      console.error('加载AI Provider失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadProviders();
+  }, []);
+
+  const canEditProvider = (provider: AIProviderItem): boolean => {
+    if (userRole === 'ADMIN') return true;
+    if (provider.isGlobal) return false;
+    return provider.createdBy === currentUser?.id;
+  };
+
+  const canDeleteProvider = (provider: AIProviderItem): boolean => {
+    if (userRole === 'ADMIN') return true;
+    if (provider.isGlobal) return false;
+    return provider.createdBy === currentUser?.id;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingProvider) {
+        if (!canEditProvider(editingProvider)) {
+          alert('您没有权限编辑此Provider');
+          return;
+        }
+        await api.patch(`/api/ai-providers/${editingProvider.id}`, formData);
+      } else {
+        await api.post('/api/ai-providers', formData);
+      }
+      setShowModal(false);
+      setEditingProvider(null);
+      resetForm();
+      loadProviders();
+    } catch (error: any) {
+      alert('操作失败: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ name: '', apiKey: '', baseUrl: '', model: '', isGlobal: false, isActive: true });
+    setTestResult(null);
+  };
+
+  const handleTestAIConnection = async () => {
+    const apiKeyInput = document.querySelector('input[type="password"]') as HTMLInputElement;
+    const currentApiKey = apiKeyInput?.value || '';
+    if (!currentApiKey.trim()) {
+      setTestResult("请先输入 API Key");
+      return;
+    }
+    setTestLoading(true);
+    setTestResult(null);
+    try {
+      const result = await testAIConnection("Hello, please respond with just 'Connection successful!'");
+      setTestResult(`✅ AI 连接测试成功！AI响应: ${result.response}`);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || "连接测试失败";
+      setTestResult(`❌ ${errorMessage}`);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  const handleEdit = (provider: AIProviderItem) => {
+    if (!canEditProvider(provider)) {
+      alert('您没有权限编辑此Provider');
+      return;
+    }
+    setEditingProvider(provider);
+    setFormData({
+      name: provider.name,
+      apiKey: provider.apiKey,
+      baseUrl: provider.baseUrl || '',
+      model: provider.model,
+      isGlobal: provider.isGlobal,
+      isActive: provider.isActive,
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (provider: AIProviderItem) => {
+    if (!canDeleteProvider(provider)) {
+      alert('您没有权限删除此Provider');
+      return;
+    }
+    if (!confirm(`确定要删除AI Provider "${provider.name}" 吗？`)) return;
+    try {
+      await api.delete(`/api/ai-providers/${provider.id}`);
+      loadProviders();
+    } catch (error: any) {
+      alert('删除失败: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleSetDefault = async (provider: AIProviderItem) => {
+    if (userRole !== 'ADMIN') {
+      alert('只有管理员可以设置系统默认Provider');
+      return;
+    }
+    if (!confirm(`确定要将 "${provider.name}" 设为系统默认AI Provider吗？`)) return;
+    try {
+      const result = await setDefaultProvider(provider.id);
+      alert(result.message);
+      loadProviders();
+    } catch (error: any) {
+      alert('设置失败: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="rounded-3xl border border-border bg-white p-12 text-center shadow-soft">
+        <p className="text-ink-700">加载中...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-ink-900">AI Provider 配置</h2>
-        <Button variant="outline" size="sm" onClick={onShowAddProviderModal}>
-          <Plus className="h-4 w-4 mr-2" />新增 Provider
-        </Button>
-      </div>
-
-      <div className="mb-4 rounded-xl border border-gray-300 bg-gray-50 p-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <Lock className="h-4 w-4 text-gray-600" />
-              <div className="text-sm font-medium text-gray-800">当前系统默认 AI Provider</div>
-            </div>
-            <div className="text-xs text-gray-600 mt-1">
-              {providers.find((p: any) => p.id === settings.aiProvider)?.name || settings.aiProvider}
-              {settings.aiModel && ` (${settings.aiModel})`}
-            </div>
+    <>
+      <div className="rounded-3xl border border-border bg-white shadow-soft">
+        <div className="p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-ink-900">AI Provider 列表</h2>
+            <Button variant="outline" size="sm" onClick={() => { resetForm(); setEditingProvider(null); setShowModal(true); }}>
+              <Plus className="h-4 w-4 mr-2" />添加 Provider
+            </Button>
           </div>
-          <div className="text-xs text-gray-500 bg-gray-200 px-2 py-1 rounded-md">系统配置</div>
-        </div>
-      </div>
-
-      <div className="mb-6">
-        <label className="mb-3 block text-sm font-semibold text-ink-900">
-          选择 AI Provider{" "}
-          {isTeacher && <span className="text-xs text-gray-500">(系统配置为只读，可选择自定义配置)</span>}
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          {providers.map((provider: any, index: number) => {
-            const isSysProvider = isSystemProvider(provider.id);
-            const isCustomProvider = !isSysProvider;
-            const colors = [
-              "bg-blue-50 border-blue-200 hover:bg-blue-100",
-              "bg-green-50 border-green-200 hover:bg-green-100",
-              "bg-purple-50 border-purple-200 hover:bg-purple-100",
-              "bg-orange-50 border-orange-200 hover:bg-orange-100",
-            ];
-            let colorClass = isTeacher && isSysProvider
-              ? "bg-gray-50 border-gray-200"
-              : isCustomProvider
-              ? "bg-yellow-50 border-yellow-200 hover:bg-yellow-100"
-              : colors[index % colors.length];
-            const isProviderDisabled = isTeacher && isSysProvider;
-
-            return (
-              <button
-                key={provider.id}
-                onClick={() => !isProviderDisabled && onProviderSelect(provider.id)}
-                disabled={isProviderDisabled}
-                className={`relative flex items-center justify-between rounded-xl border p-3 text-left transition-all ${
-                  selectedProvider === provider.id
-                    ? isProviderDisabled
-                      ? "border-gray-400 bg-gray-100 text-gray-700"
-                      : "border-blue-500 bg-blue-50 text-blue-900 ring-2 ring-blue-200"
-                    : `${colorClass} text-ink-900 ${isProviderDisabled ? "cursor-not-allowed opacity-75" : "cursor-pointer"}`
-                }`}
-              >
-                <div>
-                  <div className="font-medium flex items-center gap-2">
-                    {provider.name}
-                    {isProviderDisabled && <Lock className="h-3 w-3 text-gray-500" />}
-                    {isCustomProvider && <span className="text-xs bg-yellow-200 text-yellow-800 px-1.5 py-0.5 rounded">自定义</span>}
+          
+          {providers.length === 0 ? (
+            <div className="text-center py-12">
+              <Settings className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">暂无AI Provider</h3>
+              <p className="text-gray-500 mb-6">请添加AI服务提供商配置</p>
+              <Button onClick={() => setShowModal(true)}>添加第一个 Provider</Button>
+            </div>
+          ) : (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {providers.map((provider) => (
+                <div 
+                  key={provider.id} 
+                  className={`rounded-2xl border-2 bg-gradient-to-br p-6 shadow-lg ${
+                    provider.isGlobal && !canEditProvider(provider)
+                      ? 'border-gray-300 bg-gray-50 to-gray-100'
+                      : 'border-gray-200 from-gray-50 to-white'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`rounded-full p-2 ${provider.isGlobal ? 'bg-blue-100' : 'bg-green-100'}`}>
+                        {provider.isGlobal ? (
+                          <Globe className="h-5 w-5 text-blue-600" />
+                        ) : (
+                          <User className="h-5 w-5 text-green-600" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-lg font-bold text-gray-900">{provider.name}</h3>
+                          {defaultProviderId === provider.id && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                              <Star className="h-3 w-3" />
+                              系统默认
+                            </span>
+                          )}
+                          {provider.isGlobal && !canEditProvider(provider) && (
+                            <div title="系统默认，不可修改">
+                              <Lock className="h-4 w-4 text-gray-500" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">
+                          {provider.isGlobal ? '全局配置' : '个人配置'}
+                          {provider.creator && ` · 创建者: ${provider.creator.name}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        provider.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {provider.isActive ? '启用' : '禁用'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="text-xs text-ink-600">{provider.id}</div>
+
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">模型:</span>
+                      <span className="font-medium">{provider.model}</span>
+                    </div>
+                    {provider.baseUrl && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-500">Base URL:</span>
+                        <span className="font-medium truncate ml-2">{provider.baseUrl}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">API Key:</span>
+                      <span className="font-medium">{'*'.repeat(8)}...{provider.apiKey.slice(-4)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => handleEdit(provider)}
+                      variant="outline"
+                      className="flex-1 flex items-center justify-center gap-2"
+                      disabled={!canEditProvider(provider)}
+                    >
+                      <Edit className="h-4 w-4" />
+                      编辑
+                    </Button>
+                    {userRole === 'ADMIN' && (
+                      <Button 
+                        onClick={() => handleSetDefault(provider)}
+                        variant="outline"
+                        className={`flex items-center justify-center gap-2 ${
+                          defaultProviderId === provider.id 
+                            ? 'bg-blue-50 text-blue-600 border-blue-200' 
+                            : 'text-blue-600 hover:text-blue-700'
+                        }`}
+                        disabled={defaultProviderId === provider.id || !provider.isActive}
+                      >
+                        <Star className="h-4 w-4" />
+                        {defaultProviderId === provider.id ? '默认' : '设为默认'}
+                      </Button>
+                    )}
+                    <Button 
+                      onClick={() => handleDelete(provider)}
+                      variant="outline"
+                      className="flex items-center justify-center gap-2 text-red-600 hover:text-red-700"
+                      disabled={!canDeleteProvider(provider) || defaultProviderId === provider.id}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      删除
+                    </Button>
+                  </div>
                 </div>
-                {selectedProvider === provider.id && settings.aiProvider === provider.id && (
-                  <Check className={`h-4 w-4 ${isProviderDisabled ? "text-gray-600" : "text-blue-600"}`} />
-                )}
-              </button>
-            );
-          })}
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {editingProvider && (
-        <div className="space-y-4">
+      {/* Provider表单模态框 */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title={editingProvider ? '编辑 AI Provider' : '添加 AI Provider'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
-              Provider 名称 {!isProviderEditable && <Lock className="h-3 w-3 text-gray-500" />}
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Provider 名称</label>
             <input
               type="text"
-              className={`w-full rounded-xl border px-3 py-2 text-sm ${!isProviderEditable ? "border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed" : "border-border bg-white text-ink-900"}`}
-              placeholder="Provider 名称"
-              value={editingProvider?.name || ""}
-              onChange={(e) => isProviderEditable && onProviderFieldChange("name", e.target.value)}
-              disabled={!isProviderEditable}
+              required
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="例如: OpenAI GPT-4"
+              disabled={editingProvider?.isGlobal && userRole !== 'ADMIN'}
             />
           </div>
+
           <div>
-            <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
-              API Key {!isProviderEditable && <Lock className="h-3 w-3 text-gray-500" />}
-            </label>
-            <input
-              type="password"
-              className={`w-full rounded-xl border px-3 py-2 text-sm ${!isProviderEditable ? "border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed" : "border-border bg-white text-ink-900"}`}
-              placeholder="sk-..."
-              value={editingProvider.apiKey || ""}
-              onChange={(e) => isProviderEditable && onProviderFieldChange("apiKey", e.target.value)}
-              disabled={!isProviderEditable}
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                required
+                value={formData.apiKey}
+                onChange={(e) => setFormData(prev => ({ ...prev, apiKey: e.target.value }))}
+                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                placeholder="sk-..."
+              />
+              <Button
+                type="button"
+                onClick={handleTestAIConnection}
+                disabled={testLoading}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Zap className="h-4 w-4" />
+                {testLoading ? '测试中...' : '测试连接'}
+              </Button>
+            </div>
+            {testResult && (
+              <div className={`mt-2 p-2 rounded text-sm ${
+                testResult.startsWith('✅') 
+                  ? 'bg-green-50 text-green-700 border border-green-200' 
+                  : 'bg-red-50 text-red-700 border border-red-200'
+              }`}>
+                {testResult}
+              </div>
+            )}
           </div>
+
           <div>
-            <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
-              Base URL {!isProviderEditable && <Lock className="h-3 w-3 text-gray-500" />}
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Base URL (可选)</label>
             <input
               type="url"
-              className={`w-full rounded-xl border px-3 py-2 text-sm ${!isProviderEditable ? "border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed" : "border-border bg-white text-ink-900"}`}
-              placeholder="https://api.openai.com/v1/chat/completions"
-              value={editingProvider.baseUrl || ""}
-              onChange={(e) => isProviderEditable && onProviderFieldChange("baseUrl", e.target.value)}
-              disabled={!isProviderEditable}
+              value={formData.baseUrl}
+              onChange={(e) => setFormData(prev => ({ ...prev, baseUrl: e.target.value }))}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="https://api.openai.com/v1"
+              disabled={editingProvider?.isGlobal && userRole !== 'ADMIN'}
             />
           </div>
+
           <div>
-            <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
-              Model {!isProviderEditable && <Lock className="h-3 w-3 text-gray-500" />}
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">模型名称</label>
             <input
               type="text"
-              className={`w-full rounded-xl border px-3 py-2 text-sm ${!isProviderEditable ? "border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed" : "border-border bg-white text-ink-900"}`}
-              placeholder="gpt-4o"
-              value={editingProvider.model || ""}
-              onChange={(e) => isProviderEditable && onProviderFieldChange("model", e.target.value)}
-              disabled={!isProviderEditable}
+              required
+              value={formData.model}
+              onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              placeholder="gpt-4, claude-3, qwen-turbo 等"
+              disabled={editingProvider?.isGlobal && userRole !== 'ADMIN'}
             />
           </div>
 
-          {hasChanges && isProviderEditable && (
-            <div className="flex gap-2">
-              <Button onClick={onSaveProvider} disabled={saving} className="flex-1">
-                <Save className="h-4 w-4 mr-2" />{saving ? "保存中..." : "保存设置"}
-              </Button>
-              <Button onClick={() => onProviderSelect(selectedProvider)} variant="outline" className="flex-1 text-gray-600 border-gray-300 hover:bg-gray-50">
-                取消更改
-              </Button>
+          {userRole === 'ADMIN' && (
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="providerIsGlobal"
+                checked={formData.isGlobal}
+                onChange={(e) => setFormData(prev => ({ ...prev, isGlobal: e.target.checked }))}
+                className="mr-2"
+              />
+              <label htmlFor="providerIsGlobal" className="text-sm font-medium text-gray-700">
+                设为全局 Provider (所有用户可见)
+              </label>
             </div>
           )}
 
-          {!isProviderEditable && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Lock className="h-4 w-4" /><span>系统级 AI Provider 配置无法修改</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="providerIsActive"
+              checked={formData.isActive}
+              onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+              className="mr-2"
+            />
+            <label htmlFor="providerIsActive" className="text-sm font-medium text-gray-700">
+              启用此 Provider
+            </label>
+          </div>
 
-      <div className="mt-4 flex gap-2">
-        <Button
-          onClick={onTestAIConnection}
-          className="flex-1 bg-green-600 hover:bg-green-700 text-white border-green-600"
-          variant="outline"
-          disabled={!editingProvider?.apiKey || (isTeacher && isSystemProvider(editingProvider?.id || ""))}
-        >
-          {isTeacher && isSystemProvider(editingProvider?.id || "") ? (
-            <><Lock className="h-4 w-4 mr-2" />无法测试连接</>
-          ) : "测试 AI 连接"}
-        </Button>
-      </div>
-
-      {testResult && (
-        <div className={`mt-4 rounded-xl border p-3 text-sm ${testResult.includes("成功") ? "border-green-200 bg-green-50 text-green-800" : "border-red-200 bg-red-50 text-red-800"}`}>
-          {testResult}
-        </div>
-      )}
-
-      {editingProvider && !isSystemProvider(editingProvider.id || "") && (currentUser?.role === "ADMIN" || !isTeacher) && (
-        <div className="mt-4">
-          <Button onClick={() => onDeleteAIProvider(editingProvider.id || "")} className="w-full bg-red-600 hover:bg-red-700 text-white border-red-600">
-            <Trash2 className="h-4 w-4 mr-2" />删除此 Provider
-          </Button>
-        </div>
-      )}
-    </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
+              取消
+            </Button>
+            <Button type="submit">
+              {editingProvider ? '更新' : '创建'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </>
   );
 }
+
 
 // Prompts Tab Component
 function PromptsTab({

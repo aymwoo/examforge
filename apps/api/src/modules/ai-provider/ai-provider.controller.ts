@@ -42,11 +42,7 @@ export class AIProviderController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update AI Provider' })
-  update(
-    @Param('id') id: string,
-    @Body() updateDto: UpdateAIProviderDto,
-    @Request() req: any,
-  ) {
+  update(@Param('id') id: string, @Body() updateDto: UpdateAIProviderDto, @Request() req: any) {
     return this.aiProviderService.update(id, updateDto, req.user.id, req.user.role);
   }
 
@@ -54,5 +50,14 @@ export class AIProviderController {
   @ApiOperation({ summary: 'Delete AI Provider' })
   remove(@Param('id') id: string, @Request() req: any) {
     return this.aiProviderService.remove(id, req.user.id, req.user.role);
+  }
+
+  @Post(':id/set-default')
+  @ApiOperation({ summary: 'Set AI Provider as system default' })
+  @ApiResponse({ status: 200, description: 'Provider set as default successfully' })
+  @ApiResponse({ status: 403, description: 'Only ADMIN can set default provider' })
+  @ApiResponse({ status: 404, description: 'Provider not found' })
+  setDefault(@Param('id') id: string, @Request() req: any) {
+    return this.aiProviderService.setDefault(id, req.user.id, req.user.role);
   }
 }

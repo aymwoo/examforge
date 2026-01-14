@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { Settings, Plus, Edit, Trash2, Globe, User, Lock, Zap } from "lucide-react";
+import { Settings, Plus, Edit, Trash2, Globe, User, Lock, Zap, Star } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import api from "@/services/api";
 import { getCurrentUser } from "@/utils/auth";
-import { testAIConnection } from "@/services/settings";
+import { testAIConnection, getDefaultProviderId, setDefaultProvider } from "@/services/settings";
 
 interface AIProvider {
   id: string;
@@ -38,14 +38,19 @@ export default function SettingsPage() {
     isGlobal: false,
     isActive: true,
   });
+  const [defaultProviderId, setDefaultProviderId] = useState<string | null>(null);
 
   const currentUser = getCurrentUser();
   const userRole = currentUser?.role || 'TEACHER';
 
   const loadProviders = async () => {
     try {
-      const response = await api.get('/api/ai-providers');
-      setProviders(response.data);
+      const [providersResponse, defaultId] = await Promise.all([
+        api.get('/api/ai-providers'),
+        getDefaultProviderId().catch(() => null),
+      ]);
+      setProviders(providersResponse.data);
+      setDefaultProviderId(defaultId);
     } catch (error) {
       console.error('加载AI Provider失败:', error);
     } finally {
@@ -175,6 +180,23 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSetDefault = async (provider: AIProvider) => {
+    if (userRole !== 'ADMIN') {
+      alert('只有管理员可以设置系统默认Provider');
+      return;
+    }
+    
+    if (!confirm(`确定要将 "${provider.name}" 设为系统默认AI Provider吗？`)) return;
+    
+    try {
+      const result = await setDefaultProvider(provider.id);
+      alert(result.message);
+      loadProviders();
+    } catch (error: any) {
+      alert('设置失败: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
@@ -253,6 +275,12 @@ export default function SettingsPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="text-lg font-bold text-gray-900">{provider.name}</h3>
+                            {defaultProviderId === provider.id && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                <Star className="h-3 w-3" />
+                                系统默认
+                              </span>
+                            )}
                             {provider.isGlobal && !canEditProvider(provider) && (
                               <div title="系统默认，不可修改">
                                 <Lock className="h-4 w-4 text-gray-500" />
@@ -297,17 +325,32 @@ export default function SettingsPage() {
                       <Button 
                         onClick={() => handleEdit(provider)}
                         variant="outline"
-                        className="flex-1 flex items-center gap-2"
+                        className="flex-1 flex items-center justify-center gap-2"
                         disabled={!canEditProvider(provider)}
                       >
                         <Edit className="h-4 w-4" />
                         编辑
                       </Button>
+                      {userRole === 'ADMIN' && (
+                        <Button 
+                          onClick={() => handleSetDefault(provider)}
+                          variant="outline"
+                          className={`flex items-center justify-center gap-2 ${
+                            defaultProviderId === provider.id 
+                              ? 'bg-blue-50 text-blue-600 border-blue-200' 
+                              : 'text-blue-600 hover:text-blue-700'
+                          }`}
+                          disabled={defaultProviderId === provider.id || !provider.isActive}
+                        >
+                          <Star className="h-4 w-4" />
+                          {defaultProviderId === provider.id ? '默认' : '设为默认'}
+                        </Button>
+                      )}
                       <Button 
                         onClick={() => handleDelete(provider)}
                         variant="outline"
-                        className="flex items-center gap-2 text-red-600 hover:text-red-700"
-                        disabled={!canDeleteProvider(provider)}
+                        className="flex items-center justify-center gap-2 text-red-600 hover:text-red-700"
+                        disabled={!canDeleteProvider(provider) || defaultProviderId === provider.id}
                       >
                         <Trash2 className="h-4 w-4" />
                         删除

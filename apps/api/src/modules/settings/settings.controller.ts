@@ -48,6 +48,14 @@ export class SettingsController {
     return { template };
   }
 
+  @Get('default-provider')
+  @ApiOperation({ summary: 'Get default AI provider ID' })
+  @ApiResponse({ status: 200, description: 'Default provider ID retrieved successfully' })
+  async getDefaultProvider(): Promise<{ defaultProviderId: string }> {
+    const defaultProviderId = await this.settingsService.getDefaultProviderId();
+    return { defaultProviderId };
+  }
+
   @Put()
   @ApiOperation({ summary: 'Update a system setting' })
   @ApiBody({ type: UpdateSettingDto })

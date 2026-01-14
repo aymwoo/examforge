@@ -251,6 +251,17 @@ export class SettingsService {
     });
   }
 
+  async getDefaultProviderId(): Promise<string> {
+    try {
+      const setting = await this.prisma.systemSetting.findUnique({
+        where: { key: SettingKey.AI_PROVIDER },
+      });
+      return setting?.value || 'openai';
+    } catch {
+      return 'openai';
+    }
+  }
+
   async getPromptTemplate(): Promise<string> {
     const template = await this.getSetting(SettingKey.PROMPT_TEMPLATE);
     return template || this.getDefaultPromptTemplate();

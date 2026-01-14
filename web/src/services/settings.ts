@@ -45,7 +45,7 @@ export const getUserSettings = async (): Promise<SystemSettings> => {
 
 export const getJsonStructureTemplate = async (): Promise<string> => {
   const response = await api.get<{ template: string }>(
-    "/api/settings/json-structure",
+    "/api/settings/json-structure"
   );
   return response.data.template;
 };
@@ -62,14 +62,14 @@ export const getPromptTemplate = async (): Promise<string> => {
 
 export const updateSetting = async (
   key: string,
-  value: string,
+  value: string
 ): Promise<void> => {
   await api.put("/api/settings", { key, value });
 };
 
 export const updateUserSetting = async (
   key: string,
-  value: string,
+  value: string
 ): Promise<void> => {
   await api.put("/api/settings/user", { key, value });
 };
@@ -79,7 +79,7 @@ export const deleteAIProvider = async (providerId: string): Promise<void> => {
 };
 
 export const getAIProviderDetails = async (
-  providerId: string,
+  providerId: string
 ): Promise<{
   id: string;
   name: string;
@@ -109,26 +109,42 @@ export const updateAIProvider = async (
     apiKey?: string;
     baseUrl?: string;
     model?: string;
-  },
+  }
 ): Promise<void> => {
   await api.patch(`/api/ai-providers/${providerId}`, updates);
 };
 
 export const generateExamFromAI = async (
-  imageBase64: string,
+  imageBase64: string
 ): Promise<{ questions: AIQuestion[] }> => {
   const response = await api.post<{ questions: AIQuestion[] }>(
     "/api/ai/generate-questions",
-    { image: imageBase64 },
+    { image: imageBase64 }
   );
   return response.data;
 };
 
 export const testAIConnection = async (
-  message?: string,
+  message?: string
 ): Promise<{ response: string }> => {
   const response = await api.post<{ response: string }>("/api/ai/test", {
     message,
   });
+  return response.data;
+};
+
+export const getDefaultProviderId = async (): Promise<string> => {
+  const response = await api.get<{ defaultProviderId: string }>(
+    "/api/settings/default-provider"
+  );
+  return response.data.defaultProviderId;
+};
+
+export const setDefaultProvider = async (
+  providerId: string
+): Promise<{ message: string }> => {
+  const response = await api.post<{ message: string }>(
+    `/api/ai-providers/${providerId}/set-default`
+  );
   return response.data;
 };
