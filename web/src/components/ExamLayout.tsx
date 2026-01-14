@@ -27,12 +27,18 @@ import { useToast } from "@/components/ui/Toast";
 interface ExamLayoutProps {
   children: ReactNode;
   activeTab: "questions" | "students" | "analytics" | "grading" | "export";
+  onExport?: () => void;
 }
 
-export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
+export default function ExamLayout({
+  children,
+  activeTab,
+  onExport,
+}: ExamLayoutProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  void onExport;
   const [exam, setExam] = useState<Exam | null>(null);
   const [loading, setLoading] = useState(true);
   const [submissionCount, setSubmissionCount] = useState(0);
@@ -525,6 +531,7 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
               统计分析
             </button>
             <button
+              onClick={() => navigate(`/exams/${id}/export`)}
               className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-colors rounded-t-lg ${
                 activeTab === "export"
                   ? "border-b-2 border-orange-500 text-orange-700 bg-orange-50"
@@ -540,7 +547,7 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
         {/* 页面内容 */}
         {children}
 
-        {/* Modal */}
+        {/* Exam Action Modal */}
         <Modal
           isOpen={modal.isOpen}
           onClose={closeModal}
@@ -599,12 +606,9 @@ export default function ExamLayout({ children, activeTab }: ExamLayoutProps) {
                   </label>
                 ))}
               </div>
-              {selectedAccountModes.length === 0 && (
-                <p className="text-red-500 text-sm">请至少选择一种登录模式</p>
-              )}
             </div>
           ) : (
-            <p>{modal.message}</p>
+            <p className="text-gray-600 whitespace-pre-wrap">{modal.message}</p>
           )}
         </Modal>
       </div>

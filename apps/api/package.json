@@ -5,7 +5,8 @@
   "main": "dist/main.js",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "nest build",
+    "build": "nest build && pnpm copy:assets",
+    "copy:assets": "sh -c 'mkdir -p dist/assets && cp -R assets/* dist/assets/'",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

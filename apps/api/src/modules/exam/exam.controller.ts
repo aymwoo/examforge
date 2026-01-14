@@ -522,13 +522,17 @@ export class ExamController {
   @Get(':id/export/progress')
   @ApiOperation({ summary: 'Export exam data progress stream' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
-  async exportExam(@Param('id') examId: string, @Res() res: Response) {
-    res.setHeader('Content-Type', 'text/event-stream');
+  async exportExam(@Param('id') examId: string, @Query() query: any, @Res() res: Response) {
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    return this.examService.exportExam(examId, res);
+    // Some browsers/proxies may mis-detect encoding for SSE.
+    // Writing UTF-8 BOM helps DevTools display Chinese correctly.
+    res.write('\uFEFF');
+
+    return this.examService.exportExam(examId, res, query);
   }
 
   @Get('download-export/:filename')

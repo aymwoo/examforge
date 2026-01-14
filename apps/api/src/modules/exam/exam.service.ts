@@ -4,7 +4,10 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  OnModuleInit,
+  OnModuleDestroy,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
@@ -23,11 +26,64 @@ import * as XLSX from 'xlsx';
 import { Response } from 'express';
 
 @Injectable()
-export class ExamService {
+export class ExamService implements OnModuleInit, OnModuleDestroy {
+  private downloadCleanupTimer?: NodeJS.Timeout;
+
   constructor(
     private readonly prisma: PrismaService,
-    private readonly aiService: AIService
+    private readonly aiService: AIService,
+    private readonly configService: ConfigService
   ) {}
+
+  onModuleInit() {
+    // Best-effort periodic cleanup; avoids unbounded growth on restarts.
+    const intervalMs = 10 * 60_000;
+    this.downloadCleanupTimer = setInterval(() => {
+      this.cleanupExpiredExportZips().catch(() => {});
+    }, intervalMs);
+
+    // Run once shortly after boot.
+    setTimeout(() => {
+      this.cleanupExpiredExportZips().catch(() => {});
+    }, 5_000);
+  }
+
+  onModuleDestroy() {
+    if (this.downloadCleanupTimer) {
+      clearInterval(this.downloadCleanupTimer);
+      this.downloadCleanupTimer = undefined;
+    }
+  }
+
+  private async cleanupExpiredExportZips() {
+    const downloadsDir = path.join(process.cwd(), 'temp', 'downloads');
+    if (!fs.existsSync(downloadsDir)) return;
+
+    const retentionMinutes = Number(
+      this.configService.get<string>('EXAM_EXPORT_ZIP_RETENTION_MINUTES') ?? '30'
+    );
+    const retentionMs = Number.isFinite(retentionMinutes)
+      ? Math.max(1, retentionMinutes) * 60_000
+      : 30 * 60_000;
+
+    const now = Date.now();
+    const files = await fs.promises.readdir(downloadsDir).catch(() => [] as string[]);
+
+    await Promise.all(
+      files
+        .filter((filename) => filename.startsWith('exam_export_') && filename.endsWith('.zip'))
+        .map(async (filename) => {
+          const filePath = path.join(downloadsDir, filename);
+          const stat = await fs.promises.stat(filePath).catch(() => null);
+          if (!stat) return;
+
+          // Use mtime as a best-effort indicator; file name timestamp may not be reliable.
+          if (now - stat.mtimeMs > retentionMs) {
+            await fs.promises.unlink(filePath).catch(() => {});
+          }
+        })
+    );
+  }
 
   async create(dto: CreateExamDto) {
     return this.prisma.exam.create({
@@ -2261,14 +2317,26 @@ ${studentAnswer}
     analytics: any
   ): Promise<void> {
     // 注册字体
-    const fontPath = path.join(process.cwd(), 'assets', 'fonts', 'NotoSansSC-Regular.ttf');
-    // 如果没有自定义字体，使用标准字体（不支持中文）或者寻找系统字体
-    // 这里假设有一个支持中文的字体文件，或者临时使用标准字体
-    if (fs.existsSync(fontPath)) {
+    const fontCandidates = [
+      path.join(process.cwd(), 'apps', 'api', 'assets', 'fonts', 'LXGWWenKai-Regular.ttf'),
+      path.join(process.cwd(), 'assets', 'fonts', 'LXGWWenKai-Regular.ttf'),
+      path.join(__dirname, '..', '..', '..', 'assets', 'fonts', 'LXGWWenKai-Regular.ttf'),
+    ];
+
+    const fontPath = fontCandidates.find((candidate) => fs.existsSync(candidate));
+
+    if (fontPath) {
       doc.font(fontPath);
     } else {
-      // Fallback
       doc.font('Helvetica');
+      doc
+        .fillColor('red')
+        .fontSize(10)
+        .text('注意：缺少中文字体（LXGWWenKai-Regular.ttf），中文内容可能无法正确显示。', {
+          align: 'center',
+        });
+      doc.fillColor('black');
+      doc.moveDown();
     }
 
     doc.fontSize(24).text(`${exam.title} - 考试分析报告`, { align: 'center' });
@@ -2281,6 +2349,7 @@ ${studentAnswer}
       doc.fontSize(16).text('AI 智能分析');
       doc.moveDown();
       doc.fontSize(12).text(exam.aiAnalysisReport);
+      doc.moveDown();
       doc.addPage();
     }
 
@@ -2316,11 +2385,26 @@ ${studentAnswer}
     studentReport: any,
     exam: any
   ): Promise<void> {
-    const fontPath = path.join(process.cwd(), 'assets', 'fonts', 'NotoSansSC-Regular.ttf');
-    if (fs.existsSync(fontPath)) {
+    const fontCandidates = [
+      path.join(process.cwd(), 'apps', 'api', 'assets', 'fonts', 'LXGWWenKai-Regular.ttf'),
+      path.join(process.cwd(), 'assets', 'fonts', 'LXGWWenKai-Regular.ttf'),
+      path.join(__dirname, '..', '..', '..', 'assets', 'fonts', 'LXGWWenKai-Regular.ttf'),
+    ];
+
+    const fontPath = fontCandidates.find((candidate) => fs.existsSync(candidate));
+
+    if (fontPath) {
       doc.font(fontPath);
     } else {
       doc.font('Helvetica');
+      doc
+        .fillColor('red')
+        .fontSize(10)
+        .text('注意：缺少中文字体（LXGWWenKai-Regular.ttf），中文内容可能无法正确显示。', {
+          align: 'center',
+        });
+      doc.fillColor('black');
+      doc.moveDown();
     }
 
     const studentName =
@@ -2332,19 +2416,65 @@ ${studentAnswer}
     doc.fontSize(24).text(`${studentName} - 个人考试分析报告`, { align: 'center' });
     doc.moveDown();
     doc.fontSize(14).text(`考试: ${exam.title}`);
+    doc.text(`生成时间: ${studentReport.createdAt.toLocaleDateString()}`);
     doc.moveDown();
 
     if (studentReport.report) {
+      doc.fontSize(16).text('AI 分析报告');
+      doc.moveDown();
       doc.fontSize(12).text(studentReport.report);
     } else {
       doc.fontSize(12).text('暂无AI分析报告');
     }
+
+    if (studentReport.errorMessage) {
+      doc.moveDown();
+      doc.fontSize(12).fillColor('red').text(`错误信息: ${studentReport.errorMessage}`);
+      doc.fillColor('black');
+    }
   }
 
-  async exportExam(examId: string, res: Response) {
+  async exportExam(examId: string, res: Response, query?: any) {
+    const dbUrl = this.configService.get<string>('DATABASE_URL');
+    console.log(`[exam-export] start examId=${examId} db=${dbUrl ?? 'unknown'}`);
     const tempDir = path.join(process.cwd(), 'temp', 'exports', examId);
     const downloadFileName = `exam_export_${examId}_${Date.now()}.zip`;
     const zipFilePath = path.join(process.cwd(), 'temp', 'downloads', downloadFileName);
+
+    const exportZipRetentionMinutes = Number(
+      this.configService.get<string>('EXAM_EXPORT_ZIP_RETENTION_MINUTES') ?? '30'
+    );
+    const exportZipRetentionMs = Number.isFinite(exportZipRetentionMinutes)
+      ? Math.max(1, exportZipRetentionMinutes) * 60_000
+      : 30 * 60_000;
+
+    const parseBoolean = (value: unknown, defaultValue: boolean) => {
+      if (value === undefined || value === null) return defaultValue;
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'number') return value !== 0;
+      if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) return true;
+        if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) return false;
+      }
+      return defaultValue;
+    };
+
+    const exportOptions = {
+      includeGrades: parseBoolean(query?.includeGrades, true),
+      includeQuestions: parseBoolean(query?.includeQuestions, true),
+      includeRawJson: parseBoolean(query?.includeRawJson, true),
+      includeExamAiPdf: parseBoolean(query?.includeExamAiPdf, true),
+      includeStudentAiPdfs: parseBoolean(query?.includeStudentAiPdfs, true),
+    };
+
+    if (Object.values(exportOptions).every((v) => !v)) {
+      res.write(
+        `data: ${JSON.stringify({ type: 'error', message: '请至少选择一个导出内容' })}\n\n`
+      );
+      res.end();
+      return;
+    }
 
     // 确保目录存在
     if (!fs.existsSync(tempDir)) {
@@ -2355,140 +2485,257 @@ ${studentAnswer}
       fs.mkdirSync(downloadsDir, { recursive: true });
     }
 
+    const sendProgress = (
+      percentage: number,
+      step: string,
+      message?: string,
+      meta?: Record<string, unknown>
+    ) => {
+      const payload = {
+        type: 'progress',
+        percentage,
+        step,
+        message: message ?? step,
+        meta,
+      };
+      res.write(`data: ${JSON.stringify(payload, null, 0)}\n\n`);
+      console.log(`[exam-export] progress ${percentage}% step=${step} msg=${payload.message}`);
+    };
+
     try {
       // 1. 获取数据 (10%)
-      res.write(
-        `data: ${JSON.stringify({ type: 'progress', percentage: 10, message: '正在获取考试数据...' })}\n\n`
-      );
+      sendProgress(10, 'fetching', '正在获取考试数据...');
 
       const exam = await this.prisma.exam.findUnique({
         where: { id: examId },
         include: {
           examQuestions: { include: { question: true }, orderBy: { order: 'asc' } },
-          examStudents: { include: { student: true } },
-          submissions: true,
+          examStudents: {
+            include: {
+              student: true,
+              submissions: {
+                where: { examId },
+                orderBy: { submittedAt: 'desc' },
+                take: 1,
+              },
+            },
+          },
+          submissions: { include: { examStudent: true } },
         },
       });
 
-      if (!exam) throw new Error('Exam not found');
+      if (!exam) {
+        throw new NotFoundException('考试不存在或已删除');
+      }
 
       const analytics = await this.getExamAnalytics(examId);
 
-      // 2. 生成 Excel (20%)
-      res.write(
-        `data: ${JSON.stringify({ type: 'progress', percentage: 20, message: '正在生成 Excel 数据...' })}\n\n`
-      );
-
-      const excelData = exam.examQuestions.map((eq: any) => ({
-        序号: eq.order,
-        题型: eq.question.type,
-        内容: eq.question.content,
-        选项: eq.question.options,
-        答案: eq.question.answer,
-        分值: eq.score,
-        难度: eq.question.difficulty,
-        解析: eq.question.explanation,
-      }));
-      const worksheet = XLSX.utils.json_to_sheet(excelData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Exam Questions');
-      XLSX.writeFile(workbook, path.join(tempDir, 'exam_data.xlsx'));
-
-      // 3. 生成 JSON (30%)
-      res.write(
-        `data: ${JSON.stringify({ type: 'progress', percentage: 30, message: '正在生成 JSON 数据...' })}\n\n`
-      );
-      fs.writeFileSync(path.join(tempDir, 'exam_data.json'), JSON.stringify(exam, null, 2));
-
-      // 4. 生成考试 PDF 报告 (50%)
-      res.write(
-        `data: ${JSON.stringify({ type: 'progress', percentage: 40, message: '正在生成考试分析报告 PDF...' })}\n\n`
-      );
-      const examPdfDoc = new PDFDocument();
-      const examPdfStream = fs.createWriteStream(path.join(tempDir, 'exam_report.pdf'));
-      examPdfDoc.pipe(examPdfStream);
-      await this.generatePdfReport(examPdfDoc, exam, analytics);
-      examPdfDoc.end();
-
-      // 5. 生成学生 PDF 报告 (80%)
-      res.write(
-        `data: ${JSON.stringify({ type: 'progress', percentage: 50, message: '正在生成学生分析报告...' })}\n\n`
-      );
-
-      const studentReportsDir = path.join(tempDir, 'students');
-      if (!fs.existsSync(studentReportsDir)) {
-        fs.mkdirSync(studentReportsDir);
+      // 2. 生成导出文件 (20% ~ 80%)
+      const rawDataDir = path.join(tempDir, '原始数据');
+      if (!fs.existsSync(rawDataDir)) {
+        fs.mkdirSync(rawDataDir, { recursive: true });
       }
 
-      // 获取所有有报告的学生
-      const studentReports = await this.prisma.studentAiAnalysisReport.findMany({
-        where: { examId: examId },
-        include: {
-          examStudent: {
-            include: { student: true },
+      if (exportOptions.includeGrades) {
+        sendProgress(20, 'grades', '正在生成成绩册...');
+
+        const gradeData = exam.examStudents.map((es: any) => {
+          const submission = es.submissions[0];
+          return {
+            学生姓名: es.student?.name || es.displayName || es.username,
+            '学号/用户名': es.student?.studentId || es.username,
+            账号类型: es.accountType,
+            成绩: submission ? submission.score : '未提交',
+            提交状态: submission ? '已提交' : '未提交',
+            提交时间: submission ? submission.submittedAt.toLocaleString() : '-',
+            是否自动评分: submission ? (submission.isAutoGraded ? '是' : '否') : '-',
+            是否已复核: submission ? (submission.isReviewed ? '是' : '否') : '-',
+          };
+        });
+
+        const gradeWorkbook = XLSX.utils.book_new();
+        const gradeWorksheet = XLSX.utils.json_to_sheet(gradeData);
+        XLSX.utils.book_append_sheet(gradeWorkbook, gradeWorksheet, '成绩册');
+
+        const gradesDir = path.join(tempDir, '成绩册');
+        if (!fs.existsSync(gradesDir)) {
+          fs.mkdirSync(gradesDir, { recursive: true });
+        }
+        XLSX.writeFile(gradeWorkbook, path.join(gradesDir, '成绩册.xlsx'));
+      }
+
+      if (exportOptions.includeQuestions) {
+        sendProgress(25, 'questions', '正在生成题目明细...');
+
+        const questionData = exam.examQuestions.map((eq: any) => ({
+          序号: eq.order,
+          题型: eq.question.type,
+          内容: eq.question.content,
+          选项: eq.question.options,
+          答案: eq.question.answer,
+          分值: eq.score,
+          难度: eq.question.difficulty,
+          解析: eq.question.explanation,
+        }));
+
+        const questionWorkbook = XLSX.utils.book_new();
+        const questionWorksheet = XLSX.utils.json_to_sheet(questionData);
+        XLSX.utils.book_append_sheet(questionWorkbook, questionWorksheet, '考试题目');
+
+        XLSX.writeFile(questionWorkbook, path.join(rawDataDir, '考试题目.xlsx'));
+      }
+
+      if (exportOptions.includeRawJson) {
+        sendProgress(30, 'raw-json', '正在生成 JSON 数据...');
+        fs.writeFileSync(path.join(rawDataDir, 'exam_data.json'), JSON.stringify(exam, null, 2));
+      }
+
+      if (exportOptions.includeExamAiPdf) {
+        sendProgress(40, 'exam-ai-pdf', '正在生成考试AI分析 PDF...');
+
+        const aiDir = path.join(tempDir, 'AI分析');
+        if (!fs.existsSync(aiDir)) {
+          fs.mkdirSync(aiDir, { recursive: true });
+        }
+
+        const examPdfPath = path.join(aiDir, '考试AI分析.pdf');
+        const examPdfDoc = new PDFDocument();
+        const examPdfStream = fs.createWriteStream(examPdfPath);
+        examPdfDoc.pipe(examPdfStream);
+        await this.generatePdfReport(examPdfDoc, exam, analytics);
+
+        await new Promise<void>((resolve, reject) => {
+          examPdfStream.on('finish', resolve);
+          examPdfStream.on('error', reject);
+          examPdfDoc.on('error', reject);
+          examPdfDoc.end();
+        });
+      }
+
+      if (exportOptions.includeStudentAiPdfs) {
+        sendProgress(50, 'student-ai-pdfs', '正在生成学生个人AI分析...');
+
+        const aiDir = path.join(tempDir, 'AI分析');
+        if (!fs.existsSync(aiDir)) {
+          fs.mkdirSync(aiDir, { recursive: true });
+        }
+
+        const studentReportsDir = path.join(aiDir, '学生个人AI分析');
+        if (!fs.existsSync(studentReportsDir)) {
+          fs.mkdirSync(studentReportsDir, { recursive: true });
+        }
+
+        const studentReports = await this.prisma.studentAiAnalysisReport.findMany({
+          where: { examId: examId },
+          include: {
+            examStudent: {
+              include: { student: true },
+            },
           },
-        },
-      });
+        });
 
-      let processedCount = 0;
-      const totalReports = studentReports.length;
+        let processedCount = 0;
+        const totalReports = studentReports.length;
 
-      for (const report of studentReports) {
-        const studentName =
-          report.examStudent?.student?.name ||
-          report.examStudent?.displayName ||
-          report.examStudent?.username ||
-          'unknown';
-        const safeName = studentName.replace(/[\\/:*?"<>|]/g, '_');
-        const studentPdfPath = path.join(studentReportsDir, `${safeName}_report.pdf`);
+        if (totalReports > 0) {
+          for (const report of studentReports) {
+            const studentName =
+              report.examStudent?.student?.name ||
+              report.examStudent?.displayName ||
+              report.examStudent?.username ||
+              'unknown';
+            const safeName = studentName.replace(/[\\/:*?"<>|]/g, '_');
+            const studentIdentifier =
+              report.examStudent?.student?.studentId || report.examStudent?.username || '';
+            const safeIdentifier = studentIdentifier
+              ? `_${studentIdentifier.replace(/[\\/:*?"<>|]/g, '_')}`
+              : '';
+            const studentPdfPath = path.join(studentReportsDir, `${safeName}${safeIdentifier}.pdf`);
 
-        const doc = new PDFDocument();
-        const stream = fs.createWriteStream(studentPdfPath);
-        doc.pipe(stream);
-        await this.generateStudentPdfReport(doc, report, exam);
-        doc.end();
+            const doc = new PDFDocument();
+            const stream = fs.createWriteStream(studentPdfPath);
+            doc.pipe(stream);
+            await this.generateStudentPdfReport(doc, report, exam);
 
-        processedCount++;
-        // 每处理 5 个更新一次进度
-        if (processedCount % 5 === 0 || processedCount === totalReports) {
-          const currentPercent = 50 + Math.floor((processedCount / totalReports) * 30);
-          res.write(
-            `data: ${JSON.stringify({ type: 'progress', percentage: currentPercent, message: `正在生成学生报告 (${processedCount}/${totalReports})...` })}\n\n`
-          );
+            await new Promise<void>((resolve, reject) => {
+              stream.on('finish', resolve);
+              stream.on('error', reject);
+              doc.on('error', reject);
+              doc.end();
+            });
+
+            processedCount++;
+            if (processedCount % 5 === 0 || processedCount === totalReports) {
+              const currentPercent = 50 + Math.floor((processedCount / totalReports) * 30);
+              sendProgress(currentPercent, 'student-ai-pdfs', undefined, {
+                processedCount,
+                totalReports,
+              });
+            }
+          }
+        } else {
+          sendProgress(80, 'student-ai-pdfs', '没有发现学生AI分析报告', {
+            processedCount: 0,
+            totalReports: 0,
+          });
         }
       }
 
-      // 6. 打包 ZIP (95%)
-      res.write(
-        `data: ${JSON.stringify({ type: 'progress', percentage: 90, message: '正在打包文件...' })}\n\n`
-      );
+      // 6. 打包 ZIP (90%)
+      sendProgress(90, 'zipping', '正在打包文件...');
 
       const output = fs.createWriteStream(zipFilePath);
       const archive = archiver.create('zip', { zlib: { level: 9 } });
 
+      output.on('error', (err) => {
+        console.error('[exam-export] output stream error:', err);
+      });
+
+      archive.on('warning', (err: any) => {
+        console.warn('[exam-export] archiver warning:', err);
+      });
+
       output.on('close', () => {
         // 7. 完成 (100%)
+        sendProgress(100, 'complete', '导出完成，正在下载...');
         res.write(
           `data: ${JSON.stringify({ type: 'complete', downloadUrl: `/api/exams/download-export/${downloadFileName}` })}\n\n`
         );
         res.end();
 
-        // 清理临时文件目录 (保留zip文件供下载)
-        // setTimeout(() => fs.rm(tempDir, { recursive: true, force: true }, () => {}), 1000);
-        // 可以在这里做，也可以在下载后做，暂且保留
+        //  zip  (TTL)
+        setTimeout(() => {
+          fs.unlink(zipFilePath, () => {});
+        }, exportZipRetentionMs);
+
+        //  ( zip )
+        setTimeout(() => {
+          fs.rm(tempDir, { recursive: true, force: true }, () => {});
+        }, 1_000);
       });
 
       archive.on('error', (err: any) => {
+        console.error('[exam-export] archiver error:', err);
         throw err;
       });
 
       archive.pipe(output);
       archive.directory(tempDir, false);
       await archive.finalize();
+      // Ensure output stream is fully flushed before returning.
+      await new Promise<void>((resolve, reject) => {
+        output.on('close', resolve);
+        output.on('error', reject);
+      });
     } catch (error) {
+      const message = error instanceof Error ? error.message : '导出失败';
       console.error('Export failed:', error);
       res.write(
-        `data: ${JSON.stringify({ type: 'error', message: error.message || '导出失败' })}\n\n`
+        `data: ${JSON.stringify({
+          type: 'error',
+          message,
+          details: process.env.NODE_ENV !== 'production' ? String(error) : undefined,
+        })}\n\n`
       );
       res.end();
     }
@@ -2505,13 +2752,9 @@ ${studentAnswer}
       if (err) {
         console.error('Download error:', err);
       } else {
-        // 下载完成后删除文件
-        try {
-          fs.unlinkSync(filePath);
-          // 同时尝试清理对应的源文件夹，这里简化处理，只删zip
-        } catch (e) {
-          console.error('Cleanup error:', e);
-        }
+        // 注意：不要在下载回调里删除文件。
+        // `res.download` 的回调在响应结束后触发，
+        // 对于部分客户端/代理，可能导致二次请求（Range/重试）直接 404。
       }
     });
   }

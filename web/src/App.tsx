@@ -23,6 +23,7 @@ import UsersPage from "./pages/UsersPage";
 import ProfilePage from "./pages/ProfilePage";
 import DocsPage from "./pages/DocsPage";
 import AddQuestionsPage from "./pages/exams/AddQuestionsPage";
+import ExamExportPage from "./pages/exams/ExamExportPage";
 import ClassesPage from "./pages/classes/ClassesPage";
 import ClassDetailPage from "./pages/classes/ClassDetailPage";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -151,6 +152,14 @@ function App() {
                 element={
                   <ProtectedRoute requiredRole="TEACHER">
                     <ExamGradingPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="exams/:id/export"
+                element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <ExamExportPage />
                   </ProtectedRoute>
                 }
               />
