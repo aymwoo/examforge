@@ -642,7 +642,7 @@ export default function SettingsPage() {
           )}
 
           {!loading && (
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-8 lg:grid-cols-2">
               <div className="flex flex-col">
                 <div className="rounded-3xl border border-border bg-white p-6 shadow-soft flex-1">
                   <div className="mb-6 flex items-center justify-between">
