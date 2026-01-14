@@ -4,8 +4,14 @@ AI-driven multi-source question bank and online examination system.
 
 ## Features
 
-- ✅ Question Bank CRUD API
+- ✅ Question Bank CRUD API with support for multiple question types
+- ✅ Exam management with question assignment and scoring
+- ✅ Student submission tracking and grading system
+- ✅ AI-powered answer analysis and auto-grading
 - ✅ Excel/CSV Import for bulk questions
+- ✅ PDF and image question import with OCR
+- ✅ Real-time exam export with SSE progress streaming
+- ✅ Batch operations for submissions (review, reset, approve)
 - ✅ SQLite Database (dev) with Prisma ORM
 - ✅ NestJS + TypeScript
 - ✅ Validation with class-validator
@@ -16,8 +22,9 @@ AI-driven multi-source question bank and online examination system.
 - **Backend**: Node.js + TypeScript + NestJS
 - **Database**: SQLite (dev) / PostgreSQL (prod) via Prisma ORM
 - **Validation**: class-validator + class-transformer
-- **Excel Processing**: xlsx
-- **API Style**: REST
+- **Excel/PDF Processing**: xlsx, pdfkit, paddleocr
+- **AI Integration**: LLM provider support (Qwen, etc.)
+- **API Style**: REST with SSE for real-time updates
 
 ## Getting Started
 
@@ -82,15 +89,32 @@ src/
 ├── app.module.ts           # Root module
 ├── common/                 # Shared utilities
 │   ├── dto/               # Common DTOs (pagination)
-│   └── enums/             # Enum definitions
+│   ├── enums/             # Enum definitions
+│   └── utils/             # Utility functions (account generator, etc.)
 ├── modules/
-│   ├── question/           # Question bank CRUD
+│   ├── ai/                # AI service integration
+│   │   └── ai.service.ts
+│   ├── auth/              # Authentication & exam student auth
+│   │   ├── exam-auth.service.ts
+│   │   ├── guards/
+│   │   └── decorators/
+│   ├── exam/              # Exam management
 │   │   ├── dto/           # Request/response DTOs
+│   │   ├── exam.controller.ts
+│   │   └── exam.service.ts
+│   ├── question/          # Question bank CRUD
+│   │   ├── dto/
 │   │   ├── question.controller.ts
 │   │   └── question.service.ts
-│   └── import/            # Excel/CSV import
-│       ├── import.controller.ts
-│       └── import.service.ts
+│   ├── submission/        # Submission & grading
+│   │   ├── submission.controller.ts
+│   │   └── submission.service.ts
+│   ├── import/            # Excel/CSV import & AI generation
+│   │   ├── import.controller.ts
+│   │   └── import.service.ts
+│   ├── class/             # Class management
+│   ├── student/           # Student management
+│   └── user/              # User management
 ├── prisma/                # Prisma service
 │   ├── prisma.module.ts
 │   └── prisma.service.ts
@@ -111,17 +135,48 @@ src/
 ### Exams
 
 - `POST /exams` - Create a new exam
-- `GET /exams` - Get all exams with pagination and questions
+- `GET /exams` - Get all exams with pagination (includes question count and student count)
 - `GET /exams/:id` - Get an exam by ID with questions
 - `PUT /exams/:id` - Update an exam
 - `DELETE /exams/:id` - Delete an exam
+- `POST /exams/:id/copy` - Copy an exam
 - `POST /exams/:id/questions` - Add a question to an exam
 - `DELETE /exams/:id/questions/:questionId` - Remove a question from an exam
 - `PUT /exams/:id/questions/:questionId` - Update question order and score in exam
+- `PATCH /exams/:id/questions/batch-scores` - Batch update question scores
+- `PATCH /exams/:id/questions/batch-orders` - Batch update question orders
+- `POST /exams/:id/questions/batch-delete` - Batch remove questions from exam
+
+### Exam Students
+
+- `POST /exams/:id/students` - Add a student to exam
+- `POST /exams/:id/students/batch` - Batch add students to exam
+- `POST /exams/:id/students/generate` - Generate temporary student accounts
+- `GET /exams/:id/students` - Get all students for an exam
+- `DELETE /exams/:id/students/:studentId` - Remove a student from exam
+
+### Submissions & Grading
+
+- `GET /exams/:id/submissions` - Get all submissions for an exam
+- `POST /exams/:id/submissions/:submissionId/ai-grade` - AI grading for a submission
+- `POST /exams/:id/submissions/:submissionId/grade` - Manual grading for a submission
+- `POST /exams/:id/submissions/batch-reset` - Batch reset submissions
+- `POST /exams/:id/submissions/batch-approve` - Batch approve and finalize scores
+- `GET /exams/:id/analytics` - Get exam analytics and statistics
+
+### AI Analysis
+
+- `GET /exams/:id/ai-report-stream` - SSE stream for AI analysis progress
+- `GET /exams/:id/ai-analysis` - Get AI analysis report for an exam
 
 ### Import
 
 - `POST /import/excel` - Import questions from Excel file
+- `POST /import/ai-generate` - Generate questions from image using AI
+
+### Dashboard
+
+- `GET /exams/dashboard` - Get dashboard statistics
 
 ## Excel Import Format
 
@@ -142,14 +197,26 @@ The Excel import supports the following columns:
 # .env
 DATABASE_URL="file:./dev.db"
 
-LLM_PROVIDER="qwen"
-LLM_API_KEY="sk-xxx"
-LLM_BASE_URL=""
+# LLM Configuration
+LLM_PROVIDER="qwen"           # LLM provider (qwen, openai, etc.)
+LLM_API_KEY="sk-xxx"          # API key
+LLM_BASE_URL=""               # Base URL for custom endpoints
+LLM_MODEL=""                  # Model name (optional)
 
-OCR_ENGINE="paddleocr"
+# OCR Configuration
+OCR_ENGINE="paddleocr"        # OCR engine (paddleocr, tesseract)
 
+# AI Analysis
+STUDENT_AI_ANALYSIS_ENABLED="true"
+STUDENT_AI_ANALYSIS_PROMPT="" # Custom prompt for student analysis
+
+# Export Configuration
+EXAM_EXPORT_ZIP_RETENTION_MINUTES="30"
+
+# Server Configuration
 PORT=3000
 NODE_ENV="development"
+JWT_SECRET="your-jwt-secret"
 ```
 
 ## API Usage Examples
@@ -206,23 +273,28 @@ curl http://localhost:3000/exams/{examId}
 
 ## Database Schema
 
-### Question
-- id, content, type, options, answer, explanation, tags, difficulty, status, knowledgePoint
+### Core Models
 
-### Exam
-- id, title, description, duration, totalScore, status, startTime, endTime
+- **User** - System users (teachers, admins)
+- **Question** - Question bank with content, type, options, answer, explanation, tags, difficulty
+- **Exam** - Exam configuration with title, duration, scoring, time windows
+- **ExamQuestion** - Junction table linking exams to questions with order and score
+- **Student** - Fixed student records
+- **ExamStudent** - Temporary/permanent student accounts for specific exams
+- **Submission** - Student answers and scores
+- **StudentAiAnalysisReport** - AI-generated analysis reports for submissions
 
-### ExamQuestion (junction)
-- id, examId, questionId, order, score
+### Import & History
 
-### Submission
-- id, examId, answers, score, isAutoGraded, submittedAt
+- **ImportRecord** - Tracks bulk import jobs and status
 
 ## Next Steps
 
-- [ ] Add Exam module (exam CRUD)
-- [ ] Add Submission module
-- [ ] Add OCR + LLM parsing for image/PDF
-- [ ] Add authentication
+- [x] Exam module with full CRUD
+- [x] Submission and grading system
+- [x] AI-powered answer analysis
+- [x] PDF and image import with OCR
+- [x] Real-time export with SSE
 - [ ] Write unit tests
 - [ ] Add E2E tests
+- [ ] Deploy to production

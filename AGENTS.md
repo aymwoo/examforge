@@ -1,152 +1,165 @@
 # AGENTS.md — ExamForge (Monorepo) Agent Guide
-⚠️ 规则：
-- 不允许执行任何需要用户交互输入的命令
-- 所有命令必须是 non-interactive
-- 若某命令可能阻塞，必须改写为非交互形式
-- 若无法避免，必须仅输出命令，不执行
 
-## Repo layout
+⚠️ Rules:
 
-- `apps/api/` — NestJS + TypeScript REST API (Jest unit + e2e)
+- Do NOT run commands requiring user interaction; all commands must be non-interactive
+- If a command may block, rewrite it to be non-interactive
+- If unavoidable, output the command only, do not execute
+
+## Repo Layout
+
+- `apps/api/` — NestJS + TypeScript REST API (Jest unit + e2e tests)
 - `web/` — Vite + React + Tailwind frontend (UI style: `demo.html`)
-- `packages/shared-types/` — TypeScript types shared across apps
-- `packages/config/` — shared Prettier/Tailwind preset
+- `packages/shared-types/` — Shared TypeScript types across apps
+- `packages/config/` — Shared Prettier/Tailwind preset
 
-API code lives in `apps/api/src/` (features in `src/modules/`, shared in `src/common/`).
+API code: `apps/api/src/` (features in `src/modules/`, shared in `src/common/`).
 
 ## Environment
 
 - Node: `>=18`
 - pnpm: `>=8` (repo uses `pnpm@10.x` via `packageManager`)
 - Install: `pnpm install`
-- API env file: `apps/api/.env` (do not commit)
+- API env: `apps/api/.env` (never commit)
 
 ## Commands
 
 ### Workspace-level (root)
 
-- `pnpm dev` — run API + Web dev servers
-- `pnpm build` — build everything
-- `pnpm lint` / `pnpm lint:fix` — lint everything
-- `pnpm format` / `pnpm format:check` — Prettier write/check
-- `pnpm test` — workspace tests (only packages that define `test`)
-- `pnpm test:e2e` — API e2e tests
+| Command                             | Description                           |
+| ----------------------------------- | ------------------------------------- |
+| `pnpm dev`                          | Run API + Web dev servers in parallel |
+| `pnpm build`                        | Build all packages                    |
+| `pnpm lint` / `pnpm lint:fix`       | Lint all packages                     |
+| `pnpm format` / `pnpm format:check` | Prettier write/check                  |
+| `pnpm test`                         | Run workspace tests                   |
+| `pnpm test:e2e`                     | Run API e2e tests                     |
 
 ### Package-specific
 
-- API: `pnpm dev:api`, `pnpm build:api`, `pnpm --filter ./apps/api run lint|test|test:e2e`
-- Web: `pnpm dev:web`, `pnpm build:web`, `pnpm --filter ./web run lint|lint:fix`
-- Shared types: `pnpm --filter @examforge/shared-types run build|watch|clean`
+| Package      | Commands                                                                                        |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| API          | `pnpm dev:api`, `pnpm build:api`, `pnpm --filter ./apps/api run lint\|test\|test:e2e\|prisma:*` |
+| Web          | `pnpm dev:web`, `pnpm build:web`, `pnpm --filter ./web run lint\|lint:fix\|format`              |
+| Shared types | `pnpm --filter @examforge/shared-types run build\|watch\|clean`                                 |
 
 ### Single test (API - Jest)
 
 ```bash
 pnpm --filter ./apps/api run test -- src/modules/question/question.service.spec.ts
 pnpm --filter ./apps/api run test -- -t "should create question"
-pnpm --filter ./apps/api run test -- src/modules/question/question.service.spec.ts -t "should create"
 pnpm --filter ./apps/api run test:watch
-pnpm --filter ./apps/api run test:debug -- -t "should create"
+cd apps/api && pnpm test -- <path> -t <pattern>
 ```
 
-Tip: when running from `apps/api`, you can also use `pnpm test -- <path> -t <pattern>`.
-
-### Single e2e (API - Jest)
+### Single e2e test (API - Jest)
 
 ```bash
 pnpm --filter ./apps/api run test:e2e -- test/app.e2e-spec.ts
 pnpm --filter ./apps/api run test:e2e -- -t "health"
 ```
 
-Tip: when running from `apps/api`, you can also use `pnpm test:e2e -- <path> -t <pattern>`.
-
 ### Prisma (API)
 
 ```bash
-pnpm --filter ./apps/api run prisma:generate
-pnpm --filter ./apps/api run prisma:migrate
-pnpm --filter ./apps/api run prisma:studio
+pnpm --filter ./apps/api run prisma:generate   # Regenerate client after schema changes
+pnpm --filter ./apps/api run prisma:migrate    # Development migrations
+pnpm --filter ./apps/api run prisma:studio     # GUI database viewer
+pnpm --filter ./apps/api run prisma:deploy     # Production migrations
 ```
 
-## Cursor / Copilot rules
+## Cursor / Copilot Rules
 
 - No `.cursorrules`, `.cursor/rules/`, or `.github/copilot-instructions.md` exist.
-- If added later, summarize them here; those rules override this file.
+- If added later, those rules override this file.
 
-## Code style
+## Code Style
 
 ### TypeScript
 
-- Web: `strict: true`; API: `strict: false` (intentionally disabled).
-- Do not introduce `any` - API ESLint errors on `@typescript-eslint/no-explicit-any`.
-- Prefer explicit domain types and request/response DTOs over ad-hoc object shapes.
-- Path aliases (`tsconfig.json`):
+| Setting                              | API                     | Web    |
+| ------------------------------------ | ----------------------- | ------ |
+| `strict`                             | `false` (intentionally) | `true` |
+| `@typescript-eslint/no-explicit-any` | `off` (but avoid `any`) | `off`  |
+
+- Prefer explicit domain types and DTOs over ad-hoc object shapes
+- Path aliases:
   - API: `@/* -> apps/api/src/*`
   - Web: `@/* -> web/src/*`
-  - Shared types: `@examforge/shared-types -> packages/shared-types/src`
+  - Shared: `@examforge/shared-types -> packages/shared-types/src`
 
-### Formatting
+### Formatting (Prettier)
 
-- Prettier: `printWidth: 100`, `tabWidth: 2`, `singleQuote: true`, `semi: true`, `trailingComma: 'es5'`, `endOfLine: 'lf'`.
-- Prefer running `pnpm format` over manual formatting.
+`printWidth: 100`, `tabWidth: 2`, `singleQuote: true`, `semi: true`, `trailingComma: "es5"`, `endOfLine: "lf"`.
+Run `pnpm format` to format code; avoid manual formatting.
 
 ### Linting
 
-- API ESLint errors on `@typescript-eslint/no-explicit-any`; fix types instead of using `any`.
-- Keep lint fixes scoped to touched files.
+- API: ESLint with TypeScript parser; `@typescript-eslint/no-explicit-any` errors on `any`
+- Web: ESLint flat config with React plugins
+- Keep lint fixes scoped to touched files
 
 ### Imports
 
-- Order: framework → third-party → internal alias → relative.
-- API: keep `@nestjs/*` imports at the top.
-- Prefer alias imports for cross-module code, e.g. `@/common/...`.
+Order: framework → third-party → internal alias → relative. API: keep `@nestjs/*` imports at the top.
+Use alias imports for cross-module code: `@/common/...`, `@/modules/...`.
 
-### Naming
+### Naming Conventions
 
-- Files/folders: `kebab-case`.
-- Classes/providers: `PascalCase`.
-- Functions/variables: `camelCase`.
-- Avoid `I*` interface prefix.
+| Type                | Convention                   | Example                  |
+| ------------------- | ---------------------------- | ------------------------ |
+| Files/folders       | `kebab-case`                 | `exam-service.ts`        |
+| Classes/providers   | `PascalCase`                 | `ExamController`         |
+| Functions/variables | `camelCase`                  | `handleSubmissionSelect` |
+| Interfaces          | `PascalCase` (no `I` prefix) | `ExamListResponse`       |
+| Constants           | `SCREAMING_SNAKE_CASE`       | `MAX_RETRY_COUNT`        |
 
-### Backend architecture (NestJS)
+### Backend Architecture (NestJS)
 
-- Feature folders: `apps/api/src/modules/<feature>/`.
-- Controllers: routing only; no Prisma, no business logic.
-- Services: business logic + DB access via injected `PrismaService`.
-- DTOs: `dto/*.dto.ts` with `class-validator` decorators.
+- Feature folders: `apps/api/src/modules/<feature>/`
+- Structure per module:
+  - `<feature>.controller.ts` — routing only; no Prisma, no business logic
+  - `<feature>.service.ts` — business logic + DB access via injected `PrismaService`
+  - `dto/*.dto.ts` — request/response DTOs with `class-validator` decorators
+  - `<feature>.spec.ts` — unit tests (co-located)
 
-### Error handling
+### Error Handling
 
-- Use Nest exceptions (`BadRequestException`, `NotFoundException`, `UnprocessableEntityException`, etc.).
-- Check existence before update/delete and fail fast.
+- Use NestJS exceptions (`BadRequestException`, `NotFoundException`, `ConflictException`, etc.)
+- Fail fast: check existence before update/delete
+- Frontend: handle errors inline with toast notifications; avoid page redirects on load errors
 
-### DB / Prisma
+### Database / Prisma
 
-- Controllers MUST NOT touch Prisma directly.
-- Use transactions for multi-step writes.
+- Controllers MUST NOT touch Prisma directly
+- Use transactions for multi-step writes: `prisma.$transaction([...])`
+- After schema changes: `pnpm --filter ./apps/api run prisma:generate`
 
 ### Frontend UI
 
-- Use `demo.html` as the visual reference.
-- Use shared Tailwind preset: `packages/config/tailwind.preset.js`.
-- Ensure focus-visible rings and `prefers-reduced-motion` support.
-- Web structure: `src/features/` for feature modules, `src/components/` for shared UI.
+- UI reference: `demo.html` in repo root; use shared Tailwind preset
+- Accessibility: ensure `focus-visible` rings and `prefers-reduced-motion` support
+- Structure: `src/features/`, `src/components/`, `src/services/`, `src/pages/`, `src/types/`
 
-### Testing patterns
+### Testing Patterns
 
-- Unit tests: `*.spec.ts` alongside source files in API modules.
-- E2e tests: `test/*.e2e-spec.ts` in API root.
-- Use `describe` blocks for logical grouping; `it`/`test` for individual test cases.
+| Type | Location                      | Pattern                        |
+| ---- | ----------------------------- | ------------------------------ |
+| Unit | `*.spec.ts` co-located        | `describe` blocks; `it`/`test` |
+| E2E  | `apps/api/test/*.e2e-spec.ts` | Full API integration           |
 
-### Environment variables
+### Environment Variables
 
-- API: `apps/api/.env` (local dev only; never commit).
-- Use `@nestjs/config` with validation schemas for required env vars.
+- API: `apps/api/.env` (local dev only; never commit)
+- Use `@nestjs/config` with `ConfigService` and validation schemas
+- Document required env vars in `.env.example`
 
-### Scope
+## Scope
 
-- More-specific `AGENTS.md` files (if present) override this one for their subtree.
+- More-specific `AGENTS.md` files (if present in subdirectories) override this file.
 
 ## Notes
 
-- Root `tsconfig.json` includes `@examforge/web -> apps/web/src` but the actual frontend lives in `web/src`; treat it as legacy unless confirmed.
-- Swagger decorators are used on API routes; keep docs consistent.
+- Root `tsconfig.json` includes `@examforge/web -> apps/web/src` but frontend lives in `web/src`
+- Swagger decorators are used on API routes; keep docs consistent
+- Web: Vite + React + Tailwind; API: NestJS + Prisma + SQLite (dev) / PostgreSQL (prod)
