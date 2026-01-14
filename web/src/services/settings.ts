@@ -102,6 +102,18 @@ export const createAIProvider = async (provider: {
   return response.data;
 };
 
+export const updateAIProvider = async (
+  providerId: string,
+  updates: {
+    name?: string;
+    apiKey?: string;
+    baseUrl?: string;
+    model?: string;
+  },
+): Promise<void> => {
+  await api.patch(`/api/ai-providers/${providerId}`, updates);
+};
+
 export const generateExamFromAI = async (
   imageBase64: string,
 ): Promise<{ questions: AIQuestion[] }> => {

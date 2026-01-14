@@ -12,6 +12,7 @@ import {
   createAIProvider,
   getAIProviderDetails,
   deleteAIProvider,
+  updateAIProvider,
   type SystemSettings,
   type AIModelConfig,
 } from "@/services/settings";
@@ -317,13 +318,25 @@ export default function SettingsPage() {
         await updateSetting("AI_BASE_URL", editingProvider.baseUrl || "");
         await updateSetting("AI_MODEL", editingProvider.model || "");
       } else {
-        // For custom providers, only save the provider ID
-        // The provider details are already stored in ai_providers table
+        // For custom providers, save provider details to ai_providers table
         await updateSetting("AI_PROVIDER", selectedProvider);
         // Clear system settings for custom providers
         await updateSetting("AI_API_KEY", "");
         await updateSetting("AI_BASE_URL", "");
         await updateSetting("AI_MODEL", "");
+
+        // Update the provider name in ai_providers table
+        const originalProvider = providers.find(
+          (p) => p.id === selectedProvider,
+        );
+        if (
+          originalProvider &&
+          editingProvider.name !== originalProvider.name
+        ) {
+          await updateAIProvider(selectedProvider, {
+            name: editingProvider.name,
+          });
+        }
       }
 
       // 更新本地状态
@@ -334,6 +347,13 @@ export default function SettingsPage() {
         aiBaseUrl: isSystemProvider ? editingProvider.baseUrl || "" : "",
         aiModel: isSystemProvider ? editingProvider.model || "" : "",
       }));
+
+      // Update local providers list with new name
+      setProviders((prev) =>
+        prev.map((p) =>
+          p.id === selectedProvider ? { ...p, name: editingProvider.name } : p,
+        ),
+      );
 
       setHasChanges(false);
       setError("AI Provider 设置保存成功");
@@ -787,6 +807,48 @@ export default function SettingsPage() {
 
                         return (
                           <>
+                            {/* Provider Name field - only editable for custom providers */}
+                            {(() => {
+                              const isSystemProvider = [
+                                "gpt-4",
+                                "gpt-3.5-turbo",
+                                "qwen-turbo",
+                                "qwen-plus",
+                                "qwen-max",
+                              ].includes(editingProvider?.id || "");
+                              const canEditName =
+                                !isTeacher || !isSystemProvider;
+
+                              return (
+                                <div>
+                                  <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
+                                    Provider 名称
+                                    {!canEditName && (
+                                      <Lock className="h-3 w-3 text-gray-500" />
+                                    )}
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className={`w-full rounded-xl border px-3 py-2 text-sm ${
+                                      !canEditName
+                                        ? "border-gray-300 bg-gray-100 text-gray-600 cursor-not-allowed"
+                                        : "border-border bg-white text-ink-900"
+                                    }`}
+                                    placeholder="Provider 名称"
+                                    value={editingProvider?.name || ""}
+                                    onChange={(e) =>
+                                      canEditName &&
+                                      handleProviderFieldChange(
+                                        "name",
+                                        e.target.value,
+                                      )
+                                    }
+                                    disabled={!canEditName}
+                                  />
+                                </div>
+                              );
+                            })()}
+
                             <div>
                               <label className="mb-2 block text-sm font-semibold text-ink-900 flex items-center gap-2">
                                 API Key
@@ -1029,7 +1091,11 @@ export default function SettingsPage() {
                   <Button
                     onClick={handleSavePromptTemplate}
                     disabled={savingPromptTemplate || !promptTemplateChanged}
-                    className="mt-4 w-full"
+                    className={`mt-4 w-full ${
+                      promptTemplateChanged
+                        ? "bg-ink-900 hover:bg-ink-800 text-white"
+                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {savingPromptTemplate ? "保存中..." : "保存提示词设置"}
@@ -1079,7 +1145,11 @@ export default function SettingsPage() {
                       savingGradingPromptTemplate ||
                       !gradingPromptTemplateChanged
                     }
-                    className="mt-4 w-full"
+                    className={`mt-4 w-full ${
+                      gradingPromptTemplateChanged
+                        ? "bg-ink-900 hover:bg-ink-800 text-white"
+                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {savingGradingPromptTemplate
@@ -1226,7 +1296,11 @@ export default function SettingsPage() {
                             }
                           }}
                           disabled={savingStudentPrompt || !selectedStudentId}
-                          className="mt-4 w-full"
+                          className={`mt-4 w-full ${
+                            gradingPromptTemplateChanged
+                              ? "bg-ink-900 hover:bg-ink-800 text-white"
+                              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                          }`}
                         >
                           <Save className="h-4 w-4 mr-2" />
                           {savingStudentPrompt ? "保存中..." : "保存学生提示词"}
@@ -1289,7 +1363,11 @@ export default function SettingsPage() {
                       savingStudentAiAnalysisPromptTemplate ||
                       !studentAiAnalysisPromptTemplateChanged
                     }
-                    className="mt-4 w-full"
+                    className={`mt-4 w-full ${
+                      studentAiAnalysisPromptTemplateChanged
+                        ? "bg-ink-900 hover:bg-ink-800 text-white"
+                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {savingStudentAiAnalysisPromptTemplate
@@ -1342,7 +1420,11 @@ export default function SettingsPage() {
                       savingAnalysisPromptTemplate ||
                       !analysisPromptTemplateChanged
                     }
-                    className="mt-4 w-full"
+                    className={`mt-4 w-full ${
+                      analysisPromptTemplateChanged
+                        ? "bg-ink-900 hover:bg-ink-800 text-white"
+                        : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                    }`}
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {savingAnalysisPromptTemplate
