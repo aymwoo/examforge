@@ -519,6 +519,14 @@ export class ExamController {
     }
   }
 
+  @Get(':id/ai-report')
+  @ApiOperation({ summary: 'Get saved AI analysis report for exam' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiResponse({ status: 200, description: 'AI report retrieved successfully' })
+  getSavedAIReport(@Param('id') examId: string) {
+    return this.examService.getSavedAIReport(examId);
+  }
+
   @Get(':id/export/progress')
   @ApiOperation({ summary: 'Export exam data progress stream' })
   @ApiParam({ name: 'id', description: 'Exam ID' })

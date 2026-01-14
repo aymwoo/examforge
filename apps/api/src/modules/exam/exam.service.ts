@@ -2077,6 +2077,37 @@ ${studentAnswer}
     };
   }
 
+  /**
+   * 获取已保存的AI分析报告
+   */
+  async getSavedAIReport(examId: string) {
+    const exam = await this.prisma.exam.findUnique({
+      where: { id: examId },
+      select: {
+        id: true,
+        title: true,
+        aiAnalysisReport: true,
+        aiAnalysisStatus: true,
+        aiAnalysisModel: true,
+        aiAnalysisUpdatedAt: true,
+      },
+    });
+
+    if (!exam) {
+      throw new Error('考试不存在');
+    }
+
+    return {
+      examId: exam.id,
+      examTitle: exam.title,
+      report: exam.aiAnalysisReport,
+      status: exam.aiAnalysisStatus,
+      model: exam.aiAnalysisModel,
+      generatedAt: exam.aiAnalysisUpdatedAt,
+      hasReport: !!exam.aiAnalysisReport,
+    };
+  }
+
   async generateAIReportStream(examId: string, data: any, userId?: string, res?: any) {
     try {
       // 发送开始信号
@@ -2137,11 +2168,40 @@ ${studentAnswer}
       );
       const report = await this.callAIServiceStream(aiProvider, prompt, res);
 
-      // 发送完成信号
-      res.write(`data: ${JSON.stringify({ type: 'complete', report: report })}\n\n`);
+      // 保存报告到数据库
+      res.write(
+        `data: ${JSON.stringify({ type: 'progress', message: '正在保存分析报告...' })}\n\n`
+      );
+      const now = new Date();
+      await this.prisma.exam.update({
+        where: { id: examId },
+        data: {
+          aiAnalysisReport: report,
+          aiAnalysisStatus: 'COMPLETED',
+          aiAnalysisPromptUsed: prompt,
+          aiAnalysisProviderId: aiProvider.id,
+          aiAnalysisModel: aiProvider.model,
+          aiAnalysisUpdatedAt: now,
+        },
+      });
+
+      // 发送完成信号，包含生成时间
+      res.write(
+        `data: ${JSON.stringify({ type: 'complete', report: report, generatedAt: now.toISOString() })}\n\n`
+      );
       res.end();
     } catch (error) {
       console.error('生成AI报告失败:', error);
+      // 更新状态为失败
+      await this.prisma.exam
+        .update({
+          where: { id: examId },
+          data: {
+            aiAnalysisStatus: 'FAILED',
+            aiAnalysisUpdatedAt: new Date(),
+          },
+        })
+        .catch(() => {}); // 忽略更新失败的错误
       res.write(
         `data: ${JSON.stringify({ type: 'error', message: `生成AI分析报告失败: ${error.message}` })}\n\n`
       );

@@ -785,23 +785,38 @@ function AIProviderTab() {
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-2">
-              {providers.map((provider) => (
-                <div 
-                  key={provider.id} 
-                  className={`rounded-2xl border-2 bg-gradient-to-br p-6 shadow-lg ${
-                    provider.isGlobal && !canEditProvider(provider)
-                      ? 'border-gray-300 bg-gray-50 to-gray-100'
-                      : 'border-gray-200 from-gray-50 to-white'
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`rounded-full p-2 ${provider.isGlobal ? 'bg-blue-100' : 'bg-green-100'}`}>
-                        {provider.isGlobal ? (
-                          <Globe className="h-5 w-5 text-blue-600" />
-                        ) : (
-                          <User className="h-5 w-5 text-green-600" />
-                        )}
+              {providers.map((provider, index) => {
+                // 柔和的颜色主题，符合现代网页风格
+                const colorThemes = [
+                  { border: 'border-purple-200', from: 'from-purple-50', iconBg: 'bg-purple-100', iconText: 'text-purple-600', hover: 'hover:border-purple-300' },
+                  { border: 'border-teal-200', from: 'from-teal-50', iconBg: 'bg-teal-100', iconText: 'text-teal-600', hover: 'hover:border-teal-300' },
+                  { border: 'border-orange-200', from: 'from-orange-50', iconBg: 'bg-orange-100', iconText: 'text-orange-600', hover: 'hover:border-orange-300' },
+                  { border: 'border-pink-200', from: 'from-pink-50', iconBg: 'bg-pink-100', iconText: 'text-pink-600', hover: 'hover:border-pink-300' },
+                  { border: 'border-cyan-200', from: 'from-cyan-50', iconBg: 'bg-cyan-100', iconText: 'text-cyan-600', hover: 'hover:border-cyan-300' },
+                  { border: 'border-amber-200', from: 'from-amber-50', iconBg: 'bg-amber-100', iconText: 'text-amber-600', hover: 'hover:border-amber-300' },
+                  { border: 'border-indigo-200', from: 'from-indigo-50', iconBg: 'bg-indigo-100', iconText: 'text-indigo-600', hover: 'hover:border-indigo-300' },
+                  { border: 'border-emerald-200', from: 'from-emerald-50', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', hover: 'hover:border-emerald-300' },
+                ];
+                const theme = colorThemes[index % colorThemes.length];
+                const isDefault = defaultProviderId === provider.id;
+
+                return (
+                  <div 
+                    key={provider.id} 
+                    className={`rounded-2xl border-2 bg-gradient-to-br p-6 shadow-lg transition-all ${
+                      isDefault
+                        ? 'border-blue-400 from-blue-50 to-white ring-2 ring-blue-200 shadow-blue-100'
+                        : `${theme.border} ${theme.from} to-white ${theme.hover}`
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`rounded-full p-2 ${isDefault ? 'bg-blue-100' : theme.iconBg}`}>
+                          {provider.isGlobal ? (
+                            <Globe className={`h-5 w-5 ${isDefault ? 'text-blue-600' : theme.iconText}`} />
+                          ) : (
+                            <User className={`h-5 w-5 ${isDefault ? 'text-blue-600' : theme.iconText}`} />
+                          )}
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -885,8 +900,9 @@ function AIProviderTab() {
                       删除
                     </Button>
                   </div>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

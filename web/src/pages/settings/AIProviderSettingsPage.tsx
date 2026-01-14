@@ -252,112 +252,124 @@ export default function SettingsPage() {
               </div>
             ) : (
               <div className="grid gap-4 lg:grid-cols-2">
-                {providers.map((provider) => (
-                  <div 
-                    key={provider.id} 
-                    className={`rounded-2xl border-2 bg-gradient-to-br p-6 shadow-lg ${
-                      provider.isGlobal && !canEditProvider(provider)
-                        ? 'border-gray-300 bg-gray-50 to-gray-100'
-                        : 'border-gray-200 from-gray-50 to-white'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`rounded-full p-2 ${
-                          provider.isGlobal ? 'bg-blue-100' : 'bg-green-100'
-                        }`}>
-                          {provider.isGlobal ? (
-                            <Globe className="h-5 w-5 text-blue-600" />
-                          ) : (
-                            <User className="h-5 w-5 text-green-600" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-bold text-gray-900">{provider.name}</h3>
-                            {defaultProviderId === provider.id && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                <Star className="h-3 w-3" />
-                                系统默认
-                              </span>
-                            )}
-                            {provider.isGlobal && !canEditProvider(provider) && (
-                              <div title="系统默认，不可修改">
-                                <Lock className="h-4 w-4 text-gray-500" />
-                              </div>
+                {providers.map((provider, index) => {
+                  // 柔和的颜色主题，符合现代网页风格
+                  const colorThemes = [
+                    { border: 'border-purple-200', from: 'from-purple-50', iconBg: 'bg-purple-100', iconText: 'text-purple-600', hover: 'hover:border-purple-300' },
+                    { border: 'border-teal-200', from: 'from-teal-50', iconBg: 'bg-teal-100', iconText: 'text-teal-600', hover: 'hover:border-teal-300' },
+                    { border: 'border-orange-200', from: 'from-orange-50', iconBg: 'bg-orange-100', iconText: 'text-orange-600', hover: 'hover:border-orange-300' },
+                    { border: 'border-pink-200', from: 'from-pink-50', iconBg: 'bg-pink-100', iconText: 'text-pink-600', hover: 'hover:border-pink-300' },
+                    { border: 'border-cyan-200', from: 'from-cyan-50', iconBg: 'bg-cyan-100', iconText: 'text-cyan-600', hover: 'hover:border-cyan-300' },
+                    { border: 'border-amber-200', from: 'from-amber-50', iconBg: 'bg-amber-100', iconText: 'text-amber-600', hover: 'hover:border-amber-300' },
+                    { border: 'border-indigo-200', from: 'from-indigo-50', iconBg: 'bg-indigo-100', iconText: 'text-indigo-600', hover: 'hover:border-indigo-300' },
+                    { border: 'border-emerald-200', from: 'from-emerald-50', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', hover: 'hover:border-emerald-300' },
+                  ];
+                  const theme = colorThemes[index % colorThemes.length];
+                  const isDefault = defaultProviderId === provider.id;
+
+                  return (
+                    <div 
+                      key={provider.id} 
+                      className={`rounded-2xl border-2 bg-gradient-to-br p-6 shadow-lg transition-all ${
+                        isDefault
+                          ? 'border-blue-400 from-blue-50 to-white ring-2 ring-blue-200 shadow-blue-100'
+                          : `${theme.border} ${theme.from} to-white ${theme.hover}`
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`rounded-full p-2 ${isDefault ? 'bg-blue-100' : theme.iconBg}`}>
+                            {provider.isGlobal ? (
+                              <Globe className={`h-5 w-5 ${isDefault ? 'text-blue-600' : theme.iconText}`} />
+                            ) : (
+                              <User className={`h-5 w-5 ${isDefault ? 'text-blue-600' : theme.iconText}`} />
                             )}
                           </div>
-                          <p className="text-sm text-gray-600">
-                            {provider.isGlobal ? '全局配置' : '个人配置'}
-                            {provider.creator && ` · 创建者: ${provider.creator.name}`}
-                          </p>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-lg font-bold text-gray-900">{provider.name}</h3>
+                              {isDefault && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                  <Star className="h-3 w-3" />
+                                  系统默认
+                                </span>
+                              )}
+                              {provider.isGlobal && !canEditProvider(provider) && (
+                                <div title="系统配置，不可修改">
+                                  <Lock className="h-4 w-4 text-gray-500" />
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              {provider.isGlobal ? '全局配置' : '个人配置'}
+                              {provider.creator && ` · 创建者: ${provider.creator.name}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            provider.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {provider.isActive ? '启用' : '禁用'}
+                          </span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          provider.isActive 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {provider.isActive ? '启用' : '禁用'}
-                        </span>
-                      </div>
-                    </div>
 
-                    <div className="space-y-2 mb-4">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">模型:</span>
-                        <span className="font-medium">{provider.model}</span>
-                      </div>
-                      {provider.baseUrl && (
+                      <div className="space-y-2 mb-4">
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-500">Base URL:</span>
-                          <span className="font-medium truncate ml-2">{provider.baseUrl}</span>
+                          <span className="text-gray-500">模型:</span>
+                          <span className="font-medium">{provider.model}</span>
                         </div>
-                      )}
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">API Key:</span>
-                        <span className="font-medium">{'*'.repeat(8)}...{provider.apiKey.slice(-4)}</span>
+                        {provider.baseUrl && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Base URL:</span>
+                            <span className="font-medium truncate ml-2">{provider.baseUrl}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-500">API Key:</span>
+                          <span className="font-medium">{'*'.repeat(8)}...{provider.apiKey.slice(-4)}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={() => handleEdit(provider)}
+                          variant="outline"
+                          className="flex-1 flex items-center justify-center gap-2"
+                          disabled={!canEditProvider(provider)}
+                        >
+                          <Edit className="h-4 w-4" />
+                          编辑
+                        </Button>
+                        {userRole === 'ADMIN' && (
+                          <Button 
+                            onClick={() => handleSetDefault(provider)}
+                            variant="outline"
+                            className={`flex items-center justify-center gap-2 ${
+                              isDefault 
+                                ? 'bg-blue-50 text-blue-600 border-blue-200' 
+                                : 'text-blue-600 hover:text-blue-700'
+                            }`}
+                            disabled={isDefault || !provider.isActive}
+                          >
+                            <Star className="h-4 w-4" />
+                            {isDefault ? '默认' : '设为默认'}
+                          </Button>
+                        )}
+                        <Button 
+                          onClick={() => handleDelete(provider)}
+                          variant="outline"
+                          className="flex items-center justify-center gap-2 text-red-600 hover:text-red-700"
+                          disabled={!canDeleteProvider(provider) || isDefault}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          删除
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => handleEdit(provider)}
-                        variant="outline"
-                        className="flex-1 flex items-center justify-center gap-2"
-                        disabled={!canEditProvider(provider)}
-                      >
-                        <Edit className="h-4 w-4" />
-                        编辑
-                      </Button>
-                      {userRole === 'ADMIN' && (
-                        <Button 
-                          onClick={() => handleSetDefault(provider)}
-                          variant="outline"
-                          className={`flex items-center justify-center gap-2 ${
-                            defaultProviderId === provider.id 
-                              ? 'bg-blue-50 text-blue-600 border-blue-200' 
-                              : 'text-blue-600 hover:text-blue-700'
-                          }`}
-                          disabled={defaultProviderId === provider.id || !provider.isActive}
-                        >
-                          <Star className="h-4 w-4" />
-                          {defaultProviderId === provider.id ? '默认' : '设为默认'}
-                        </Button>
-                      )}
-                      <Button 
-                        onClick={() => handleDelete(provider)}
-                        variant="outline"
-                        className="flex items-center justify-center gap-2 text-red-600 hover:text-red-700"
-                        disabled={!canDeleteProvider(provider) || defaultProviderId === provider.id}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        删除
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

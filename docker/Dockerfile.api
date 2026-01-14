@@ -1,28 +1,71 @@
-# Stage 1: Build
-FROM node:18-alpine AS builder
+# Multi-stage build for ExamForge API
 
+# Stage 1: Build dependencies
+FROM node:18-alpine AS deps
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+# Install pnpm globally
+RUN npm install -g pnpm
 
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install all dependencies
+RUN pnpm install --frozen-lockfile --prod=false
+
+# Stage 2: Build the application
+FROM node:18-alpine AS builder
+WORKDIR /app
+
+# Copy pnpm store from previous stage
+COPY --from=deps /root/.pnpm-store /root/.pnpm-store
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
 COPY . .
+
+# Build the API application
 RUN pnpm --filter @examforge/api build
 
-# Stage 2: Run
-FROM node:18-alpine
+# Generate Prisma client
+RUN cd apps/api && pnpm prisma generate
 
+# Stage 3: Production runtime
+FROM node:18-alpine AS runtime
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install --prod --frozen-lockfile
+# Install pnpm globally
+RUN npm install -g pnpm
 
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install production dependencies only
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy built application from builder stage
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/packages ./packages
 
+# Create uploads and assets directories
+RUN mkdir -p ./apps/api/uploads ./apps/api/assets
+
+# Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 
+# Expose port
 EXPOSE 3000
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:${PORT}/health || exit 1
+
+# Start the application
 CMD ["node", "apps/api/dist/main.js"]

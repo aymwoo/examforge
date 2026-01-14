@@ -1,11 +1,21 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { BarChart3, TrendingUp, Users, Target, FileText, Sparkles } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Target, FileText, Sparkles, Clock, Eye, RefreshCw } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import Button from "@/components/ui/Button";
 import ExamLayout from "@/components/ExamLayout";
 import { getExamById, type Exam } from "@/services/exams";
 import api from "@/services/api";
+
+interface SavedAIReport {
+  examId: string;
+  examTitle: string;
+  report: string | null;
+  status: string | null;
+  model: string | null;
+  generatedAt: string | null;
+  hasReport: boolean;
+}
 
 export default function ExamAnalyticsPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +26,8 @@ export default function ExamAnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
   const [aiReport, setAiReport] = useState<string>('');
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [savedReport, setSavedReport] = useState<SavedAIReport | null>(null);
+  const [loadingSavedReport, setLoadingSavedReport] = useState(false);
 
   const getQuestionTypeName = (type: string) => {
     const typeMap: Record<string, string> = {
@@ -256,17 +268,41 @@ export default function ExamAnalyticsPage() {
     setError(null);
     
     try {
-      const [examData, analyticsData] = await Promise.all([
+      const [examData, analyticsData, savedReportData] = await Promise.all([
         getExamById(id),
-        api.get(`/api/exams/${id}/analytics`)
+        api.get(`/api/exams/${id}/analytics`),
+        api.get(`/api/exams/${id}/ai-report`).catch(() => ({ data: null })),
       ]);
       
       setExam(examData);
       setAnalytics(analyticsData.data);
+      
+      // 加载已保存的报告
+      if (savedReportData.data && savedReportData.data.hasReport) {
+        setSavedReport(savedReportData.data);
+        setAiReport(savedReportData.data.report || '');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || "加载失败");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 加载已保存的报告
+  const loadSavedReport = async () => {
+    if (!id) return;
+    setLoadingSavedReport(true);
+    try {
+      const response = await api.get(`/api/exams/${id}/ai-report`);
+      if (response.data && response.data.hasReport) {
+        setSavedReport(response.data);
+        setAiReport(response.data.report || '');
+      }
+    } catch (error) {
+      console.error('加载保存的报告失败:', error);
+    } finally {
+      setLoadingSavedReport(false);
     }
   };
 
@@ -293,6 +329,16 @@ export default function ExamAnalyticsPage() {
               break;
             case 'complete':
               setAiReport(data.report);
+              // 更新 savedReport 状态
+              setSavedReport({
+                examId: id || '',
+                examTitle: exam?.title || '',
+                report: data.report,
+                status: 'COMPLETED',
+                model: null,
+                generatedAt: data.generatedAt || new Date().toISOString(),
+                hasReport: true,
+              });
               eventSource.close();
               setGeneratingReport(false);
               break;
@@ -327,6 +373,23 @@ export default function ExamAnalyticsPage() {
     }
   };
 
+  // 格式化生成时间
+  const formatGeneratedTime = (dateString: string | null) => {
+    if (!dateString) return null;
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-slatebg text-ink-900 antialiased min-h-screen flex items-center justify-center">
@@ -356,26 +419,60 @@ export default function ExamAnalyticsPage() {
       <div className="space-y-8">
         {analytics ? (
           <div className="space-y-8">
-            {/* AI分析报告按钮 */}
-            <div className="flex justify-end">
-              <Button
-                onClick={generateAIReport}
-                disabled={generatingReport}
-                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3"
-              >
-                <Sparkles className="h-4 w-4" />
-                {generatingReport ? '生成中...' : '生成AI分析报告'}
-              </Button>
+            {/* AI分析报告按钮区域 */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                {savedReport?.hasReport && !loadingSavedReport && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-100 px-4 py-2 rounded-lg">
+                    <Clock className="h-4 w-4 text-purple-500" />
+                    <span>报告生成于: {formatGeneratedTime(savedReport.generatedAt)}</span>
+                    {savedReport.model && (
+                      <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
+                        {savedReport.model}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {savedReport?.hasReport && !aiReport && (
+                  <Button
+                    onClick={loadSavedReport}
+                    disabled={loadingSavedReport}
+                    variant="outline"
+                    className="flex items-center gap-2 text-purple-600 border-purple-200 hover:bg-purple-50"
+                  >
+                    <Eye className="h-4 w-4" />
+                    {loadingSavedReport ? '加载中...' : '查看已保存报告'}
+                  </Button>
+                )}
+                <Button
+                  onClick={generateAIReport}
+                  disabled={generatingReport}
+                  className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3"
+                >
+                  {savedReport?.hasReport ? <RefreshCw className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                  {generatingReport ? '生成中...' : (savedReport?.hasReport ? '重新生成' : '生成AI分析报告')}
+                </Button>
+              </div>
             </div>
 
             {/* AI分析报告展示 */}
             {aiReport && (
               <div className="rounded-3xl border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-white p-8 shadow-lg">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="rounded-full bg-purple-500 p-2">
-                    <FileText className="h-5 w-5 text-white" />
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full bg-purple-500 p-2">
+                      <FileText className="h-5 w-5 text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-purple-900">AI智能分析报告</h2>
                   </div>
-                  <h2 className="text-xl font-bold text-purple-900">AI智能分析报告</h2>
+                  {savedReport?.generatedAt && (
+                    <div className="flex items-center gap-2 text-sm text-purple-600">
+                      <Clock className="h-4 w-4" />
+                      <span>生成时间: {formatGeneratedTime(savedReport.generatedAt)}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="prose max-w-none">
                   <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
