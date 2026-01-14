@@ -8,6 +8,7 @@ import {
   getJsonStructureTemplate,
   getDefaultProviderId,
   setDefaultProvider,
+  deleteUserSetting,
   type SystemSettings,
 } from "@/services/settings";
 import { listStudentsForPromptManagement } from "@/services/students";
@@ -164,7 +165,12 @@ export default function SettingsPage() {
   };
 
   const loadStudentsForPromptManagement = async () => {
-    if (!isTeacher) return;
+    if (!isTeacher) {
+      // 如果不是教师，清空学生列表
+      setStudents([]);
+      setSelectedStudentId(null);
+      return;
+    }
     try {
       const result = await listStudentsForPromptManagement({
         search: studentSearch || undefined,
@@ -180,6 +186,14 @@ export default function SettingsPage() {
       }
     } catch (err) {
       console.error("Failed to load students for prompt management", err);
+      // 添加更具体的错误信息
+      if (err.response) {
+        console.error("Response error:", err.response.status, err.response.data);
+      } else if (err.request) {
+        console.error("Request error:", err.request);
+      } else {
+        console.error("General error:", err.message);
+      }
     }
   };
 
@@ -288,32 +302,49 @@ export default function SettingsPage() {
     }
   };
 
-  const handleResetToDefault = async () => {
-    const defaultTemplate = `你是一个专业的题目生成AI助手。
-根据用户提供的试卷图像和约束条件，生成一次线上考试。
+  const handleResetToDefault = async (templateType: string = 'PROMPT_TEMPLATE') => {
+    try {
+      // 删除用户特定的提示词设置，这样就会回退到系统默认值
+      await deleteUserSetting(templateType);
 
-要求：
-1. 根据试卷图像识别所有题目
-2. 确保题目格式正确，包括题干、选项（选择题）、答案、解析
-3. 为每道题提供合理的难度（1-5）、知识点和标签
-4. 输出JSON格式，格式要求：
-{
-  "questions": [
-    {
-      "content": "题干内容",
-      "type": "题型(SINGLE_CHOICE/MULTIPLE_CHOICE/TRUE_FALSE/FILL_BLANK/ESSAY)",
-      "options": [{"label": "A", "content": "选项1"}, ...],
-      "answer": "正确答案",
-      "explanation": "题目解析",
-      "difficulty": 1,
-      "tags": ["标签1", "标签2"],
-      "knowledgePoint": "知识点"
+      // 重新加载设置以获取系统默认值
+      const updatedSettings = await getUserSettings();
+      setSettings(updatedSettings);
+
+      // 重置相应的变更标志
+      if (templateType === 'PROMPT_TEMPLATE') {
+        setPromptTemplateChanged(false);
+      } else if (templateType === 'GRADING_PROMPT_TEMPLATE') {
+        setGradingPromptTemplateChanged(false);
+      } else if (templateType === 'ANALYSIS_PROMPT_TEMPLATE') {
+        setAnalysisPromptTemplateChanged(false);
+      } else if (templateType === 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE') {
+        setStudentAiAnalysisPromptTemplateChanged(false);
+      }
+
+      let message = "";
+      switch(templateType) {
+        case 'PROMPT_TEMPLATE':
+          message = "试卷生成提示词";
+          break;
+        case 'GRADING_PROMPT_TEMPLATE':
+          message = "AI评分提示词";
+          break;
+        case 'ANALYSIS_PROMPT_TEMPLATE':
+          message = "分析报告提示词";
+          break;
+        case 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE':
+          message = "学生AI分析提示词";
+          break;
+        default:
+          message = "提示词";
+      }
+
+      setError(`${message}已重置为系统默认值`);
+    } catch (error) {
+      console.error('重置提示词失败:', error);
+      setError("重置失败：" + (error.response?.data?.message || error.message));
     }
-  ]
-}
-
-请只返回JSON格式的题目数据，不要包含其他说明文字。`;
-    setSettings((prev) => ({ ...prev, promptTemplate: defaultTemplate }));
   };
 
   const handleInsertGradingVariables = () => {
@@ -1046,7 +1077,7 @@ function PromptsTab({
           <h2 className="text-lg font-semibold text-ink-900">试卷生成提示词配置</h2>
           <div className="flex gap-2">
             <Button onClick={onInsertJsonStructure} variant="outline" size="sm">插入JSON结构</Button>
-            <Button onClick={onResetToDefault} variant="outline" size="sm">重置默认</Button>
+            <Button onClick={() => onResetToDefault('PROMPT_TEMPLATE')} variant="outline" size="sm">重置默认</Button>
           </div>
         </div>
         <div>
@@ -1072,7 +1103,10 @@ function PromptsTab({
       <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">AI评分提示词配置</h2>
-          <Button onClick={onInsertGradingVariables} variant="outline" size="sm">插入支持变量</Button>
+          <div className="flex gap-2">
+            <Button onClick={onInsertGradingVariables} variant="outline" size="sm">插入支持变量</Button>
+            <Button onClick={() => onResetToDefault('GRADING_PROMPT_TEMPLATE')} variant="outline" size="sm">重置默认</Button>
+          </div>
         </div>
         <div>
           <label className="mb-2 block text-sm font-semibold text-ink-900">评分提示词模板</label>
@@ -1099,16 +1133,19 @@ function PromptsTab({
       <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">评分管理 AI分析提示词配置</h2>
-          <Button
-            onClick={() => {
-              const variables = `\n支持的变量：\n- {studentLabel} - 学生显示名/账号\n- {studentPrompt} - 学生个性化提示词\n- {payload} - 评分详情JSON`;
-              setSettings((prev: any) => ({ ...prev, studentAiAnalysisPromptTemplate: prev.studentAiAnalysisPromptTemplate + variables }));
-            }}
-            variant="outline"
-            size="sm"
-          >
-            插入支持变量
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                const variables = `\n支持的变量：\n- {studentLabel} - 学生显示名/账号\n- {studentPrompt} - 学生个性化提示词\n- {payload} - 评分详情JSON`;
+                setSettings((prev: any) => ({ ...prev, studentAiAnalysisPromptTemplate: prev.studentAiAnalysisPromptTemplate + variables }));
+              }}
+              variant="outline"
+              size="sm"
+            >
+              插入支持变量
+            </Button>
+            <Button onClick={() => onResetToDefault('STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE')} variant="outline" size="sm">重置默认</Button>
+          </div>
         </div>
         <div>
           <label className="mb-2 block text-sm font-semibold text-ink-900">学生个人AI分析提示词模板</label>
@@ -1133,7 +1170,10 @@ function PromptsTab({
       <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink-900">分析报告提示词配置</h2>
-          <Button onClick={onInsertAnalysisVariables} variant="outline" size="sm">插入支持变量</Button>
+          <div className="flex gap-2">
+            <Button onClick={onInsertAnalysisVariables} variant="outline" size="sm">插入支持变量</Button>
+            <Button onClick={() => onResetToDefault('ANALYSIS_PROMPT_TEMPLATE')} variant="outline" size="sm">重置默认</Button>
+          </div>
         </div>
         <div>
           <label className="mb-2 block text-sm font-semibold text-ink-900">分析报告提示词模板</label>

@@ -148,3 +148,11 @@ export const setDefaultProvider = async (
   );
   return response.data;
 };
+
+export const deleteUserSetting = async (
+  key: string
+): Promise<void> => {
+  await api.delete(`/api/settings/user`, {
+    params: { key }
+  });
+};

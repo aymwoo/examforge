@@ -13,6 +13,7 @@ import { CreateExamDto } from './dto/create-exam.dto';
 import { UpdateExamDto } from './dto/update-exam.dto';
 import { AddQuestionDto } from './dto/add-question.dto';
 import { AIService } from '../ai/ai.service';
+import { SettingsService, AIProvider } from '../settings/settings.service';
 import { CreateExamStudentDto } from './dto/create-exam-student.dto';
 import { BatchCreateExamStudentsDto } from './dto/batch-create-exam-students.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -32,7 +33,8 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AIService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly settingsService: SettingsService
   ) {}
 
   onModuleInit() {
@@ -2080,7 +2082,7 @@ ${studentAnswer}
   /**
    * 获取已保存的AI分析报告
    */
-  async getSavedAIReport(examId: string) {
+  async getSavedAIReport(examId: string, currentUser: any) {
     const exam = await this.prisma.exam.findUnique({
       where: { id: examId },
       select: {
@@ -2090,11 +2092,38 @@ ${studentAnswer}
         aiAnalysisStatus: true,
         aiAnalysisModel: true,
         aiAnalysisUpdatedAt: true,
+        createdBy: true,
       },
     });
 
     if (!exam) {
       throw new Error('考试不存在');
+    }
+
+    // 权限检查
+    if (currentUser.role === 'ADMIN') {
+      // 管理员可以访问所有考试
+    } else if (currentUser.role === 'TEACHER') {
+      // 教师只能访问自己创建的考试
+      if (exam.createdBy !== currentUser.sub) {
+        throw new Error('您没有权限访问此考试');
+      }
+    } else if (currentUser.role === 'STUDENT' || currentUser.isStudent) {
+      // 学生只能访问自己参与的考试
+      const examStudent = await this.prisma.examStudent.findFirst({
+        where: {
+          examId: examId,
+          OR: [
+            { studentId: currentUser.sub }, // 固定学生
+            { student: { studentId: currentUser.username } }, // 临时学生
+          ],
+        },
+      });
+      if (!examStudent) {
+        throw new Error('您没有权限访问此考试');
+      }
+    } else {
+      throw new Error('无效的用户角色');
     }
 
     return {
@@ -2140,13 +2169,45 @@ ${studentAnswer}
       // 获取用户的默认AI Provider设置
       res.write(`data: ${JSON.stringify({ type: 'progress', message: '正在获取AI配置...' })}\n\n`);
 
-      const aiProvider = await this.prisma.aIProvider.findFirst({
-        where: {
-          isActive: true,
-          OR: [{ isGlobal: true }, { createdBy: userId }],
-        },
-        orderBy: [{ isGlobal: 'asc' }, { createdAt: 'desc' }],
-      });
+      // 使用 SettingsService 中统一的逻辑来获取活动的AI Provider
+      let providerInfo;
+      try {
+        providerInfo = await this.settingsService.getActiveAIProvider(userId);
+      } catch (error) {
+        res.write(
+          `data: ${JSON.stringify({ type: 'error', message: '获取AI Provider配置失败: ' + error.message })}\n\n`
+        );
+        res.end();
+        return;
+      }
+
+      // 如果 providerInfo 包含 id，说明是自定义 provider，需要从数据库获取详细信息
+      let aiProvider;
+      if (providerInfo.id) {
+        aiProvider = await this.prisma.aIProvider.findUnique({
+          where: { id: providerInfo.id, isActive: true },
+        });
+      } else {
+        // 如果没有 id，说明是系统默认 provider，需要从用户设置获取详细信息
+        const userSettings = await this.prisma.userSetting.findMany({
+          where: { userId: userId },
+        });
+        const settingsMap = new Map(userSettings.map(s => [s.key, s.value]));
+
+        // 获取系统设置
+        const systemSettings = await this.settingsService.getSettings();
+
+        // 构造 provider 对象
+        aiProvider = {
+          id: null,
+          name: providerInfo.name,
+          provider: providerInfo.provider,
+          model: settingsMap.get('AI_MODEL') || systemSettings.aiModel,
+          baseUrl: settingsMap.get('AI_BASE_URL') || systemSettings.aiBaseUrl,
+          apiKey: settingsMap.get('AI_API_KEY') || systemSettings.aiApiKey,
+          isGlobal: true,
+        };
+      }
 
       if (!aiProvider) {
         res.write(
@@ -2187,7 +2248,7 @@ ${studentAnswer}
 
       // 发送完成信号，包含生成时间
       res.write(
-        `data: ${JSON.stringify({ type: 'complete', report: report, generatedAt: now.toISOString() })}\n\n`
+        `data: ${JSON.stringify({ type: 'complete', report: report, model: aiProvider.model, generatedAt: now.toISOString() })}\n\n`
       );
       res.end();
     } catch (error) {
@@ -2423,6 +2484,10 @@ ${studentAnswer}
       doc.text(`最高分: ${analytics.scoreStats?.highest || 0}`);
       doc.text(`最低分: ${analytics.scoreStats?.lowest || 0}`);
       doc.moveDown();
+
+      // 添加图表
+      this.drawAnalyticsCharts(doc, exam, analytics);
+      doc.addPage();
     }
 
     // 题目详情
@@ -2438,6 +2503,187 @@ ${studentAnswer}
       }
       doc.moveDown();
     });
+  }
+
+  private drawAnalyticsCharts(doc: any, exam: any, analytics: any) {
+    const pageWidth = doc.page.width;
+    const margin = 50;
+    const contentWidth = pageWidth - margin * 2;
+    let currentY = doc.y;
+
+    // 1. 分数分布 (柱状图)
+    if (exam.submissions && exam.submissions.length > 0) {
+      const scores = exam.submissions.map((s: any) => s.score || 0);
+      const ranges = [
+        { name: '0-20', min: 0, max: 20 },
+        { name: '21-40', min: 21, max: 40 },
+        { name: '41-60', min: 41, max: 60 },
+        { name: '61-80', min: 61, max: 80 },
+        { name: '81-100', min: 81, max: 100 },
+      ];
+      const data = ranges.map((r) => ({
+        label: r.name,
+        value: scores.filter((s) => s >= r.min && s <= r.max).length,
+      }));
+
+      this.drawBarChart(doc, margin, currentY, contentWidth, 200, data, '分数分布');
+      currentY += 240;
+    }
+
+    // 检查是否需要新页
+    if (currentY > doc.page.height - 250) {
+      doc.addPage();
+      currentY = margin;
+    }
+
+    // 2. 题型分布 (饼图)
+    const typeCount: Record<string, number> = {};
+    exam.examQuestions.forEach((eq: any) => {
+      const type = eq.question.type;
+      typeCount[type] = (typeCount[type] || 0) + 1;
+    });
+    const pieData = Object.entries(typeCount).map(([k, v]) => ({ label: k, value: v }));
+
+    // 左右布局：左边题型分布，右边难度分布
+    this.drawPieChart(doc, margin + 80, currentY + 100, 70, pieData, '题型分布');
+
+    // 3. 难度分布 (柱状图)
+    const diffCount: Record<string, number> = {};
+    exam.examQuestions.forEach((eq: any) => {
+      const d = eq.question.difficulty || '未设置';
+      diffCount[d] = (diffCount[d] || 0) + 1;
+    });
+    const diffData = Object.entries(diffCount).map(([k, v]) => ({ label: k, value: v }));
+    this.drawBarChart(
+      doc,
+      margin + 250,
+      currentY,
+      contentWidth / 2 - 20,
+      200,
+      diffData,
+      '难度分布'
+    );
+
+    currentY += 240;
+
+    // 检查是否需要新页
+    if (currentY > doc.page.height - 250) {
+      doc.addPage();
+      currentY = margin;
+    }
+
+    // 4. 知识点掌握情况 (雷达图/柱状图) - 这里使用横向柱状图代替雷达图，因为PDF中更容易实现且清晰
+    if (analytics.knowledgePointStats && analytics.knowledgePointStats.length > 0) {
+      const kpData = analytics.knowledgePointStats.map((kp: any) => ({
+        label: kp.knowledgePoint || '未分类',
+        value: kp.masteryRate || 0,
+      }));
+      this.drawBarChart(
+        doc,
+        margin,
+        currentY,
+        contentWidth,
+        200,
+        kpData,
+        '知识点掌握率 (%)',
+        '#8b5cf6'
+      );
+    }
+  }
+
+  private drawBarChart(
+    doc: any,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    data: any[],
+    title: string,
+    color: string = '#3b82f6'
+  ) {
+    doc.save();
+
+    // 标题
+    doc.fillColor('black').fontSize(12).text(title, x, y, { width: w, align: 'center' });
+
+    const chartTop = y + 30;
+    const chartHeight = h - 50;
+    const chartBottom = chartTop + chartHeight;
+    const barWidth = (w - 40) / data.length / 2;
+    const gap = barWidth;
+
+    // 坐标轴
+    doc
+      .strokeColor('#e5e7eb')
+      .lineWidth(1)
+      .moveTo(x + 20, chartTop)
+      .lineTo(x + 20, chartBottom) // Y轴
+      .lineTo(x + w, chartBottom) // X轴
+      .stroke();
+
+    const maxValue = Math.max(...data.map((d) => d.value), 1); // 避免除以0
+
+    // 绘制柱子
+    data.forEach((d, i) => {
+      const barHeight = (d.value / maxValue) * chartHeight;
+      const barX = x + 30 + i * (barWidth + gap);
+      const barY = chartBottom - barHeight;
+
+      doc.fillColor(color).rect(barX, barY, barWidth, barHeight).fill();
+
+      // 数值
+      doc
+        .fillColor('#6b7280')
+        .fontSize(8)
+        .text(d.value.toString(), barX, barY - 12, { width: barWidth, align: 'center' });
+
+      // 标签（X轴）
+      doc
+        .fillColor('black')
+        .fontSize(8)
+        .text(d.label, barX - 10, chartBottom + 5, { width: barWidth + 20, align: 'center' });
+    });
+
+    doc.restore();
+  }
+
+  private drawPieChart(doc: any, cx: number, cy: number, r: number, data: any[], title: string) {
+    doc.save();
+
+    // 标题
+    doc
+      .fillColor('black')
+      .fontSize(12)
+      .text(title, cx - r, cy - r - 25, { width: r * 2, align: 'center' });
+
+    const total = data.reduce((sum, d) => sum + d.value, 0);
+    let startAngle = 0;
+    const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#8dd1e1', '#d084d0'];
+
+    data.forEach((d, i) => {
+      const sliceAngle = (d.value / total) * 2 * Math.PI;
+      const color = colors[i % colors.length];
+
+      doc
+        .fillColor(color)
+        .path(
+          `M ${cx} ${cy} L ${cx + r * Math.cos(startAngle)} ${cy + r * Math.sin(startAngle)} A ${r} ${r} 0 ${sliceAngle > Math.PI ? 1 : 0} 1 ${cx + r * Math.cos(startAngle + sliceAngle)} ${cy + r * Math.sin(startAngle + sliceAngle)} Z`
+        )
+        .fill();
+
+      // 图例
+      const legendX = cx + r + 20;
+      const legendY = cy - r + i * 15;
+      doc.rect(legendX, legendY, 10, 10).fill();
+      doc
+        .fillColor('black')
+        .fontSize(8)
+        .text(`${d.label} (${((d.value / total) * 100).toFixed(0)}%)`, legendX + 15, legendY);
+
+      startAngle += sliceAngle;
+    });
+
+    doc.restore();
   }
 
   private async generateStudentPdfReport(

@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Put, Delete, Body, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBody, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { SettingsService, SystemSettings, AIModelConfig } from './settings.service';
 import { UpdateSettingDto } from './dto/update-setting.dto';
@@ -56,6 +56,14 @@ export class SettingsController {
     return { defaultProviderId };
   }
 
+  @Get('active-ai-provider')
+  @ApiOperation({ summary: 'Get the active AI provider that will be used for operations' })
+  @ApiResponse({ status: 200, description: 'Active AI provider retrieved successfully' })
+  async getActiveAIProvider(@Req() req: any): Promise<{ provider: any }> {
+    const provider = await this.settingsService.getActiveAIProvider(req.user.id);
+    return { provider };
+  }
+
   @Put()
   @ApiOperation({ summary: 'Update a system setting' })
   @ApiBody({ type: UpdateSettingDto })
@@ -71,6 +79,14 @@ export class SettingsController {
   @ApiResponse({ status: 200, description: 'User setting updated successfully' })
   async updateUserSetting(@Req() req: any, @Body() dto: UpdateSettingDto) {
     await this.settingsService.updateUserSetting(req.user.id, dto.key, dto.value);
+    return { success: true };
+  }
+
+  @Delete('user')
+  @ApiOperation({ summary: 'Delete a user setting' })
+  @ApiResponse({ status: 200, description: 'User setting deleted successfully' })
+  async deleteUserSetting(@Req() req: any, @Query('key') key: string) {
+    await this.settingsService.deleteUserSetting(req.user.id, key);
     return { success: true };
   }
 }

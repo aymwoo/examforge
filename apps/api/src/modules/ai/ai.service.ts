@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { SettingsService } from '../settings/settings.service';
+import { SettingsService, AIProvider } from '../settings/settings.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface AIQuestion {
@@ -32,15 +32,16 @@ export class AIService {
   ) {}
 
   private async getEffectivePrompt(customPrompt?: string, userPrompt?: string, userId?: string): Promise<string> {
-    // 三级优先级：导入页面编辑的提示词 > 教师设置的提示词 > 系统默认提示词
+    // 二级优先级：自定义提示词（如导入页面编辑的） > 用户设置的提示词（教师的个性化提示词） > 系统默认提示词
     if (customPrompt && customPrompt.trim()) {
       return customPrompt;
     }
-    
+
+    // 如果用户设置了个性化提示词，则使用用户设置的，否则使用系统默认
     if (userPrompt && userPrompt.trim()) {
       return userPrompt;
     }
-    
+
     // 返回系统默认提示词
     return this.settingsService.getDefaultPromptTemplate();
   }
@@ -197,62 +198,166 @@ export class AIService {
   }
 
   async testConnection(message: string = 'Hello', userId?: string): Promise<{ response: string }> {
-    const settings = userId 
-      ? await this.settingsService.getUserSettings(userId)
-      : await this.settingsService.getSettings();
+    // Use the same prioritized logic as getActiveAIProvider to get the active provider
+    let provider = null;
 
-    if (!settings.aiApiKey) {
-      throw new BadRequestException(
-        'AI API Key not configured. Please configure AI provider in settings.'
-      );
-    }
-
-    const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
-
-    console.log(`AI Test Connection URL: ${apiUrl}`);
-    console.log(`AI Model: ${settings.aiModel || 'gpt-4'}`);
-
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${settings.aiApiKey}`,
-          'Content-Type': 'application/json',
+    if (userId) {
+      // Get the user's AI provider setting
+      const userSetting = await this.prisma.userSetting.findFirst({
+        where: {
+          userId: userId,
+          key: 'AI_PROVIDER',
         },
-        body: JSON.stringify({
-          model: settings.aiModel || 'gpt-4',
-          messages: [
-            {
-              role: 'user',
-              content: message,
-            },
-          ],
-          max_tokens: 100,
-        }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`AI API Error: ${response.status} - ${errorText}`);
-        throw new BadRequestException(`AI API error: ${response.status} - ${errorText}`);
+      const userProvider = userSetting?.value;
+
+      // First priority: If user has a specific custom provider ID, use that
+      if (userProvider && userProvider !== AIProvider.OPENAI &&
+          userProvider !== AIProvider.QWEN && userProvider !== AIProvider.CUSTOM) {
+        provider = await this.prisma.aIProvider.findUnique({
+          where: { id: userProvider, isActive: true },
+        });
       }
 
-      const data: any = await response.json();
-      const content = data.choices?.[0]?.message?.content;
-
-      if (!content) {
-        throw new BadRequestException('AI returned empty response');
+      // Second priority: If user has CUSTOM provider setting, find their first active custom provider
+      if (!provider && userProvider === AIProvider.CUSTOM) {
+        provider = await this.prisma.aIProvider.findFirst({
+          where: {
+            isActive: true,
+            OR: [{ isGlobal: true }, { createdBy: userId }],
+          },
+          orderBy: [{ isGlobal: 'desc' }, { createdAt: 'desc' }],
+        });
       }
 
-      return { response: content };
-    } catch (error: unknown) {
-      if (error instanceof BadRequestException) {
-        throw error;
+      // Third priority: Use system default provider
+      if (!provider) {
+        const systemProviderValue = await this.prisma.systemSetting.findUnique({
+          where: { key: 'AI_PROVIDER' },
+        });
+
+        // If system default is CUSTOM, try to find a custom provider
+        if (systemProviderValue?.value === AIProvider.CUSTOM) {
+          provider = await this.prisma.aIProvider.findFirst({
+            where: {
+              isActive: true,
+              OR: [{ isGlobal: true }, { createdBy: userId }],
+            },
+            orderBy: [{ isGlobal: 'desc' }, { createdAt: 'desc' }],
+          });
+        }
       }
-      console.error('AI connection test error:', error);
-      throw new BadRequestException(
-        'Failed to connect to AI. Please check your API key and settings.'
-      );
+    }
+
+    if (!provider) {
+      // If no custom provider found, fall back to system settings
+      const settings = userId
+        ? await this.settingsService.getUserSettings(userId)
+        : await this.settingsService.getSettings();
+
+      if (!settings.aiApiKey) {
+        throw new BadRequestException(
+          'AI API Key not configured. Please configure AI provider in settings.'
+        );
+      }
+
+      const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
+
+      console.log(`AI Test Connection URL: ${apiUrl}`);
+      console.log(`AI Model: ${settings.aiModel || 'gpt-4'}`);
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${settings.aiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: settings.aiModel || 'gpt-4',
+            messages: [
+              {
+                role: 'user',
+                content: message,
+              },
+            ],
+            max_tokens: 100,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`AI API Error: ${response.status} - ${errorText}`);
+          throw new BadRequestException(`AI API error: ${response.status} - ${errorText}`);
+        }
+
+        const data: any = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+
+        if (!content) {
+          throw new BadRequestException('AI returned empty response');
+        }
+
+        return { response: content };
+      } catch (error: unknown) {
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
+        console.error('AI connection test error:', error);
+        throw new BadRequestException(
+          'Failed to connect to AI. Please check your API key and settings.'
+        );
+      }
+    } else {
+      // Use the custom provider found
+      const apiUrl = this.buildApiUrl(provider.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1');
+
+      console.log(`AI Test Connection URL: ${apiUrl}`);
+      console.log(`AI Model: ${provider.model || 'qwen-turbo'}`);
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${provider.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: provider.model || 'qwen-turbo',
+            messages: [
+              {
+                role: 'user',
+                content: message,
+              },
+            ],
+            max_tokens: 100,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`AI API Error: ${response.status} - ${errorText}`);
+          throw new BadRequestException(`AI API error: ${response.status} - ${errorText}`);
+        }
+
+        const data: any = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+
+        if (!content) {
+          throw new BadRequestException('AI returned empty response');
+        }
+
+        return { response: content };
+      } catch (error: unknown) {
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
+        console.error('AI connection test error:', error);
+        throw new BadRequestException(
+          'Failed to connect to AI. Please check your API key and settings.'
+        );
+      }
     }
   }
 

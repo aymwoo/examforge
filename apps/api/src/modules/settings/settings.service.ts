@@ -14,12 +14,14 @@ export enum SettingKey {
   AI_MODEL = 'AI_MODEL',
   PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
   GRADING_PROMPT_TEMPLATE = 'GRADING_PROMPT_TEMPLATE',
+  ANALYSIS_PROMPT_TEMPLATE = 'ANALYSIS_PROMPT_TEMPLATE',
   STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE = 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE',
 }
 
 export enum UserSettingKey {
   PROMPT_TEMPLATE = 'PROMPT_TEMPLATE',
   GRADING_PROMPT_TEMPLATE = 'GRADING_PROMPT_TEMPLATE',
+  ANALYSIS_PROMPT_TEMPLATE = 'ANALYSIS_PROMPT_TEMPLATE',
   STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE = 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE',
 }
 
@@ -76,6 +78,7 @@ export interface SystemSettings {
   aiModel: string;
   promptTemplate: string;
   gradingPromptTemplate: string;
+  analysisPromptTemplate: string;
   studentAiAnalysisPromptTemplate: string;
 }
 
@@ -111,6 +114,9 @@ export class SettingsService {
           gradingPromptTemplate:
             settingsMap.get(SettingKey.GRADING_PROMPT_TEMPLATE) ||
             this.getDefaultGradingPromptTemplate(),
+          analysisPromptTemplate:
+            settingsMap.get(SettingKey.ANALYSIS_PROMPT_TEMPLATE) ||
+            this.getDefaultAnalysisPromptTemplate(),
           studentAiAnalysisPromptTemplate:
             settingsMap.get(SettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
             this.getDefaultStudentAiAnalysisPromptTemplate(),
@@ -131,6 +137,9 @@ export class SettingsService {
       gradingPromptTemplate:
         settingsMap.get(SettingKey.GRADING_PROMPT_TEMPLATE) ||
         this.getDefaultGradingPromptTemplate(),
+      analysisPromptTemplate:
+        settingsMap.get(SettingKey.ANALYSIS_PROMPT_TEMPLATE) ||
+        this.getDefaultAnalysisPromptTemplate(),
       studentAiAnalysisPromptTemplate:
         settingsMap.get(SettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
         this.getDefaultStudentAiAnalysisPromptTemplate(),
@@ -169,6 +178,9 @@ export class SettingsService {
             gradingPromptTemplate:
               userSettingsMap.get(UserSettingKey.GRADING_PROMPT_TEMPLATE) ||
               systemSettings.gradingPromptTemplate,
+            analysisPromptTemplate:
+              userSettingsMap.get(UserSettingKey.ANALYSIS_PROMPT_TEMPLATE) ||
+              systemSettings.analysisPromptTemplate,
             studentAiAnalysisPromptTemplate:
               userSettingsMap.get(UserSettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
               systemSettings.studentAiAnalysisPromptTemplate,
@@ -184,6 +196,9 @@ export class SettingsService {
       gradingPromptTemplate:
         userSettingsMap.get(UserSettingKey.GRADING_PROMPT_TEMPLATE) ||
         systemSettings.gradingPromptTemplate,
+      analysisPromptTemplate:
+        userSettingsMap.get(UserSettingKey.ANALYSIS_PROMPT_TEMPLATE) ||
+        systemSettings.analysisPromptTemplate,
       studentAiAnalysisPromptTemplate:
         userSettingsMap.get(UserSettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
         systemSettings.studentAiAnalysisPromptTemplate,
@@ -229,7 +244,21 @@ export class SettingsService {
     });
 
     if (!setting) {
-      throw new NotFoundException(`Setting ${key} not found`);
+      // 返回适当的默认值而不是抛出异常
+      switch(key) {
+        case SettingKey.AI_PROVIDER:
+          return AIProvider.OPENAI;
+        case SettingKey.PROMPT_TEMPLATE:
+          return this.getDefaultPromptTemplate();
+        case SettingKey.GRADING_PROMPT_TEMPLATE:
+          return this.getDefaultGradingPromptTemplate();
+        case SettingKey.ANALYSIS_PROMPT_TEMPLATE:
+          return this.getDefaultAnalysisPromptTemplate();
+        case SettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE:
+          return this.getDefaultStudentAiAnalysisPromptTemplate();
+        default:
+          return '';
+      }
     }
 
     return setting.value;
@@ -251,6 +280,14 @@ export class SettingsService {
     });
   }
 
+  async deleteUserSetting(userId: string, key: string): Promise<void> {
+    await this.prisma.userSetting.delete({
+      where: { userId_key: { userId, key } },
+    }).catch(() => {
+      // 如果记录不存在，忽略错误
+    });
+  }
+
   async getDefaultProviderId(): Promise<string> {
     try {
       const setting = await this.prisma.systemSetting.findUnique({
@@ -260,6 +297,100 @@ export class SettingsService {
     } catch {
       return 'openai';
     }
+  }
+
+  async getActiveAIProvider(userId: string) {
+    // Get the user's AI provider setting
+    const userSetting = await this.prisma.userSetting.findFirst({
+      where: {
+        userId: userId,
+        key: 'AI_PROVIDER',
+      },
+    });
+
+    const userProvider = userSetting?.value;
+
+    // First priority: If user has a specific custom provider ID, use that
+    if (userProvider && userProvider !== AIProvider.OPENAI && userProvider !== AIProvider.QWEN && userProvider !== AIProvider.CUSTOM) {
+      const customProvider = await this.prisma.aIProvider.findUnique({
+        where: { id: userProvider, isActive: true },
+      });
+      if (customProvider) {
+        return {
+          id: customProvider.id,
+          name: customProvider.name,
+          provider: 'custom',
+          model: customProvider.model,
+          baseUrl: customProvider.baseUrl,
+          isGlobal: customProvider.isGlobal,
+          createdAt: customProvider.createdAt,
+          createdBy: customProvider.createdBy,
+        };
+      }
+    }
+
+    // Second priority: If user has CUSTOM provider setting, find their first active custom provider
+    if (userProvider === AIProvider.CUSTOM) {
+      const customProvider = await this.prisma.aIProvider.findFirst({
+        where: {
+          isActive: true,
+          OR: [{ isGlobal: true }, { createdBy: userId }],
+        },
+        orderBy: [{ isGlobal: 'desc' }, { createdAt: 'desc' }],
+      });
+
+      if (customProvider) {
+        return {
+          id: customProvider.id,
+          name: customProvider.name,
+          provider: 'custom',
+          model: customProvider.model,
+          baseUrl: customProvider.baseUrl,
+          isGlobal: customProvider.isGlobal,
+          createdAt: customProvider.createdAt,
+          createdBy: customProvider.createdBy,
+        };
+      }
+    }
+
+    // Third priority: Use system default provider
+    const systemProviderValue = await this.getSetting(SettingKey.AI_PROVIDER);
+
+    // If system default is CUSTOM, try to find a custom provider
+    if (systemProviderValue === AIProvider.CUSTOM) {
+      const customProvider = await this.prisma.aIProvider.findFirst({
+        where: {
+          isActive: true,
+          OR: [{ isGlobal: true }, { createdBy: userId }],
+        },
+        orderBy: [{ isGlobal: 'desc' }, { createdAt: 'desc' }],
+      });
+
+      if (customProvider) {
+        return {
+          id: customProvider.id,
+          name: customProvider.name,
+          provider: 'custom',
+          model: customProvider.model,
+          baseUrl: customProvider.baseUrl,
+          isGlobal: customProvider.isGlobal,
+          createdAt: customProvider.createdAt,
+          createdBy: customProvider.createdBy,
+        };
+      }
+    }
+
+    // Fallback: Return system provider info
+    return {
+      id: null,
+      name: systemProviderValue || AIProvider.OPENAI,
+      provider: systemProviderValue || AIProvider.OPENAI,
+      model: null,
+      baseUrl: null,
+      isGlobal: true,
+      createdAt: null,
+      createdBy: null,
+    };
   }
 
   async getPromptTemplate(): Promise<string> {
@@ -337,10 +468,44 @@ export class SettingsService {
 请只返回JSON格式的评分结果，不要包含其他说明文字。`;
   }
 
+  private getDefaultAnalysisPromptTemplate(): string {
+    return `请基于以下考试数据生成一份详细的分析报告：
+
+考试信息：
+- 考试名称：{examTitle}
+- 考试描述：{examDescription}
+- 考试时长：{duration}分钟
+- 总分：{totalScore}分
+- 题目数量：{questionCount}道
+
+统计数据：
+- 平均分：{averageScore}分
+- 最高分：{highestScore}分
+- 最低分：{lowestScore}分
+- 及格率：{passRate}%
+- 参与学生：{submittedCount}人
+- 参与率：{participationRate}%
+
+题目分析：
+{questionStats}
+
+知识点分析：
+{knowledgePointStats}
+
+请从以下几个方面进行分析：
+1. 整体考试表现评价
+2. 学生掌握情况分析
+3. 题目难度和区分度分析
+4. 知识点掌握情况分析
+5. 教学建议和改进方向
+
+请用中文回答，内容要专业、详细、有针对性。`;
+  }
+
   private getDefaultStudentAiAnalysisPromptTemplate(): string {
     return `你是一名严格但建设性的阅卷专家与学习教练。
 
-请基于下列“该学生的评分详情数据”，生成一份该学生的个人学习诊断报告。
+请基于下列"该学生的评分详情数据"，生成一份该学生的个人学习诊断报告。
 
 要求：
 - 用中文回答

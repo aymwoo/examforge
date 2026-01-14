@@ -523,8 +523,10 @@ export class ExamController {
   @ApiOperation({ summary: 'Get saved AI analysis report for exam' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
   @ApiResponse({ status: 200, description: 'AI report retrieved successfully' })
-  getSavedAIReport(@Param('id') examId: string) {
-    return this.examService.getSavedAIReport(examId);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  getSavedAIReport(@Param('id') examId: string, @Request() req: any) {
+    return this.examService.getSavedAIReport(examId, req.user);
   }
 
   @Get(':id/export/progress')

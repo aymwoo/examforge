@@ -301,6 +301,14 @@ export default function ExamAnalyticsPage() {
       }
     } catch (error) {
       console.error('加载保存的报告失败:', error);
+      // 添加更详细的错误信息
+      if (error.response) {
+        console.error("Response error:", error.response.status, error.response.data);
+      } else if (error.request) {
+        console.error("Request error:", error.request);
+      } else {
+        console.error("General error:", error.message);
+      }
     } finally {
       setLoadingSavedReport(false);
     }
@@ -308,17 +316,50 @@ export default function ExamAnalyticsPage() {
 
   const generateAIReport = async () => {
     if (!analytics || !exam) return;
-    
+
+    // 先获取当前使用的provider信息
+    try {
+      const providerResponse = await api.get('/api/settings/active-ai-provider');
+      const providerInfo = providerResponse.data?.provider;
+      if (providerInfo) {
+        // 格式化provider名称使其更易读
+        let readableProvider = providerInfo.name || providerInfo.provider;
+
+        // 如果是系统预设provider，显示更友好的名称
+        if (readableProvider === 'openai') {
+          readableProvider = 'OpenAI';
+        } else if (readableProvider === 'qwen') {
+          readableProvider = '通义千问 (Qwen)';
+        } else if (readableProvider === 'custom' && providerInfo.name) {
+          readableProvider = providerInfo.name; // 使用自定义provider的名称
+        } else if (!providerInfo.id && readableProvider) {
+          // 如果没有ID但有provider名称，显示友好名称
+          readableProvider = readableProvider.charAt(0).toUpperCase() + readableProvider.slice(1);
+        }
+
+        // 准备额外信息
+        const providerType = providerInfo.id ? '自定义' : '系统预设';
+        const providerDetails = providerInfo.id ? `\n创建者: ${providerInfo.createdBy || 'Unknown'}\n创建时间: ${providerInfo.createdAt ? new Date(providerInfo.createdAt).toLocaleString('zh-CN') : 'N/A'}` : '';
+
+        alert(`当前使用的AI Provider: ${readableProvider}\n模型: ${providerInfo.model || 'default'}\n类型: ${providerType}${providerDetails}`);
+      } else {
+        alert('正在使用默认AI Provider配置生成报告...');
+      }
+    } catch (error) {
+      console.warn('无法获取当前AI Provider信息:', error);
+      alert('正在使用默认AI Provider配置生成报告...');
+    }
+
     setGeneratingReport(true);
     setAiReport(''); // 清空之前的报告
-    
+
     try {
       const eventSource = new EventSource(`/api/exams/${id}/ai-report-stream`);
 
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
+
           switch (data.type) {
             case 'start':
             case 'progress':
@@ -335,7 +376,7 @@ export default function ExamAnalyticsPage() {
                 examTitle: exam?.title || '',
                 report: data.report,
                 status: 'COMPLETED',
-                model: null,
+                model: data.model || null, // 使用从后端返回的模型信息
                 generatedAt: data.generatedAt || new Date().toISOString(),
                 hasReport: true,
               });
