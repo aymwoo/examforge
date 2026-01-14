@@ -617,10 +617,6 @@ export default function SettingsPage() {
         <div className="mx-auto max-w-none px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="outline" onClick={() => navigate("/questions")}>
-                <Settings className="h-4 w-4 mr-2" />
-                返回题库
-              </Button>
               <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
                 系统设置
               </h1>
@@ -1022,9 +1018,6 @@ export default function SettingsPage() {
                     );
                   })()}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 max-w-4xl">
                 <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-ink-900">
@@ -1256,154 +1249,6 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               </div>
-
-              {isTeacher && (
-                <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
-                  <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold text-ink-900">
-                      学生提示词管理
-                    </h2>
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div className="rounded-2xl border border-border p-4">
-                      <label className="mb-2 block text-sm font-semibold text-ink-900">
-                        搜索学生（姓名/学号）
-                      </label>
-                      <input
-                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
-                        value={studentSearch}
-                        onChange={(e) => {
-                          setStudentSearch(e.target.value);
-                          setStudentPage(1);
-                        }}
-                        placeholder="例如：张三 / 2024001"
-                      />
-
-                      <div className="mt-4 space-y-2 max-h-[320px] overflow-auto">
-                        {students.map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedStudentId(s.id);
-                              setStudentPromptDraft(s.aiAnalysisPrompt || "");
-                              setError(null);
-                            }}
-                            className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${
-                              selectedStudentId === s.id
-                                ? "border-ink-900 bg-ink-50"
-                                : "border-border bg-white hover:bg-ink-50"
-                            }`}
-                          >
-                            <div className="font-semibold text-ink-900">
-                              {s.name}（{s.studentId}）
-                            </div>
-                            <div className="text-xs text-ink-700">
-                              班级：{s.class?.name || "未分配"}
-                            </div>
-                          </button>
-                        ))}
-
-                        {students.length === 0 && (
-                          <div className="text-sm text-ink-700">
-                            暂无学生数据
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="mt-4 flex items-center justify-between">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={studentPage <= 1}
-                          onClick={() =>
-                            setStudentPage((p) => Math.max(1, p - 1))
-                          }
-                        >
-                          上一页
-                        </Button>
-                        <div className="text-xs text-ink-700">
-                          第 {studentPage} / {studentsTotalPages} 页
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={studentPage >= studentsTotalPages}
-                          onClick={() =>
-                            setStudentPage((p) =>
-                              Math.min(studentsTotalPages, p + 1),
-                            )
-                          }
-                        >
-                          下一页
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="rounded-2xl border border-border p-4">
-                      <label className="mb-2 block text-sm font-semibold text-ink-900">
-                        选中学生的 AI 分析提示词
-                      </label>
-                      <textarea
-                        className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[220px] font-mono"
-                        value={studentPromptDraft}
-                        onChange={(e) => setStudentPromptDraft(e.target.value)}
-                        placeholder="为该学生设置个性化分析目标/侧重点（可为空）..."
-                        disabled={!selectedStudentId}
-                      />
-                      <p className="mt-1 text-xs text-ink-700">
-                        老师为某个学生单独配置，生成"AI分析"报告时会被拼接到提示词中。
-                      </p>
-                      <Button
-                        onClick={async () => {
-                          if (!selectedStudentId) return;
-                          setSavingStudentPrompt(true);
-                          setError(null);
-                          try {
-                            await updateStudentAiAnalysisPrompt(
-                              selectedStudentId,
-                              studentPromptDraft,
-                            );
-                            setStudents((prev) =>
-                              prev.map((s) =>
-                                s.id === selectedStudentId
-                                  ? {
-                                      ...s,
-                                      aiAnalysisPrompt: studentPromptDraft,
-                                    }
-                                  : s,
-                              ),
-                            );
-                            setError("学生提示词保存成功");
-                          } catch (err: unknown) {
-                            const axiosError = err as {
-                              response?: { data?: { message?: string } };
-                              message?: string;
-                            };
-                            setError(
-                              axiosError.response?.data?.message ||
-                                axiosError.message ||
-                                "保存学生提示词失败",
-                            );
-                          } finally {
-                            setSavingStudentPrompt(false);
-                          }
-                        }}
-                        disabled={savingStudentPrompt || !selectedStudentId}
-                        className={`mt-4 w-full ${
-                          gradingPromptTemplateChanged
-                            ? "bg-ink-900 hover:bg-ink-800 text-white"
-                            : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                        }`}
-                      >
-                        <Save className="h-4 w-4 mr-2" />
-                        {savingStudentPrompt ? "保存中..." : "保存学生提示词"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
