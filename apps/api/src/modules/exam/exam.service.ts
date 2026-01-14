@@ -1980,8 +1980,13 @@ ${studentAnswer}
     const submittedCount = submissions.length;
     const notSubmittedCount = totalStudents - submittedCount;
 
+    console.log(`考试分析: Exam ID: ${examId}`);
+    console.log(`总学生数: ${totalStudents}, 已提交: ${submittedCount}, 未提交: ${notSubmittedCount}`);
+    console.log(`提交记录:`, submissions.map(s => ({ id: s.id, studentId: s.examStudentId, score: s.score })));
+
     // 成绩统计
     const scores = submissions.map((s) => s.score).filter((s) => s !== null);
+    console.log(`学生成绩列表:`, scores);
     const scoreStats = {
       average: scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0,
       highest: scores.length > 0 ? Math.max(...scores) : 0,
@@ -1989,10 +1994,14 @@ ${studentAnswer}
       passRate:
         scores.length > 0 ? (scores.filter((s) => s >= 60).length / scores.length) * 100 : 0,
     };
+    console.log(`成绩统计: 平均分=${scoreStats.average}, 最高分=${scoreStats.highest}, 最低分=${scoreStats.lowest}, 及格率=${scoreStats.passRate}%`);
 
     // 题目分析
+    console.log(`开始题目分析，共${exam.examQuestions.length}道题`);
     const questionStats = [];
     for (const examQuestion of exam.examQuestions) {
+      console.log(`  处理题目: ID=${examQuestion.question.id}, 类型=${examQuestion.question.type}, 分值=${examQuestion.score}, 内容="${examQuestion.question.content.substring(0, 50)}..."`);
+
       const questionAnswers = [];
 
       for (const submission of submissions) {
@@ -2000,24 +2009,49 @@ ${studentAnswer}
           const answers = JSON.parse(submission.answers);
           const answer = answers[examQuestion.question.id];
           if (answer !== undefined) {
+            const gradingDetails = submission.gradingDetails ? JSON.parse(submission.gradingDetails) : {};
+            // 评分数据结构是 { details: { questionId: { score, maxScore, feedback }, ... } }
+            const questionScore = gradingDetails.details?.[examQuestion.question.id]?.score;
+            // 如果没有找到该题的评分，尝试从submission.score按比例计算
+            let score = 0;
+            if (questionScore !== undefined) {
+              score = questionScore;
+            } else {
+              console.log(`    警告: 提交ID=${submission.id}中未找到题目${examQuestion.question.id}的具体评分，gradingDetails结构:`, gradingDetails);
+              // 如果没有具体的题目评分，暂时记为0分
+              score = 0;
+            }
+
             questionAnswers.push({
               answer: answer,
-              score: submission.gradingDetails
-                ? JSON.parse(submission.gradingDetails)[examQuestion.question.id]?.score || 0
-                : 0,
+              score: score,
               maxScore: examQuestion.score,
             });
+            console.log(`    提交ID=${submission.id}, 学生ID=${submission.examStudentId}, 得分=${score}/${examQuestion.score}`);
           }
         }
       }
 
-      const correctAnswers = questionAnswers.filter((qa) => qa.score === qa.maxScore).length;
+      // 改进正确率计算逻辑：对于客观题（单选、多选、判断），使用完全正确；对于主观题，使用得分率大于等于60%
+      const isObjectiveQuestion = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'].includes(examQuestion.question.type);
+
+      let correctAnswers = 0;
+      if (isObjectiveQuestion) {
+        // 对于客观题，只有完全答对才算正确
+        correctAnswers = questionAnswers.filter((qa) => qa.score === qa.maxScore).length;
+      } else {
+        // 对于主观题，得分率大于等于60%算作正确
+        correctAnswers = questionAnswers.filter((qa) => qa.score >= qa.maxScore * 0.6).length;
+      }
+
       const correctRate =
         questionAnswers.length > 0 ? (correctAnswers / questionAnswers.length) * 100 : 0;
       const averageScore =
         questionAnswers.length > 0
           ? questionAnswers.reduce((sum, qa) => sum + qa.score, 0) / questionAnswers.length
           : 0;
+
+      console.log(`    题目统计: 参与答题学生=${questionAnswers.length}, 正确率=${correctRate}%, 平均分=${averageScore}`);
 
       questionStats.push({
         questionId: examQuestion.question.id,
@@ -2029,38 +2063,91 @@ ${studentAnswer}
         knowledgePoint: examQuestion.question.knowledgePoint,
       });
     }
+    console.log(`题目分析完成，共统计${questionStats.length}道题`);
 
     // 知识点分析
+    console.log(`开始知识点分析`);
     const knowledgePointMap = new Map();
+
+    // 初始化知识点映射
     questionStats.forEach((qs) => {
       const kp = qs.knowledgePoint || '未分类';
       if (!knowledgePointMap.has(kp)) {
         knowledgePointMap.set(kp, {
           knowledgePoint: kp,
           questionCount: 0,
-          totalScore: 0,
-          maxScore: 0,
-          correctCount: 0,
-          totalAnswers: 0,
+          questionScores: [], // 存储该知识点下每道题的平均分
+          submissionsForMastery: [], // 记录每个学生的掌握情况
         });
       }
 
       const kpData = knowledgePointMap.get(kp);
       kpData.questionCount++;
-      kpData.totalScore += qs.averageScore;
-      kpData.maxScore +=
-        exam.examQuestions.find((eq) => eq.question.id === qs.questionId)?.score || 0;
+      // 将该题目的平均分添加到知识点的分数列表中
+      kpData.questionScores.push(qs.averageScore);
+    });
 
-      const questionAnswers = submissions.length;
-      kpData.totalAnswers += questionAnswers;
-      kpData.correctCount += (qs.correctRate / 100) * questionAnswers;
+    console.log(`知识点分组完成:`, Array.from(knowledgePointMap.keys()));
+
+    // 计算每个学生的知识点掌握情况
+    submissions.forEach(submission => {
+      if (submission.answers) {
+        const answers = JSON.parse(submission.answers);
+
+        // 对于每个知识点，检查该学生是否掌握了该知识点下的大部分题目
+        knowledgePointMap.forEach((kpData, kp) => {
+          const kpQuestions = questionStats.filter(qs =>
+            (qs.knowledgePoint || '未分类') === kp
+          );
+
+          if (kpQuestions.length > 0) {
+            let masteredQuestions = 0;
+            console.log(`  检查学生 ${submission.examStudentId} 对知识点 "${kp}" 的掌握情况`);
+
+            kpQuestions.forEach(qs => {
+              if (answers[qs.questionId]) {
+                // 获取该题目的得分
+                const gradingDetails = submission.gradingDetails ? JSON.parse(submission.gradingDetails) : {};
+                // 评分数据结构是 { details: { questionId: { score, maxScore, feedback }, ... } }
+                const questionScore = gradingDetails.details?.[qs.questionId]?.score || 0;
+                const maxScore = exam.examQuestions.find(eq => eq.question.id === qs.questionId)?.score || 1;
+
+                console.log(`    题目 "${qs.content.substring(0, 30)}...", 得分: ${questionScore}/${maxScore}, 掌握: ${questionScore / maxScore >= 0.7 ? '是' : '否'}`);
+
+                // 如果得分率达到一定比例（例如70%），认为该题被掌握
+                if ((questionScore / maxScore) >= 0.7) {
+                  masteredQuestions++;
+                }
+              }
+            });
+
+            console.log(`    知识点 "${kp}" 下共 ${kpQuestions.length} 题，掌握 ${masteredQuestions} 题`);
+
+            // 如果学生掌握了该知识点下超过一半的题目，则认为该学生掌握了该知识点
+            if (masteredQuestions > kpQuestions.length / 2) {
+              kpData.submissionsForMastery.push(submission.id);
+              console.log(`    学生 ${submission.examStudentId} 掌握了知识点 "${kp}"`);
+            } else {
+              console.log(`    学生 ${submission.examStudentId} 未掌握知识点 "${kp}"`);
+            }
+          }
+        });
+      }
+    });
+
+    console.log(`知识点掌握情况统计:`);
+    knowledgePointMap.forEach((kpData, kp) => {
+      const avgScore = kpData.questionScores.length > 0 ? kpData.questionScores.reduce((sum, score) => sum + score, 0) / kpData.questionScores.length : 0;
+      console.log(`  知识点 "${kp}": 共 ${kpData.questionCount} 题, 平均分 ${avgScore}, ${kpData.submissionsForMastery.length}/${submissions.length} 学生掌握`);
     });
 
     const knowledgePointStats = Array.from(knowledgePointMap.values()).map((kp) => ({
       knowledgePoint: kp.knowledgePoint,
       questionCount: kp.questionCount,
-      averageScore: kp.questionCount > 0 ? kp.totalScore / kp.questionCount : 0,
-      masteryRate: kp.totalAnswers > 0 ? (kp.correctCount / kp.totalAnswers) * 100 : 0,
+      averageScore: kp.questionScores.length > 0 ? kp.questionScores.reduce((sum, score) => sum + score, 0) / kp.questionScores.length : 0,
+      masteryRate: submissions.length > 0
+        ? (kp.submissionsForMastery.length / submissions.length) * 100
+        : 0,
     }));
 
     // 参与情况统计

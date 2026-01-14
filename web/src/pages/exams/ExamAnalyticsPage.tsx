@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { BarChart3, TrendingUp, Users, Target, FileText, Sparkles, Clock, Eye, RefreshCw } from "lucide-react";
+import { BarChart3, TrendingUp, Users, Target, FileText, Sparkles, Clock, Eye, RefreshCw, X } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import Button from "@/components/ui/Button";
 import ExamLayout from "@/components/ExamLayout";
@@ -28,6 +28,7 @@ export default function ExamAnalyticsPage() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [savedReport, setSavedReport] = useState<SavedAIReport | null>(null);
   const [loadingSavedReport, setLoadingSavedReport] = useState(false);
+  const [showAiReportModal, setShowAiReportModal] = useState<boolean>(false);
 
   const getQuestionTypeName = (type: string) => {
     const typeMap: Record<string, string> = {
@@ -460,6 +461,7 @@ export default function ExamAnalyticsPage() {
       <div className="space-y-8">
         {analytics ? (
           <div className="space-y-8">
+
             {/* AI分析报告按钮区域 */}
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2">
@@ -487,6 +489,15 @@ export default function ExamAnalyticsPage() {
                     {loadingSavedReport ? '加载中...' : '查看已保存报告'}
                   </Button>
                 )}
+                {aiReport && (
+                  <Button
+                    onClick={() => setShowAiReportModal(true)}
+                    className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-6 py-3"
+                  >
+                    <FileText className="h-4 w-4" />
+                    查看AI智能分析报告
+                  </Button>
+                )}
                 <Button
                   onClick={generateAIReport}
                   disabled={generatingReport}
@@ -497,31 +508,6 @@ export default function ExamAnalyticsPage() {
                 </Button>
               </div>
             </div>
-
-            {/* AI分析报告展示 */}
-            {aiReport && (
-              <div className="rounded-3xl border-2 border-purple-100 bg-gradient-to-br from-purple-50 to-white p-8 shadow-lg">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full bg-purple-500 p-2">
-                      <FileText className="h-5 w-5 text-white" />
-                    </div>
-                    <h2 className="text-xl font-bold text-purple-900">AI智能分析报告</h2>
-                  </div>
-                  {savedReport?.generatedAt && (
-                    <div className="flex items-center gap-2 text-sm text-purple-600">
-                      <Clock className="h-4 w-4" />
-                      <span>生成时间: {formatGeneratedTime(savedReport.generatedAt)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="prose max-w-none">
-                  <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
-                    {aiReport}
-                  </div>
-                </div>
-              </div>
-            )}
 
           {/* 概览统计卡片 */}
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -852,6 +838,49 @@ export default function ExamAnalyticsPage() {
         ) : (
           <div className="rounded-2xl border border-dashed border-border bg-slate-50 p-8 text-center">
             <p className="text-ink-700">暂无统计数据，请确保有学生提交了考试</p>
+          </div>
+        )}
+
+        {/* AI智能分析报告模态框 */}
+        {aiReport && showAiReportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div
+              className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-center rounded-t-xl">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-purple-500 p-2">
+                    <FileText className="h-5 w-5 text-white" />
+                  </div>
+                  <h2 className="text-xl font-bold text-purple-900">AI智能分析报告</h2>
+                </div>
+                <button
+                  onClick={() => setShowAiReportModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="p-6">
+                {savedReport?.generatedAt && (
+                  <div className="flex items-center gap-2 text-sm text-purple-600 mb-4">
+                    <Clock className="h-4 w-4" />
+                    <span>生成时间: {formatGeneratedTime(savedReport.generatedAt)}</span>
+                    {savedReport.model && (
+                      <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">
+                        {savedReport.model}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div className="prose max-w-none">
+                  <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
+                    {aiReport}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
