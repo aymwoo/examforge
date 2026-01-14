@@ -64,6 +64,24 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingPromptTemplate, setSavingPromptTemplate] = useState(false);
+  const [savingGradingPromptTemplate, setSavingGradingPromptTemplate] =
+    useState(false);
+  const [savingAnalysisPromptTemplate, setSavingAnalysisPromptTemplate] =
+    useState(false);
+  const [
+    savingStudentAiAnalysisPromptTemplate,
+    setSavingStudentAiAnalysisPromptTemplate,
+  ] = useState(false);
+  const [promptTemplateChanged, setPromptTemplateChanged] = useState(false);
+  const [gradingPromptTemplateChanged, setGradingPromptTemplateChanged] =
+    useState(false);
+  const [analysisPromptTemplateChanged, setAnalysisPromptTemplateChanged] =
+    useState(false);
+  const [
+    studentAiAnalysisPromptTemplateChanged,
+    setStudentAiAnalysisPromptTemplateChanged,
+  ] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [showAddProviderModal, setShowAddProviderModal] = useState(false);
 
@@ -334,24 +352,13 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSavePrompts = async () => {
-    setSaving(true);
+  const handleSavePromptTemplate = async () => {
+    setSavingPromptTemplate(true);
     setError(null);
     try {
       await updateUserSetting("PROMPT_TEMPLATE", settings.promptTemplate);
-      await updateUserSetting(
-        "GRADING_PROMPT_TEMPLATE",
-        settings.gradingPromptTemplate,
-      );
-      await updateUserSetting(
-        "ANALYSIS_PROMPT_TEMPLATE",
-        settings.analysisPromptTemplate,
-      );
-      await updateUserSetting(
-        "STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE",
-        settings.studentAiAnalysisPromptTemplate,
-      );
-      setError("提示词设置保存成功");
+      setPromptTemplateChanged(false);
+      setError("试卷生成提示词保存成功");
     } catch (err: unknown) {
       const axiosError = err as {
         response?: { data?: { message?: string } };
@@ -360,16 +367,102 @@ export default function SettingsPage() {
       setError(
         axiosError.response?.data?.message ||
           axiosError.message ||
-          "保存设置失败",
+          "保存提示词失败",
       );
     } finally {
-      setSaving(false);
+      setSavingPromptTemplate(false);
+    }
+  };
+
+  const handleSaveGradingPromptTemplate = async () => {
+    setSavingGradingPromptTemplate(true);
+    setError(null);
+    try {
+      await updateUserSetting(
+        "GRADING_PROMPT_TEMPLATE",
+        settings.gradingPromptTemplate,
+      );
+      setGradingPromptTemplateChanged(false);
+      setError("AI评分提示词保存成功");
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      setError(
+        axiosError.response?.data?.message ||
+          axiosError.message ||
+          "保存提示词失败",
+      );
+    } finally {
+      setSavingGradingPromptTemplate(false);
+    }
+  };
+
+  const handleSaveStudentAiAnalysisPromptTemplate = async () => {
+    setSavingStudentAiAnalysisPromptTemplate(true);
+    setError(null);
+    try {
+      await updateUserSetting(
+        "STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE",
+        settings.studentAiAnalysisPromptTemplate,
+      );
+      setStudentAiAnalysisPromptTemplateChanged(false);
+      setError("评分管理AI分析提示词保存成功");
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      setError(
+        axiosError.response?.data?.message ||
+          axiosError.message ||
+          "保存提示词失败",
+      );
+    } finally {
+      setSavingStudentAiAnalysisPromptTemplate(false);
+    }
+  };
+
+  const handleSaveAnalysisPromptTemplate = async () => {
+    setSavingAnalysisPromptTemplate(true);
+    setError(null);
+    try {
+      await updateUserSetting(
+        "ANALYSIS_PROMPT_TEMPLATE",
+        settings.analysisPromptTemplate,
+      );
+      setAnalysisPromptTemplateChanged(false);
+      setError("分析报告提示词保存成功");
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      setError(
+        axiosError.response?.data?.message ||
+          axiosError.message ||
+          "保存提示词失败",
+      );
+    } finally {
+      setSavingAnalysisPromptTemplate(false);
     }
   };
 
   const handleInputChange = (field: string, value: string) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
     setError(null);
+
+    // Mark specific template as changed
+    if (field === "promptTemplate") {
+      setPromptTemplateChanged(true);
+    } else if (field === "gradingPromptTemplate") {
+      setGradingPromptTemplateChanged(true);
+    } else if (field === "analysisPromptTemplate") {
+      setAnalysisPromptTemplateChanged(true);
+    } else if (field === "studentAiAnalysisPromptTemplate") {
+      setStudentAiAnalysisPromptTemplateChanged(true);
+    }
   };
 
   const handleInsertJsonStructure = async () => {
@@ -797,40 +890,6 @@ export default function SettingsPage() {
                               </div>
                             )}
 
-                            {/* Delete button for custom providers */}
-                            {(() => {
-                              const isCustomProvider = ![
-                                "gpt-4",
-                                "gpt-3.5-turbo",
-                                "qwen-turbo",
-                                "qwen-plus",
-                                "qwen-max",
-                              ].includes(editingProvider?.id || "");
-                              const canDelete =
-                                isCustomProvider &&
-                                (currentUser?.role === "ADMIN" ||
-                                  isProviderEditable);
-
-                              return (
-                                canDelete && (
-                                  <div className="mt-4 pt-4 border-t border-gray-200">
-                                    <Button
-                                      onClick={() =>
-                                        handleDeleteAIProvider(
-                                          editingProvider?.id || "",
-                                        )
-                                      }
-                                      variant="outline"
-                                      className="w-full text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-2" />
-                                      删除此 Provider
-                                    </Button>
-                                  </div>
-                                )
-                              );
-                            })()}
-
                             {!isProviderEditable && (
                               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                                 <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -848,7 +907,7 @@ export default function SettingsPage() {
                   <div className="mt-4 flex gap-2">
                     <Button
                       onClick={handleTestAIConnection}
-                      className="flex-1"
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white border-green-600"
                       variant="outline"
                       disabled={
                         !editingProvider?.apiKey ||
@@ -891,6 +950,37 @@ export default function SettingsPage() {
                       {testResult}
                     </div>
                   )}
+
+                  {/* Delete button for custom providers */}
+                  {(() => {
+                    const isSystemProvider = [
+                      "gpt-4",
+                      "gpt-3.5-turbo",
+                      "qwen-turbo",
+                      "qwen-plus",
+                      "qwen-max",
+                    ].includes(editingProvider?.id || "");
+                    const canDeleteProvider =
+                      !isSystemProvider &&
+                      (currentUser?.role === "ADMIN" ||
+                        (!isTeacher && !isSystemProvider));
+
+                    return (
+                      canDeleteProvider && (
+                        <div className="mt-4">
+                          <Button
+                            onClick={() =>
+                              handleDeleteAIProvider(editingProvider?.id || "")
+                            }
+                            className="w-full bg-red-600 hover:bg-red-700 text-white border-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            删除此 Provider
+                          </Button>
+                        </div>
+                      )
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -937,12 +1027,12 @@ export default function SettingsPage() {
                   </div>
 
                   <Button
-                    onClick={handleSavePrompts}
-                    disabled={saving}
+                    onClick={handleSavePromptTemplate}
+                    disabled={savingPromptTemplate || !promptTemplateChanged}
                     className="mt-4 w-full"
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {saving ? "保存中..." : "保存提示词设置"}
+                    {savingPromptTemplate ? "保存中..." : "保存提示词设置"}
                   </Button>
                 </div>
 
@@ -984,12 +1074,17 @@ export default function SettingsPage() {
                   </div>
 
                   <Button
-                    onClick={handleSavePrompts}
-                    disabled={saving}
+                    onClick={handleSaveGradingPromptTemplate}
+                    disabled={
+                      savingGradingPromptTemplate ||
+                      !gradingPromptTemplateChanged
+                    }
                     className="mt-4 w-full"
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {saving ? "保存中..." : "保存评分提示词设置"}
+                    {savingGradingPromptTemplate
+                      ? "保存中..."
+                      : "保存评分提示词设置"}
                   </Button>
                 </div>
 
@@ -1189,12 +1284,17 @@ export default function SettingsPage() {
                   </div>
 
                   <Button
-                    onClick={handleSavePrompts}
-                    disabled={saving}
+                    onClick={handleSaveStudentAiAnalysisPromptTemplate}
+                    disabled={
+                      savingStudentAiAnalysisPromptTemplate ||
+                      !studentAiAnalysisPromptTemplateChanged
+                    }
                     className="mt-4 w-full"
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {saving ? "保存中..." : "保存评分管理AI提示词设置"}
+                    {savingStudentAiAnalysisPromptTemplate
+                      ? "保存中..."
+                      : "保存评分管理AI提示词设置"}
                   </Button>
                 </div>
 
@@ -1237,12 +1337,17 @@ export default function SettingsPage() {
                   </div>
 
                   <Button
-                    onClick={handleSavePrompts}
-                    disabled={saving}
+                    onClick={handleSaveAnalysisPromptTemplate}
+                    disabled={
+                      savingAnalysisPromptTemplate ||
+                      !analysisPromptTemplateChanged
+                    }
                     className="mt-4 w-full"
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {saving ? "保存中..." : "保存分析提示词设置"}
+                    {savingAnalysisPromptTemplate
+                      ? "保存中..."
+                      : "保存分析提示词设置"}
                   </Button>
                 </div>
               </div>
