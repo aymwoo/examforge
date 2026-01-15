@@ -5,7 +5,11 @@ import { userAdminApi } from '@/services/user-admin-api';
 import PendingUsersModal from '@/components/PendingUsersModal';
 import { useToast } from '@/components/ui/Toast';
 
-const ApprovalNotificationButton: React.FC = () => {
+interface ApprovalNotificationButtonProps {
+  onModalClose?: () => void;
+}
+
+const ApprovalNotificationButton: React.FC<ApprovalNotificationButtonProps> = ({ onModalClose }) => {
   const { error: showError, success: showSuccess } = useToast();
   const [pendingCount, setPendingCount] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
@@ -35,6 +39,13 @@ const ApprovalNotificationButton: React.FC = () => {
     }
   };
 
+  const handleModalChange = (open: boolean) => {
+    setModalOpen(open);
+    if (!open && onModalClose) {
+      onModalClose();
+    }
+  };
+
   return (
     <>
       <div className="relative">
@@ -58,7 +69,7 @@ const ApprovalNotificationButton: React.FC = () => {
 
       <PendingUsersModal
         open={modalOpen}
-        onOpenChange={setModalOpen}
+        onOpenChange={handleModalChange}
       />
     </>
   );

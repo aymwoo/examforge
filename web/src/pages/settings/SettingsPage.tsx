@@ -1348,7 +1348,7 @@ function UsersTab({ users, loading, onAddUser, onEditUser, onDeleteUser, getRole
           <h2 className="text-lg font-semibold text-ink-900">用户管理</h2>
         </div>
         <div className="flex items-center gap-2">
-          <ApprovalNotificationButton />
+          <ApprovalNotificationButton onModalClose={() => activeTab === 'users' && loadUsers()} />
           <Button onClick={onAddUser} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />添加用户
           </Button>

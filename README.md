@@ -90,6 +90,149 @@ pnpm format           # Format with Prettier
 pnpm test             # Run tests
 ```
 
+## Deployment
+
+### Production Deployment
+
+#### 1. Environment Setup
+
+Create a `.env` file in the `apps/api` directory with production settings:
+
+```bash
+# Database (PostgreSQL recommended for production)
+DATABASE_URL="postgresql://username:password@host:port/database_name"
+
+# Server
+PORT=3000
+JWT_SECRET="your-production-jwt-secret"
+
+# AI Configuration
+LLM_PROVIDER="qwen"  # or "openai"
+LLM_API_KEY="your-production-api-key"
+LLM_MODEL="qwen-turbo"  # or your preferred model
+
+# OCR
+OCR_ENGINE="paddleocr"
+```
+
+#### 2. Build and Deploy
+
+```bash
+# Install dependencies
+pnpm install
+
+# Generate Prisma client
+pnpm --filter ./apps/api run prisma:generate
+
+# Run database migrations
+pnpm --filter ./apps/api run prisma:migrate
+
+# Build both API and Web
+pnpm build:api
+pnpm build:web
+
+# Start production servers
+pnpm start:api
+```
+
+#### 3. Docker Deployment (Optional)
+
+If you prefer Docker deployment, create a `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile  # Assumes you create Dockerfile in project root
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/examforge
+      - JWT_SECRET=your-jwt-secret
+      - LLM_API_KEY=${LLM_API_KEY}
+    depends_on:
+      - db
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web  # Assumes you create Dockerfile for web in project root
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: examforge
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
+```
+
+Then deploy with:
+```bash
+docker-compose up -d
+```
+
+### Updating the Application
+
+#### 1. Pull Latest Changes
+
+```bash
+# Pull latest code
+git pull origin main
+
+# Install any new dependencies
+pnpm install
+
+# Generate Prisma client (if schema changed)
+pnpm --filter ./apps/api run prisma:generate
+
+# Run any new database migrations
+pnpm --filter ./apps/api run prisma:migrate
+
+# Rebuild the application
+pnpm build:api
+pnpm build:web
+```
+
+#### 2. Restart Services
+
+After updating, restart your services:
+
+- If running with PM2: `pm2 restart all`
+- If running with systemd: `sudo systemctl restart examforge-api`
+- If running with Docker: `docker-compose up -d --build`
+
+#### 3. Backup Strategy
+
+Before updating in production, create a backup:
+
+```bash
+# Database backup (for PostgreSQL)
+pg_dump -h host -U username -W -F t database_name > backup_$(date +%Y%m%d_%H%M%S).tar
+
+# For SQLite
+cp dev.db backup_$(date +%Y%m%d_%H%M%S).db
+```
+
+## Development
+
+For development workflows, see the individual package READMEs:
+- [API Development](apps/api/README.md)
+- [Web Development](web/README.md)
+
 ## Key Features
 
 ### Question Bank

@@ -152,86 +152,110 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
         </div>
       ) : (
         <>
-          <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                <tr>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      checked={selectedUsers.length === users.length && users.length > 0}
-                      onChange={handleSelectAll}
-                    />
-                  </th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户名</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">角色</th>
-                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">注册时间</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 bg-white">
-                {users.map((user) => (
-                  <tr
-                    key={user.id}
-                    className={`hover:bg-blue-50 transition-colors duration-150 ${
-                      selectedUsers.includes(user.id) ? 'bg-blue-50' : ''
-                    }`}
-                  >
-                    <td className="p-4">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={selectedUsers.includes(user.id)}
-                        onChange={() => handleSelectUser(user.id)}
-                      />
-                    </td>
-                    <td className="p-4 font-medium text-gray-900">{user.username}</td>
-                    <td className="p-4 text-gray-700">{user.name}</td>
-                    <td className="p-4 text-gray-600">{user.email || '-'}</td>
-                    <td className="p-4">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                        user.role === 'ADMIN'
-                          ? 'bg-purple-100 text-purple-800'
-                          : user.role === 'TEACHER'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-green-100 text-green-800'
-                      }`}>
-                        {user.role === 'ADMIN' ? '管理员' : user.role === 'TEACHER' ? '教师' : '学生'}
-                      </span>
-                    </td>
-                    <td className="p-4 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="flex justify-between items-center mt-6">
-              <div className="text-sm text-gray-600">
-                第 {page} 页，共 {totalPages} 页
+          {totalUsers === 0 ? (
+            <div className="text-center py-12">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
               </div>
-              <div className="flex space-x-2">
+              <h3 className="mt-4 text-lg font-medium text-gray-900">暂无待审核用户</h3>
+              <p className="mt-2 text-sm text-gray-500">
+                当前没有需要审核的用户注册申请。
+              </p>
+              <div className="mt-6">
                 <Button
-                  variant="outline"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-4 py-2"
+                  onClick={() => onOpenChange(false)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  上一页
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="px-4 py-2"
-                >
-                  下一页
+                  确定
                 </Button>
               </div>
             </div>
+          ) : (
+            <>
+              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                    <tr>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
+                        <input
+                          type="checkbox"
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={selectedUsers.length === users.length && users.length > 0}
+                          onChange={handleSelectAll}
+                        />
+                      </th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户名</th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">角色</th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">注册时间</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 bg-white">
+                    {users.map((user) => (
+                      <tr
+                        key={user.id}
+                        className={`hover:bg-blue-50 transition-colors duration-150 ${
+                          selectedUsers.includes(user.id) ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <td className="p-4">
+                          <input
+                            type="checkbox"
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            checked={selectedUsers.includes(user.id)}
+                            onChange={() => handleSelectUser(user.id)}
+                          />
+                        </td>
+                        <td className="p-4 font-medium text-gray-900">{user.username}</td>
+                        <td className="p-4 text-gray-700">{user.name}</td>
+                        <td className="p-4 text-gray-600">{user.email || '-'}</td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                            user.role === 'ADMIN'
+                              ? 'bg-purple-100 text-purple-800'
+                              : user.role === 'TEACHER'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-green-100 text-green-800'
+                          }`}>
+                            {user.role === 'ADMIN' ? '管理员' : user.role === 'TEACHER' ? '教师' : '学生'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center mt-6">
+                  <div className="text-sm text-gray-600">
+                    第 {page} 页，共 {totalPages} 页
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                      className="px-4 py-2"
+                    >
+                      上一页
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                      className="px-4 py-2"
+                    >
+                      下一页
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
