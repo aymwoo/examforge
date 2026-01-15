@@ -197,7 +197,65 @@ export class AIService {
     }
   }
 
-  async testConnection(message: string = 'Hello', userId?: string): Promise<{ response: string }> {
+  async testConnection(
+    message: string = 'Hello',
+    userId?: string,
+    testApiKey?: string,
+    testBaseUrl?: string,
+    testModel?: string
+  ): Promise<{ response: string }> {
+    // 如果提供了测试参数，优先使用测试参数
+    if (testApiKey) {
+      const apiUrl = this.buildApiUrl(testBaseUrl || '');
+
+      console.log(`AI Test Connection URL: ${apiUrl}`);
+      console.log(`AI Model: ${testModel || 'gpt-4'}`);
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${testApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: testModel || 'gpt-4',
+            messages: [
+              {
+                role: 'user',
+                content: message,
+              },
+            ],
+            max_tokens: 100,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`AI API Error: ${response.status} - ${errorText}`);
+          throw new BadRequestException(`AI API error: ${response.status} - ${errorText}`);
+        }
+
+        const data: any = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+
+        if (!content) {
+          throw new BadRequestException('AI returned empty response');
+        }
+
+        return { response: content };
+      } catch (error: unknown) {
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
+        console.error('AI connection test error:', error);
+        throw new BadRequestException(
+          'Failed to connect to AI. Please check your API key and settings.'
+        );
+      }
+    }
+
+    // 否则，使用原有的逻辑
     // Use the same prioritized logic as getActiveAIProvider to get the active provider
     let provider = null;
 

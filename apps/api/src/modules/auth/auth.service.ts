@@ -43,7 +43,11 @@ export class AuthService {
     }
 
     if (!user || !user.isActive || !user.isApproved) {
-      throw new UnauthorizedException('用户名或密码错误，或账户尚未通过审核');
+      if (user && !user.isApproved) {
+        throw new UnauthorizedException('账户尚未通过审核，请联系管理员进行审核。');
+      } else {
+        throw new UnauthorizedException('用户名或密码错误，或账户尚未通过审核');
+      }
     }
 
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
@@ -79,9 +83,10 @@ export class AuthService {
       throw new ConflictException('用户名已存在');
     }
 
-    // Check if this is the first user (should be admin)
+    // Check if this is the first user (should be admin and auto-approved)
     const userCount = await this.userService.count();
-    const role = userCount === 0 ? 'ADMIN' : 'TEACHER';
+    const isFirstUser = userCount === 0;
+    const role = isFirstUser ? 'ADMIN' : 'TEACHER';
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
@@ -91,23 +96,49 @@ export class AuthService {
       name: registerDto.name,
       role,
       email: registerDto.email || null,
-      isActive: false, // 新注册用户默认非活跃，需要审核
-      isApproved: false, // 新注册用户默认未审核
+      isActive: isFirstUser, // 第一个用户直接激活
+      isApproved: isFirstUser, // 第一个用户自动通过审核
     });
 
-    // 不返回token，因为用户需要等待审核
-    return {
-      message: '注册成功，请等待管理员审核',
-      user: {
-        id: user.id,
+    // 对于第一个用户（系统管理员），直接返回token
+    if (isFirstUser) {
+      const payload = {
+        sub: user.id,
         username: user.username,
-        name: user.name,
         role: user.role,
-        email: user.email,
-        isActive: user.isActive,
-        isApproved: user.isApproved,
-      },
-    };
+        isStudent: false,
+      };
+
+      const token = this.jwtService.sign(payload);
+
+      return {
+        access_token: token,
+        message: '系统管理员注册成功，已自动登录',
+        user: {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+          email: user.email,
+          isActive: user.isActive,
+          isApproved: user.isApproved,
+        },
+      };
+    } else {
+      // 不返回token，因为普通用户需要等待审核
+      return {
+        message: '注册成功！您的账户正在等待管理员审核，审核通过后即可登录使用系统。',
+        user: {
+          id: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+          email: user.email,
+          isActive: user.isActive,
+          isApproved: user.isApproved,
+        },
+      };
+    }
   }
 
   async validateUser(payload: any) {
@@ -133,7 +164,11 @@ export class AuthService {
     // 普通用户查找用户表
     const user = await this.userService.findOne(payload.sub);
     if (!user || !user.isActive || !user.isApproved) {
-      throw new UnauthorizedException('用户不存在、已被禁用或尚未通过审核');
+      if (user && !user.isApproved) {
+        throw new UnauthorizedException('账户尚未通过审核，请联系管理员进行审核。');
+      } else {
+        throw new UnauthorizedException('用户不存在、已被禁用或尚未通过审核');
+      }
     }
     return user;
   }

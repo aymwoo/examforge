@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Save, Plus, Lock, Trash2, Settings, Users, MessageSquare, Cpu, Star, Globe, User, Edit, Zap } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import ApprovalNotificationButton from "@/components/ApprovalNotificationButton";
+import { useToast } from '@/components/ui/Toast';
 import {
   getUserSettings,
   updateUserSetting,
@@ -30,6 +32,7 @@ interface User {
 type TabType = "ai-provider" | "prompts" | "users";
 
 export default function SettingsPage() {
+  const { success: showSuccess, error: showError, warning: showWarning } = useToast();
   const currentUser = getCurrentUser();
   const isTeacher = currentUser?.role === "TEACHER";
   const isAdmin = currentUser?.role === "ADMIN";
@@ -755,17 +758,22 @@ function AIProviderTab() {
   };
 
   const handleTestAIConnection = async () => {
-    const apiKeyInput = document.querySelector('input[type="password"]') as HTMLInputElement;
-    const currentApiKey = apiKeyInput?.value || '';
-    if (!currentApiKey.trim()) {
+    if (!formData.apiKey.trim()) {
       setTestResult("请先输入 API Key");
       return;
     }
     setTestLoading(true);
     setTestResult(null);
     try {
-      const result = await testAIConnection("Hello, please respond with just 'Connection successful!'");
-      setTestResult(`✅ AI 连接测试成功！AI响应: ${result.response}`);
+      const response = await api.post<{ response: string }>("/api/ai/test", {
+        message: "Hello, please respond with just 'Connection successful!'",
+        // 传递当前表单数据用于测试
+        testApiKey: formData.apiKey,
+        testBaseUrl: formData.baseUrl,
+        testModel: formData.model
+      });
+
+      setTestResult(`✅ AI 连接测试成功！AI响应: ${response.data.response}`);
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || "连接测试失败";
       setTestResult(`❌ ${errorMessage}`);
@@ -1248,9 +1256,12 @@ function UsersTab({ users, loading, onAddUser, onEditUser, onDeleteUser, getRole
           </div>
           <h2 className="text-lg font-semibold text-ink-900">用户管理</h2>
         </div>
-        <Button onClick={onAddUser} className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />添加用户
-        </Button>
+        <div className="flex items-center gap-2">
+          <ApprovalNotificationButton />
+          <Button onClick={onAddUser} className="flex items-center gap-2">
+            <Plus className="h-4 w-4" />添加用户
+          </Button>
+        </div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">

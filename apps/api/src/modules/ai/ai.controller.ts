@@ -25,6 +25,18 @@ class TestConnectionDto {
   @IsOptional()
   @IsString()
   message?: string;
+
+  @IsOptional()
+  @IsString()
+  testApiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  testBaseUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  testModel?: string;
 }
 
 @ApiTags('ai')
@@ -39,9 +51,25 @@ export class AIController {
 
   @Post('test')
   @ApiOperation({ summary: 'Test AI connection with a simple message' })
-  @ApiBody({ schema: { type: 'object', properties: { message: { type: 'string' } } } })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        testApiKey: { type: 'string' },
+        testBaseUrl: { type: 'string' },
+        testModel: { type: 'string' }
+      }
+    }
+  })
   async testConnection(@Body() dto: TestConnectionDto, @Req() req: any) {
-    return this.aiService.testConnection(dto.message, req.user?.id);
+    return this.aiService.testConnection(
+      dto.message,
+      req.user?.id,
+      dto.testApiKey,
+      dto.testBaseUrl,
+      dto.testModel
+    );
   }
 
   @Post('generate-questions')

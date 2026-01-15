@@ -1,43 +1,82 @@
-import { Controller, Get, Patch, Param, UseGuards, Query, ParseIntPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { Controller, Get, Post, Body, Param, Delete, Put, Query, Patch } from '@nestjs/common';
 import { UserService } from './user.service';
+import { ApiTags, ApiResponse, ApiOperation } from '@nestjs/swagger';
 
-@ApiTags('admin-users')
+@ApiTags('user-admin')
 @Controller('admin/users')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
 export class UserAdminController {
   constructor(private readonly userService: UserService) {}
 
   @Get('pending-approval')
-  @ApiOperation({ summary: 'Get users awaiting approval' })
-  @ApiResponse({ status: 200, description: 'Successfully retrieved pending users.' })
-  @Roles('ADMIN')
+  @ApiOperation({ summary: '获取待审核用户列表' })
+  @ApiResponse({ status: 200, description: '返回待审核用户列表' })
   async getPendingApprovalUsers(
-    @Query('page', ParseIntPipe) page: number = 1,
-    @Query('limit', ParseIntPipe) limit: number = 10,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
   ) {
-    return this.userService.findPendingApprovalUsers(page, limit);
+    return this.userService.findPendingApprovalUsers(+page, +limit);
   }
 
   @Patch(':id/approve')
-  @ApiOperation({ summary: 'Approve a user account' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'User approved successfully.' })
-  @Roles('ADMIN')
+  @ApiOperation({ summary: '批准用户' })
+  @ApiResponse({ status: 200, description: '用户已批准' })
   async approveUser(@Param('id') id: string) {
     return this.userService.approveUser(id);
   }
 
-  @Patch(':id/reject')
-  @ApiOperation({ summary: 'Reject a user account' })
-  @ApiParam({ name: 'id', description: 'User ID' })
-  @ApiResponse({ status: 200, description: 'User rejected successfully.' })
-  @Roles('ADMIN')
+  @Delete(':id/reject')
+  @ApiOperation({ summary: '拒绝用户' })
+  @ApiResponse({ status: 200, description: '用户已拒绝' })
   async rejectUser(@Param('id') id: string) {
     return this.userService.rejectUser(id);
+  }
+
+  @Post('batch-approve')
+  @ApiOperation({ summary: '批量批准用户' })
+  @ApiResponse({ status: 200, description: '用户已批量批准' })
+  async batchApproveUsers(@Body('ids') ids: string[]) {
+    const results = [];
+    
+    for (const id of ids) {
+      try {
+        const result = await this.userService.approveUser(id);
+        results.push({ id, status: 'success', data: result });
+      } catch (error) {
+        results.push({ id, status: 'error', message: error.message });
+      }
+    }
+    
+    return { results };
+  }
+
+  @Post('batch-reject')
+  @ApiOperation({ summary: '批量拒绝用户' })
+  @ApiResponse({ status: 200, description: '用户已批量拒绝' })
+  async batchRejectUsers(@Body('ids') ids: string[]) {
+    const results = [];
+    
+    for (const id of ids) {
+      try {
+        const result = await this.userService.rejectUser(id);
+        results.push({ id, status: 'success', data: result });
+      } catch (error) {
+        results.push({ id, status: 'error', message: error.message });
+      }
+    }
+    
+    return { results };
+  }
+
+  @Get('pending-count')
+  @ApiOperation({ summary: '获取待审核用户数量' })
+  @ApiResponse({ status: 200, description: '返回待审核用户数量' })
+  async getPendingApprovalCount() {
+    const count = await this.userService.prisma.user.count({
+      where: {
+        isApproved: false,
+      },
+    });
+    
+    return { count };
   }
 }

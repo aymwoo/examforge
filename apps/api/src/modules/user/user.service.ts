@@ -6,7 +6,7 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(public readonly prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto) {
     // 检查用户名是否已存在
@@ -60,6 +60,7 @@ export class UserService {
           name: true,
           role: true,
           isActive: true,
+          isApproved: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -89,6 +90,7 @@ export class UserService {
         name: true,
         role: true,
         isActive: true,
+        isApproved: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -121,6 +123,7 @@ export class UserService {
           name: true,
           role: true,
           isActive: true,
+          isApproved: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -148,6 +151,18 @@ export class UserService {
   async findByUsername(username: string) {
     return this.prisma.user.findUnique({
       where: { username },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        isApproved: true,
+        createdAt: true,
+        updatedAt: true,
+        password: true,
+      },
     });
   }
 
@@ -172,6 +187,7 @@ export class UserService {
           name: true,
           role: true,
           isActive: true,
+          isApproved: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -189,6 +205,18 @@ export class UserService {
   async changePassword(id: string, currentPassword: string, newPassword: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        isApproved: true,
+        createdAt: true,
+        updatedAt: true,
+        password: true,
+      },
     });
 
     if (!user) {
@@ -296,5 +324,13 @@ export class UserService {
     });
 
     return user;
+  }
+
+  async getPendingApprovalCount() {
+    return this.prisma.user.count({
+      where: {
+        isApproved: false,
+      },
+    });
   }
 }
