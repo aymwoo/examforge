@@ -7,6 +7,11 @@ import {
   deleteQuestions,
   type Question,
 } from "@/services/questions";
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeHighlight from 'rehype-highlight';
+import 'katex/dist/katex.min.css'; // KaTeX CSS
 
 const typeLabels: Record<string, string> = {
   SINGLE_CHOICE: "单选题",
@@ -484,9 +489,55 @@ export default function QuestionsPage() {
                         onChange={() => {}}
                         className="mt-1 h-4 w-4 rounded border-border text-accent-600 focus:ring-accent-500"
                       />
-                      <h3 className="flex-1 text-base font-medium text-ink-900">
-                        {q.content}
-                      </h3>
+                      <div className="flex-1 text-base font-medium text-ink-900">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkMath]}
+                          rehypePlugins={[
+                            [rehypeKatex, {
+                              // 配置KaTeX选项
+                              throwOnError: false,
+                              trust: false,
+                              strict: false,
+                            }],
+                            rehypeHighlight
+                          ]}
+                          components={{
+                            p: ({node, ...props}) => <p className="my-2" {...props} />,
+                            h1: ({node, ...props}) => <h1 className="text-xl font-bold mt-4 mb-2" {...props} />,
+                            h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-3 mb-2" {...props} />,
+                            h3: ({node, ...props}) => <h3 className="text-base font-bold mt-2 mb-1" {...props} />,
+                            code: ({node, inline, ...props}) => {
+                              if (inline) {
+                                return <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props} />;
+                              }
+                              return <code className="block bg-gray-100 p-3 rounded text-sm overflow-x-auto" {...props} />;
+                            },
+                            pre: ({node, ...props}) => <pre className="bg-gray-100 p-3 rounded my-2 overflow-x-auto" {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
+                            em: ({node, ...props}) => <em className="italic" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc list-inside ml-4 my-2" {...props} />,
+                            ol: ({node, ...props}) => <ol className="list-decimal list-inside ml-4 my-2" {...props} />,
+                            li: ({node, ...props}) => <li className="my-1" {...props} />,
+                            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600" {...props} />,
+                            div: ({node, ...props}) => {
+                              // 特殊处理数学公式容器
+                              if (props.className?.includes('math')) {
+                                return <div className="my-2" {...props} />;
+                              }
+                              return <div {...props} />;
+                            },
+                            span: ({node, ...props}) => {
+                              // 特殊处理数学公式元素
+                              if (props.className?.includes('math')) {
+                                return <span className="align-middle" {...props} />;
+                              }
+                              return <span {...props} />;
+                            },
+                          }}
+                        >
+                          {q.content}
+                        </ReactMarkdown>
+                      </div>
                     </div>
                     <span className="shrink-0 rounded-lg bg-slate-50 px-2 py-1 text-xs font-semibold text-ink-700">
                       {typeLabels[q.type] || q.type}
