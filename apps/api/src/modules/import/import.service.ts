@@ -42,7 +42,7 @@ export class ImportService {
     return this.prisma.question;
   }
 
-  async importFromExcel(buffer: Buffer): Promise<ImportResult> {
+  async importFromExcel(buffer: Buffer, userId?: string): Promise<ImportResult> {
     const workbook = XLSX.read(buffer);
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
@@ -51,6 +51,21 @@ export class ImportService {
     if (data.length === 0) {
       throw new BadRequestException('No data found in Excel file');
     }
+
+    // 生成唯一的作业ID
+    const jobId = `excel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // 创建导入记录
+    await this.prisma.importRecord.create({
+      data: {
+        jobId,
+        fileName: 'Excel导入',
+        fileSize: buffer.length,
+        userId,
+        mode: 'excel',
+        status: 'processing',
+      },
+    });
 
     const result: ImportResult = {
       success: 0,
@@ -78,6 +93,7 @@ export class ImportService {
             knowledgePoint: dto.knowledgePoint,
             importOrder: i + 1, // 添加导入顺序
             isPublic: true, // 设置为公开，以便管理员可以查看
+            createdBy: userId, // 关联到当前用户
           },
         });
         result.success++;
@@ -90,6 +106,16 @@ export class ImportService {
         });
       }
     }
+
+    // 更新导入记录状态
+    await this.prisma.importRecord.update({
+      where: { jobId },
+      data: {
+        status: 'completed',
+        questionIds: JSON.stringify(result.questionIds),
+        completedAt: new Date(),
+      },
+    });
 
     return result;
   }
@@ -1171,6 +1197,21 @@ export class ImportService {
       throw new BadRequestException('JSON数据必须是一个非空数组');
     }
 
+    // 生成唯一的作业ID
+    const jobId = `json_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // 创建导入记录
+    await this.prisma.importRecord.create({
+      data: {
+        jobId,
+        fileName: 'JSON导入',
+        fileSize: JSON.stringify(questions).length, // JSON字符串的长度作为文件大小
+        userId,
+        mode: 'json',
+        status: 'processing',
+      },
+    });
+
     const result: ImportResult = {
       success: 0,
       failed: 0,
@@ -1254,6 +1295,16 @@ export class ImportService {
         });
       }
     }
+
+    // 更新导入记录状态
+    await this.prisma.importRecord.update({
+      where: { jobId },
+      data: {
+        status: 'completed',
+        questionIds: JSON.stringify(result.questionIds),
+        completedAt: new Date(),
+      },
+    });
 
     return result;
   }

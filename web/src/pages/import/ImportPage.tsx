@@ -449,11 +449,15 @@ export default function ImportPage() {
     "options": ["选项A", "选项B", "选项C", "选项D"], // 仅选择题需要
     "answer": "A|[A,B,C]|true|正确答案|正确答案内容", // 根据题型变化
     "explanation": "解析内容",
-    "tags": ["标签1", "标签2"],
+    "tags": ["${aiGenerationParams.subject}", "标签1", "标签2"], // 请将学科作为标签添加
     "difficulty": 1-5的数字,
     "knowledgePoint": "${aiGenerationParams.knowledgePoint}"
   }
-]`;
+]
+注意事项：
+- 如果题目涉及数学公式，请使用LaTeX语法表示，例如：\\frac{a}{b} 表示分数，\\sqrt{x} 表示平方根，x^2 表示x的平方
+- 确保JSON格式正确，不要添加额外的解释文字
+- 题干和选项中可以包含LaTeX公式，但需要正确转义`;
 
       // 调用AI生成（使用流式API）- 设置较长的超时时间
       const response = await api.post("/api/ai/generate-questions-json-stream", {
@@ -1944,6 +1948,13 @@ export default function ImportPage() {
                   <p className="text-sm font-semibold text-red-900">失败</p>
                   <p className="text-2xl font-bold text-red-600">{importResult.failed || 0}</p>
                 </div>
+              </div>
+
+              {/* 提醒用户核对题目 */}
+              <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ 大模型可能出错，请仔细核对题目后使用
+                </p>
               </div>
 
               {importResult.errors && importResult.errors.length > 0 && (

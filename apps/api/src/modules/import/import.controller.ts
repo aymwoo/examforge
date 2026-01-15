@@ -148,11 +148,11 @@ export class ImportController {
       },
     })
   )
-  async importExcel(@UploadedFile() file: Express.Multer.File) {
+  async importExcel(@UploadedFile() file: Express.Multer.File, @Req() req: any) {
     if (!file) {
       throw new BadRequestException('File is required');
     }
-    return this.importService.importFromExcel(file.buffer);
+    return this.importService.importFromExcel(file.buffer, req.user?.id);
   }
 
   @Post('pdf')
