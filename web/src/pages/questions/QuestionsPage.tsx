@@ -40,6 +40,10 @@ export default function QuestionsPage() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
+  // Batch update tags modal state
+  const [showBatchUpdateTagsModal, setShowBatchUpdateTagsModal] = useState(false);
+  const [batchUpdateTagsInput, setBatchUpdateTagsInput] = useState("");
+
   const [filters, setFilters] = useState({
     type: "",
     difficulty: "",
@@ -192,18 +196,18 @@ export default function QuestionsPage() {
       let page = 1;
       let hasMore = true;
       const allIds: string[] = [];
-      
+
       while (hasMore) {
         const batch = await listQuestions({ page, limit: 100 });
         allIds.push(...batch.data.map((q: any) => q.id));
         hasMore = batch.data.length === 100;
         page++;
       }
-      
+
       if (allIds.length > 0) {
         await deleteQuestions(allIds);
       }
-      
+
       loadQuestions(1);
       setSelectedIds(new Set());
     } catch (err: unknown) {
@@ -218,6 +222,41 @@ export default function QuestionsPage() {
       );
     } finally {
       setClearing(false);
+    }
+  };
+
+  const handleBatchUpdateTags = async () => {
+    if (selectedIds.size === 0) return;
+
+    // 解析标签，支持逗号或空格分隔
+    const tags = batchUpdateTagsInput
+      .split(/[,\s]+/)
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0);
+
+    if (tags.length === 0) {
+      alert("请输入至少一个标签");
+      return;
+    }
+
+    const confirmMsg = `确定要为选中的 ${selectedIds.size} 遾题目设置标签吗？这将替换原有标签。`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const result = await batchUpdateTags(Array.from(selectedIds), tags);
+      alert(`成功为 ${result.updated} 遾题目更新了标签`);
+      setShowBatchUpdateTagsModal(false);
+      setBatchUpdateTagsInput("");
+      // 重新加载当前页面
+      await loadQuestions(page);
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+        message?: string;
+      };
+      setError(
+        axiosError.response?.data?.message || axiosError.message || "批量更新标签失败",
+      );
     }
   };
 
@@ -263,21 +302,33 @@ export default function QuestionsPage() {
           </div>
           <div className="flex gap-2">
             {selectedIds.size > 0 && (
-              <Button
-                variant="outline"
-                onClick={handleBatchDelete}
-                disabled={deleting}
-                className="text-red-600 border-red-300 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {deleting ? "删除中..." : `删除 (${selectedIds.size})`}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBatchUpdateTagsModal(true)}
+                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
+                  </svg>
+                  批量设置标签 ({selectedIds.size})
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleBatchDelete}
+                  disabled={deleting}
+                  className="text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleting ? "删除中..." : `删除 (${selectedIds.size})`}
+                </Button>
+              </>
             )}
             <Button onClick={handleCreateQuestion}>
               <Plus className="h-4 w-4 mr-2" />
               新增题目
             </Button>
-            <Button 
+            <Button
               onClick={handleClearQuestionBank}
               disabled={clearing}
               className="bg-red-600 hover:bg-red-700 text-white"
@@ -545,6 +596,86 @@ export default function QuestionsPage() {
                   />
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批量设置标签模态框 */}
+      {showBatchUpdateTagsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-ink-900">批量设置标签</h3>
+              <button
+                onClick={() => {
+                  setShowBatchUpdateTagsModal(false);
+                  setBatchUpdateTagsInput("");
+                }}
+                className="text-ink-500 hover:text-ink-700"
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-ink-900 mb-2">
+                  选中的题目数量
+                </label>
+                <div className="rounded-xl border border-border bg-slate-50 p-3 text-sm">
+                  {selectedIds.size} 遾题目
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-ink-900 mb-2">
+                  输入新标签 (用逗号或空格分隔)
+                </label>
+                <input
+                  type="text"
+                  value={batchUpdateTagsInput}
+                  onChange={(e) => setBatchUpdateTagsInput(e.target.value)}
+                  placeholder="例如：数学,代数,方程"
+                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                />
+              </div>
+
+              <div className="rounded-xl border border-border bg-blue-50 p-3 text-sm">
+                <p className="text-blue-800">
+                  注意：这将替换所选题目的所有现有标签
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowBatchUpdateTagsModal(false);
+                  setBatchUpdateTagsInput("");
+                }}
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBatchUpdateTags}
+                className="inline-flex items-center justify-center rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700"
+              >
+                确认设置
+              </button>
             </div>
           </div>
         </div>

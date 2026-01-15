@@ -85,6 +85,17 @@ export const deleteQuestions = async (
   return response.data;
 };
 
+export const batchUpdateTags = async (
+  ids: string[],
+  tags: string[],
+): Promise<{ updated: number }> => {
+  const response = await api.post<{ updated: number }>(
+    "/api/questions/batch-update-tags",
+    { ids, tags },
+  );
+  return response.data;
+};
+
 export const uploadQuestionImage = async (
   questionId: string,
   file: File,

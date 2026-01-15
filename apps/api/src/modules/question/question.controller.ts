@@ -74,6 +74,14 @@ export class QuestionController {
     return this.questionService.delete(id, req.user.id, req.user.role);
   }
 
+  @Post('batch-update-tags')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Batch update tags for multiple questions' })
+  @ApiResponse({ status: 200, description: 'Tags updated successfully' })
+  batchUpdateTags(@Body() body: { ids: string[]; tags: string[] }, @Request() req) {
+    return this.questionService.batchUpdateTags(body.ids, body.tags, req.user.id, req.user.role);
+  }
+
   @Post('batch-delete')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete multiple questions' })

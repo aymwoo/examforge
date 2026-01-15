@@ -192,6 +192,37 @@ export class QuestionService {
     return { deleted: result.count };
   }
 
+  async batchUpdateTags(ids: string[], tags: string[], userId?: string, userRole?: string): Promise<{ updated: number }> {
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException('No question IDs provided');
+    }
+
+    // 对于非管理员，需要验证用户权限
+    if (userRole !== 'ADMIN') {
+      // 检查所有题目是否都是当前用户创建的
+      const questions = await this.prisma.question.findMany({
+        where: { id: { in: ids } },
+        select: { createdBy: true }
+      });
+
+      const hasUnownedQuestions = questions.some(q => q.createdBy !== userId);
+      if (hasUnownedQuestions) {
+        throw new UnprocessableEntityException('You can only update tags for your own questions');
+      }
+    }
+
+    const result = await this.prisma.question.updateMany({
+      where: {
+        id: { in: ids },
+      },
+      data: {
+        tags: JSON.stringify(tags),
+      },
+    });
+
+    return { updated: result.count };
+  }
+
   async clearAll(): Promise<{ deleted: number }> {
     const result = await this.prisma.question.deleteMany({});
     return { deleted: result.count };

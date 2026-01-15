@@ -351,6 +351,34 @@ export default function QuestionDetailPage() {
                   placeholder="请输入知识点（可选）"
                 />
               </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-ink-900">可见性</label>
+                <div className="mt-2 space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name={`isPublic-${id}`} // 使用题目ID确保唯一性
+                      value="true"
+                      checked={editForm.isPublic !== false}
+                      onChange={() => handleInputChange("isPublic", true)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-ink-900">公开 - 所有用户可见</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name={`isPublic-${id}`} // 使用题目ID确保唯一性
+                      value="false"
+                      checked={editForm.isPublic === false}
+                      onChange={() => handleInputChange("isPublic", false)}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-ink-900">私有 - 仅自己和管理员可见</span>
+                  </label>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="space-y-6">
