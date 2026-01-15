@@ -12,7 +12,7 @@ const resolvedBaseUrl = (() => {
 
 const api = axios.create({
   baseURL: resolvedBaseUrl,
-  timeout: 10000,
+  timeout: 60000, // 增加到60秒，以支持长时间的AI生成任务
 });
 
 // Request interceptor

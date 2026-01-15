@@ -715,12 +715,159 @@ export class AIService {
     // 简单的文本解析逻辑
     const scoreMatch = content.match(/分数[：:]\s*(\d+)/);
     const score = scoreMatch ? parseInt(scoreMatch[1]) : 0;
-    
+
     return {
       score,
       reasoning: content.includes('理由') ? content : 'AI评分完成',
       suggestions: content.includes('建议') ? content : '请继续努力',
       confidence: 0.7,
     };
+  }
+
+  async generateQuestionsFromTextWithProgress(
+    jobId: string,
+    text: string,
+    opts?: { userId?: string; customPrompt?: string; count?: number },
+    progressStore?: any // 使用any类型避免循环依赖
+  ): Promise<GenerateExamQuestionsResponse> {
+    const settings = opts?.userId
+      ? await this.settingsService.getUserSettings(opts.userId)
+      : await this.settingsService.getSettings();
+
+    // 三级优先级：导入页面编辑的提示词 > 教师设置的提示词 > 系统默认提示词
+    const promptTemplate = await this.getEffectivePrompt(opts?.customPrompt, settings.promptTemplate, opts?.userId);
+
+    if (!settings.aiApiKey) {
+      const error = new Error('AI API Key not configured. Please configure AI provider in settings.');
+      if (progressStore) {
+        progressStore.append(jobId, {
+          stage: 'error',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
+
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+      const error = new Error('No text found for AI generation');
+      if (progressStore) {
+        progressStore.append(jobId, {
+          stage: 'error',
+          message: error.message,
+        });
+      }
+      throw error;
+    }
+
+    try {
+      // 更新进度：开始处理
+      if (progressStore) {
+        progressStore.append(jobId, {
+          stage: 'processing',
+          message: '正在准备AI生成请求',
+        });
+      }
+
+      const apiUrl = this.buildApiUrl(settings.aiBaseUrl);
+
+      // 更新进度：调用AI
+      if (progressStore) {
+        progressStore.append(jobId, {
+          stage: 'generating_questions',
+          message: '正在调用AI生成题目',
+          current: 1,
+          total: opts?.count || 5,
+        });
+      }
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${settings.aiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: settings.aiModel || 'gpt-4',
+          messages: [
+            { role: 'system', content: `${promptTemplate}` },
+            {
+              role: 'user',
+              content: `以下是从用户输入生成的试题要求。
+
+要求：
+- 生成指定数量的题目
+- 不要合并题目；每道题都要单独作为一个 question。
+- 只返回严格 JSON：{"questions":[...]}（不要输出 markdown 或说明）。`,
+            },
+            {
+              role: 'user',
+              content: trimmedText,
+            },
+          ],
+          max_tokens: 8000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const error = new Error(`AI API error: ${response.status} - ${errorText}`);
+        if (progressStore) {
+          progressStore.append(jobId, {
+            stage: 'error',
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+
+      const data: any = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+
+      if (!content) {
+        const error = new Error('AI returned empty response');
+        if (progressStore) {
+          progressStore.append(jobId, {
+            stage: 'error',
+            message: error.message,
+          });
+        }
+        throw error;
+      }
+
+      // 更新进度：解析AI响应
+      if (progressStore) {
+        progressStore.append(jobId, {
+          stage: 'formatting_output',
+          message: '正在解析AI返回的数据',
+        });
+      }
+
+      const questions = this.parseAIResponse(content);
+
+      // 限制返回的题目数量
+      const limitedQuestions = opts?.count ? questions.slice(0, opts.count) : questions;
+
+      // 更新进度：完成
+      if (progressStore) {
+        progressStore.append(jobId, {
+          stage: 'completed',
+          message: `成功生成 ${limitedQuestions.length} 道题目`,
+          result: { questions: limitedQuestions },
+        });
+      }
+
+      return { questions: limitedQuestions };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate questions from AI';
+      if (progressStore) {
+        progressStore.append(jobId, {
+          stage: 'error',
+          message: errorMessage,
+        });
+      }
+      console.error('AI generation error:', error);
+      throw new Error(errorMessage);
+    }
   }
 }

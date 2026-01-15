@@ -5,6 +5,7 @@ import { AIService } from './ai.service';
 import { memoryStorage } from 'multer';
 import { SettingsModule } from '../settings/settings.module';
 import { PrismaModule } from '../../prisma/prisma.module';
+import { AiProgressStore } from './ai-progress.store';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
     PrismaModule,
   ],
   controllers: [AIController],
-  providers: [AIService],
+  providers: [AIService, AiProgressStore],
   exports: [AIService],
 })
 export class AIModule {}

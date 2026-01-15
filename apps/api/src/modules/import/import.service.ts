@@ -74,9 +74,10 @@ export class ImportService {
             explanation: dto.explanation,
             tags: dto.tags ? JSON.stringify(dto.tags) : '[]',
             difficulty: dto.difficulty || 1,
-            status: QuestionStatus.DRAFT,
+            status: QuestionStatus.PUBLISHED, // 导入的题目默认为发布状态
             knowledgePoint: dto.knowledgePoint,
             importOrder: i + 1, // 添加导入顺序
+            isPublic: true, // 设置为公开，以便管理员可以查看
           },
         });
         result.success++;
@@ -196,10 +197,11 @@ export class ImportService {
               explanation: q.explanation,
               tags: q.tags ? JSON.stringify(q.tags) : '[]',
               difficulty: q.difficulty || 1,
-              status: QuestionStatus.DRAFT,
+              status: QuestionStatus.PUBLISHED, // 导入的题目默认为发布状态
               knowledgePoint: q.knowledgePoint,
               importOrder: i + 1, // 添加导入顺序
               createdBy: userId,
+              isPublic: true, // 设置为公开，以便管理员可以查看
             },
           });
 
@@ -377,9 +379,10 @@ export class ImportService {
               explanation: q.explanation,
               tags: q.tags ? JSON.stringify(q.tags) : '[]',
               difficulty: q.difficulty || 1,
-              status: QuestionStatus.DRAFT,
+              status: QuestionStatus.PUBLISHED, // 导入的题目默认为发布状态
               knowledgePoint: q.knowledgePoint,
               importOrder: i + 1, // 添加导入顺序 (视觉模式)
+              isPublic: true, // 设置为公开，以便管理员可以查看
             },
           });
           questionIds.push(createdQuestion.id);
@@ -569,9 +572,10 @@ export class ImportService {
               explanation: q.explanation,
               tags: q.tags ? JSON.stringify(q.tags) : '[]',
               difficulty: q.difficulty || 1,
-              status: QuestionStatus.DRAFT,
+              status: QuestionStatus.PUBLISHED, // 导入的题目默认为发布状态
               knowledgePoint: q.knowledgePoint,
               importOrder: i + 1, // 添加导入顺序 (文本模式)
+              isPublic: true, // 设置为公开，以便管理员可以查看
             },
           });
           questionIds.push(createdQuestion.id);
@@ -1160,6 +1164,98 @@ export class ImportService {
     } catch (error) {
       throw new BadRequestException('Failed to process file');
     }
+  }
+
+  async importFromJson(questions: any[], userId?: string): Promise<ImportResult> {
+    if (!Array.isArray(questions) || questions.length === 0) {
+      throw new BadRequestException('JSON数据必须是一个非空数组');
+    }
+
+    const result: ImportResult = {
+      success: 0,
+      failed: 0,
+      errors: [],
+      questionIds: [],
+    };
+
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i];
+      const rowNum = i + 1;
+
+      try {
+        // 验证必需字段
+        if (!question.stem) {
+          throw new BadRequestException('题目内容（stem）是必需的');
+        }
+
+        // 映射题型
+        const typeMap: Record<string, QuestionType> = {
+          单选题: QuestionType.SINGLE_CHOICE,
+          single: QuestionType.SINGLE_CHOICE,
+          single_choice: QuestionType.SINGLE_CHOICE,
+          SINGLE_CHOICE: QuestionType.SINGLE_CHOICE,
+          多选题: QuestionType.MULTIPLE_CHOICE,
+          multiple: QuestionType.MULTIPLE_CHOICE,
+          multiple_choice: QuestionType.MULTIPLE_CHOICE,
+          MULTIPLE_CHOICE: QuestionType.MULTIPLE_CHOICE,
+          判断题: QuestionType.TRUE_FALSE,
+          true_false: QuestionType.TRUE_FALSE,
+          TRUE_FALSE: QuestionType.TRUE_FALSE,
+          填空题: QuestionType.FILL_BLANK,
+          fill_blank: QuestionType.FILL_BLANK,
+          FILL_BLANK: QuestionType.FILL_BLANK,
+          简答题: QuestionType.ESSAY,
+          essay: QuestionType.ESSAY,
+          ESSAY: QuestionType.ESSAY,
+        };
+
+        const type = typeMap[question.type] || QuestionType.SINGLE_CHOICE;
+
+        // 处理选项
+        let options = null;
+        if (question.options && Array.isArray(question.options) && question.options.length > 0) {
+          options = question.options.map((opt: string, idx: number) => ({
+            label: String.fromCharCode(65 + idx),
+            content: opt,
+          }));
+        }
+
+        // 处理答案
+        let answer = question.answer;
+        if (type === QuestionType.TRUE_FALSE && typeof question.answer === 'boolean') {
+          answer = question.answer ? '正确' : '错误';
+        }
+
+        // 创建题目
+        const createdQuestion = await this.prisma.question.create({
+          data: {
+            content: question.stem,
+            type: type as any,
+            options: options ? JSON.stringify(options) : null,
+            answer: serializeQuestionAnswer(answer),
+            explanation: question.explanation || '',
+            tags: question.tags ? JSON.stringify(question.tags) : '[]',
+            difficulty: question.difficulty || 1,
+            status: QuestionStatus.PUBLISHED, // 导入的题目默认为发布状态
+            knowledgePoint: question.knowledgePoint || '',
+            importOrder: i + 1, // 添加导入顺序
+            createdBy: userId, // 关联到当前用户
+            isPublic: true, // 设置为公开，以便管理员可以查看
+          },
+        });
+
+        result.success++;
+        result.questionIds!.push(createdQuestion.id);
+      } catch (error) {
+        result.failed++;
+        result.errors.push({
+          row: rowNum,
+          message: (error as any).message || '未知错误',
+        });
+      }
+    }
+
+    return result;
   }
 
   async getQuestionImportRecord(questionId: string, userId?: string) {

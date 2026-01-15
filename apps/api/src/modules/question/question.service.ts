@@ -84,8 +84,8 @@ export class QuestionService {
         skip,
         take: limit,
         orderBy: [
-          { importOrder: 'asc' },
-          { createdAt: 'desc' }
+          { createdAt: 'desc' },  // 按创建时间倒序排列（最新的在前）
+          { importOrder: 'asc' }  // 在创建时间相同的情况下，按导入顺序排列
         ],
         include: {
           creator: {

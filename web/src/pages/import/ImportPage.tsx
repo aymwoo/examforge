@@ -29,7 +29,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 
 export default function ImportPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"excel" | "pdf">("excel");
+  const [activeTab, setActiveTab] = useState<"excel" | "pdf" | "json">("excel");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedPdf, setSelectedPdf] = useState<File | null>(null);
   const [fileType, setFileType] = useState<"pdf" | "image" | null>(null);
@@ -50,6 +50,29 @@ export default function ImportPage() {
   const [tempPrompt, setTempPrompt] = useState<string>("");
   const [showPromptEditor, setShowPromptEditor] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [showJsonModal, setShowJsonModal] = useState(false);
+  const [jsonContent, setJsonContent] = useState("");
+  const [isJsonImporting, setIsJsonImporting] = useState(false);
+
+  // AI生成相关状态
+  const [showAiGenerateModal, setShowAiGenerateModal] = useState(false);
+  const [aiGenerationParams, setAiGenerationParams] = useState({
+    grade: "",
+    subject: "",
+    knowledgePoint: "",
+    count: 5,
+    difficulty: "中等"
+  });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState({
+    current: 0,
+    total: 0,
+    message: "",
+    stage: ""
+  });
+  const [showImportResultModal, setShowImportResultModal] = useState(false);
+  const [importResult, setImportResult] = useState<any>(null);
+  const [showAiCompletionModal, setShowAiCompletionModal] = useState(false);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -372,6 +395,170 @@ export default function ImportPage() {
     };
   }, [activeTab]);
 
+  const handleJsonImport = async () => {
+    if (!jsonContent.trim()) {
+      alert("请输入JSON内容");
+      return;
+    }
+
+    try {
+      setIsJsonImporting(true);
+      const jsonData = JSON.parse(jsonContent);
+
+      // 验证JSON格式
+      if (!Array.isArray(jsonData)) {
+        alert("JSON格式不正确：根节点必须是一个数组");
+        return;
+      }
+
+      // 发送JSON数据到后端进行处理
+      const response = await api.post("/api/import/json", { questions: jsonData });
+      setImportResult(response.data);
+      setShowImportResultModal(true);
+      // 注意：现在JSON导入是tab形式，不需要关闭模态框
+      // setShowJsonModal(false);
+      setJsonContent("");
+    } catch (error) {
+      console.error("JSON导入失败:", error);
+      if (error instanceof SyntaxError) {
+        alert("JSON格式不正确，请检查语法");
+      } else {
+        alert(error instanceof Error ? error.message : "导入失败，请检查网络连接");
+      }
+    } finally {
+      setIsJsonImporting(false);
+    }
+  };
+
+  // AI生成JSON字符串
+  const handleAiGenerate = async () => {
+    if (!aiGenerationParams.grade || !aiGenerationParams.subject || !aiGenerationParams.knowledgePoint) {
+      alert("请填写完整的年级、学科和知识点信息");
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+
+      // 构造提示词
+      const prompt = `请为${aiGenerationParams.grade}年级${aiGenerationParams.subject}学科生成${aiGenerationParams.count}道关于${aiGenerationParams.knowledgePoint}知识点的题目，整体难度为${aiGenerationParams.difficulty}。请严格按照以下JSON格式返回，不要添加任何其他文字说明：
+[
+  {
+    "stem": "题目内容",
+    "type": "SINGLE_CHOICE|MULTIPLE_CHOICE|TRUE_FALSE|FILL_BLANK|ESSAY",
+    "options": ["选项A", "选项B", "选项C", "选项D"], // 仅选择题需要
+    "answer": "A|[A,B,C]|true|正确答案|正确答案内容", // 根据题型变化
+    "explanation": "解析内容",
+    "tags": ["标签1", "标签2"],
+    "difficulty": 1-5的数字,
+    "knowledgePoint": "${aiGenerationParams.knowledgePoint}"
+  }
+]`;
+
+      // 调用AI生成（使用流式API）- 设置较长的超时时间
+      const response = await api.post("/api/ai/generate-questions-json-stream", {
+        prompt: prompt,
+        count: aiGenerationParams.count
+      }, {
+        timeout: 300000 // 5分钟超时，足够AI处理较长时间
+      });
+
+      // 从响应中获取任务ID
+      const jobId = response.data.jobId;
+
+      // 重置进度状态
+      setGenerationProgress({
+        current: 0,
+        total: 0,
+        message: "开始生成...",
+        stage: "initiated"
+      });
+
+      // 使用轮询方式获取进度（避免SSE的认证问题）
+      const token = localStorage.getItem("token");
+      let isCompleted = false;
+
+      // 确保jobId存在
+      if (!jobId) {
+        console.error('Job ID is undefined');
+        setIsGenerating(false);
+        return;
+      }
+
+      // 定义轮询函数
+      const pollProgress = async () => {
+        if (isCompleted) return; // 如果已完成则停止轮询
+
+        try {
+          const response = await fetch(`/api/ai/generate-questions-json-stream/progress/${jobId}?format=json`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json', // 使用普通请求而非SSE
+            }
+          });
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              console.error('认证失败');
+              setIsGenerating(false);
+              return;
+            }
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const events: any[] = await response.json();
+          if (events.length > 0) {
+            const latestEvent = events[events.length - 1];
+
+            if (latestEvent.stage === 'completed') {
+              isCompleted = true;
+              // 生成完成，将结果插入到JSON输入框
+              setJsonContent(JSON.stringify(latestEvent.result?.questions || [], null, 2));
+
+              // 显示成功消息，但不自动导入
+              setShowAiCompletionModal(true);
+
+              // 关闭AI生成模态框
+              setShowAiGenerateModal(false);
+              setIsGenerating(false);
+              return;
+            } else if (latestEvent.stage === 'error') {
+              isCompleted = true;
+              alert(`AI生成失败：${latestEvent.message}`);
+              setIsGenerating(false);
+              return;
+            } else {
+              // 更新进度状态
+              setGenerationProgress({
+                current: latestEvent.current || 0,
+                total: latestEvent.total || 0,
+                message: latestEvent.message || "",
+                stage: latestEvent.stage || ""
+              });
+            }
+          }
+
+          // 继续轮询
+          if (!isCompleted) {
+            setTimeout(pollProgress, 2000); // 每2秒轮询一次
+          }
+        } catch (error) {
+          console.error('获取进度失败:', error);
+          if (!isCompleted) {
+            setTimeout(pollProgress, 5000); // 出错后5秒重试
+          }
+        }
+      };
+
+      // 开始轮询
+      pollProgress();
+    } catch (error) {
+      console.error("AI生成失败:", error);
+      alert("AI生成失败：" + (error instanceof Error ? error.message : "未知错误"));
+      setIsGenerating(false);
+    }
+  };
+
   const handlePdfUpload = async () => {
     if (!selectedPdf) return;
 
@@ -457,6 +644,16 @@ export default function ImportPage() {
             }`}
           >
             AI导入
+          </button>
+          <button
+            onClick={() => setActiveTab("json")}
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+              activeTab === "json"
+                ? "bg-accent-600 text-white"
+                : "border border-border bg-white text-ink-900 hover:bg-slate-50"
+            }`}
+          >
+            JSON导入
           </button>
         </div>
 
@@ -639,6 +836,158 @@ export default function ImportPage() {
                   </table>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "json" && (
+          <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold text-ink-900 mb-4">
+              JSON 导入
+            </h2>
+
+            <div className="rounded-2xl border border-border bg-slate-50 p-4">
+              <p className="text-sm text-ink-700 mb-4">
+                粘贴符合格式要求的JSON字符串，批量导入题目到题库。
+              </p>
+
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-ink-900 mb-2">JSON格式说明</h4>
+                <div className="rounded-xl border border-border bg-white p-3 text-xs overflow-x-auto">
+                  <pre className="whitespace-pre-wrap">
+                    {`[
+  {
+    "stem": "题目内容",
+    "type": "SINGLE_CHOICE",
+    "options": ["选项A", "选项B", "选项C", "选项D"],
+    "answer": "A",
+    "explanation": "解析内容",
+    "tags": ["标签1", "标签2"],
+    "difficulty": 1,
+    "knowledgePoint": "知识点"
+  },
+  {
+    "stem": "多选题示例",
+    "type": "MULTIPLE_CHOICE",
+    "options": ["A", "B", "C", "D"],
+    "answer": ["A", "B", "C"],
+    "explanation": "多选题可以有多个正确答案",
+    "tags": ["多选"],
+    "difficulty": 2,
+    "knowledgePoint": "逻辑推理"
+  },
+  {
+    "stem": "判断题示例",
+    "type": "TRUE_FALSE",
+    "answer": true,
+    "explanation": "判断题答案是true或false",
+    "tags": ["判断"],
+    "difficulty": 1,
+    "knowledgePoint": "基础"
+  },
+  {
+    "stem": "填空题示例：1 + 1 = ___",
+    "type": "FILL_BLANK",
+    "answer": "2",
+    "explanation": "简单的加法",
+    "tags": ["填空"],
+    "difficulty": 1,
+    "knowledgePoint": "数学"
+  },
+  {
+    "stem": "简答题示例：请简述什么是人工智能",
+    "type": "ESSAY",
+    "answer": "人工智能是计算机科学的一个分支",
+    "explanation": "需要详细阐述概念",
+    "tags": ["简答"],
+    "difficulty": 3,
+    "knowledgePoint": "计算机科学"
+  }
+]`}
+                  </pre>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-sm font-semibold text-ink-900">
+                    JSON内容
+                  </label>
+                  <button
+                    onClick={() => setShowAiGenerateModal(true)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-accent-700"
+                  >
+                    <svg
+                      className="h-3 w-3"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
+                    </svg>
+                    AI生成
+                  </button>
+                </div>
+                <textarea
+                  value={jsonContent}
+                  onChange={(e) => setJsonContent(e.target.value)}
+                  placeholder="在此粘贴符合格式要求的JSON字符串..."
+                  className="w-full h-64 rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white resize-y"
+                />
+              </div>
+
+              <button
+                onClick={handleJsonImport}
+                disabled={isJsonImporting}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isJsonImporting ? (
+                  <>
+                    <svg
+                      className="h-4 w-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    导入中...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                      />
+                    </svg>
+                    开始 JSON 导入
+                  </>
+                )}
+              </button>
             </div>
           </div>
         )}
@@ -1332,7 +1681,310 @@ export default function ImportPage() {
             )}
           </div>
         )}
+
       </div>
+
+      {/* AI生成参数输入模态框 */}
+      {showAiGenerateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-ink-900">AI生成题目</h3>
+              <button
+                onClick={() => setShowAiGenerateModal(false)}
+                className="text-ink-500 hover:text-ink-700"
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-ink-900 mb-1">
+                  年级
+                </label>
+                <input
+                  type="text"
+                  value={aiGenerationParams.grade}
+                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, grade: e.target.value})}
+                  placeholder="例如：高三"
+                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-ink-900 mb-1">
+                  学科
+                </label>
+                <input
+                  type="text"
+                  value={aiGenerationParams.subject}
+                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, subject: e.target.value})}
+                  placeholder="例如：数学"
+                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-ink-900 mb-1">
+                  知识点
+                </label>
+                <input
+                  type="text"
+                  value={aiGenerationParams.knowledgePoint}
+                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, knowledgePoint: e.target.value})}
+                  placeholder="例如：三角函数"
+                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-ink-900 mb-1">
+                  试题数量
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={aiGenerationParams.count}
+                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, count: parseInt(e.target.value) || 5})}
+                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-ink-900 mb-1">
+                  整体难度
+                </label>
+                <select
+                  value={aiGenerationParams.difficulty}
+                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, difficulty: e.target.value})}
+                  className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                >
+                  <option value="简单">简单</option>
+                  <option value="中等">中等</option>
+                  <option value="困难">困难</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              {/* 进度显示 */}
+              {isGenerating && (
+                <div className="mb-4">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span>{generationProgress.message}</span>
+                    {generationProgress.total > 0 && (
+                      <span>{generationProgress.current}/{generationProgress.total}</span>
+                    )}
+                  </div>
+                  <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-accent-600 rounded-full transition-all duration-300"
+                      style={{
+                        width: generationProgress.total > 0
+                          ? `${(generationProgress.current / generationProgress.total) * 100}%`
+                          : '0%'
+                      }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    if (isGenerating) {
+                      alert("正在生成中，请等待完成或刷新页面取消");
+                      return;
+                    }
+                    setShowAiGenerateModal(false);
+                  }}
+                  className="inline-flex items-center justify-center rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
+                  disabled={isGenerating}
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleAiGenerate}
+                  disabled={isGenerating}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGenerating ? (
+                    <>
+                      <svg
+                        className="h-4 w-4 animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      生成中...
+                    </>
+                  ) : (
+                    "生成题目"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI生成完成提示模态框 */}
+      {showAiCompletionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-ink-900">AI生成完成</h3>
+              <button
+                onClick={() => {
+                  setShowAiCompletionModal(false);
+                }}
+                className="text-ink-500 hover:text-ink-700"
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-xl border border-border bg-blue-50 p-4">
+                <p className="text-base text-blue-800">
+                  AI生成完成！请检查生成的JSON内容，然后点击"开始JSON导入"按钮进行导入。
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowAiCompletionModal(false);
+                }}
+                className="inline-flex items-center justify-center rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700"
+              >
+                确定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 导入结果模态框 */}
+      {showImportResultModal && importResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-ink-900">导入结果</h3>
+              <button
+                onClick={() => {
+                  setShowImportResultModal(false);
+                  setImportResult(null);
+                }}
+                className="text-ink-500 hover:text-ink-700"
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-xl border border-border bg-green-50 p-4">
+                  <p className="text-sm font-semibold text-green-900">成功</p>
+                  <p className="text-2xl font-bold text-green-600">{importResult.success || 0}</p>
+                </div>
+                <div className="rounded-xl border border-border bg-red-50 p-4">
+                  <p className="text-sm font-semibold text-red-900">失败</p>
+                  <p className="text-2xl font-bold text-red-600">{importResult.failed || 0}</p>
+                </div>
+              </div>
+
+              {importResult.errors && importResult.errors.length > 0 && (
+                <div className="rounded-xl border border-border bg-white p-4">
+                  <h4 className="text-sm font-semibold text-ink-900 mb-2">错误详情</h4>
+                  <div className="max-h-64 overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="border-b border-border">
+                        <tr>
+                          <th className="py-2 text-left text-ink-900">行号</th>
+                          <th className="py-2 text-left text-ink-900">错误信息</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importResult.errors.map((error: any, index: number) => (
+                          <tr key={index} className="border-b border-border">
+                            <td className="py-2 text-ink-700">{error.row}</td>
+                            <td className="py-2 text-ink-900">{error.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowImportResultModal(false);
+                  setImportResult(null);
+                }}
+                className="inline-flex items-center justify-center rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700"
+              >
+                确定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

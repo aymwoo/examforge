@@ -64,6 +64,51 @@ export class ImportController {
     return { examId, message: 'Exam created successfully' };
   }
 
+  @Post('json')
+  @ApiOperation({ summary: 'Import questions from JSON data' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        questions: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              stem: { type: 'string', description: '题目内容' },
+              type: { type: 'string', description: '题目类型', enum: ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_BLANK', 'ESSAY'] },
+              options: {
+                type: 'array',
+                items: { type: 'string' },
+                description: '选项列表（选择题必需）'
+              },
+              answer: {
+                type: 'string',
+                description: '答案，对于多选题可以是数组，判断题可以是布尔值'
+              },
+              explanation: { type: 'string', description: '解析' },
+              tags: {
+                type: 'array',
+                items: { type: 'string' },
+                description: '标签列表'
+              },
+              difficulty: { type: 'number', description: '难度（1-5）', minimum: 1, maximum: 5 },
+              knowledgePoint: { type: 'string', description: '知识点' }
+            },
+            required: ['stem']
+          }
+        }
+      },
+      required: ['questions']
+    }
+  })
+  async importJson(@Body() body: { questions: any[] }, @Req() req: any) {
+    if (!body.questions) {
+      throw new BadRequestException('Missing questions in request body');
+    }
+    return this.importService.importFromJson(body.questions, req.user?.id);
+  }
+
   @Post('excel')
   @ApiOperation({ summary: 'Import questions from Excel file' })
   @ApiConsumes('multipart/form-data')
