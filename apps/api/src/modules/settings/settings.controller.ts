@@ -82,6 +82,28 @@ export class SettingsController {
     return { success: true };
   }
 
+  @Post('default-prompt-template')
+  @ApiOperation({ summary: 'Get default prompt template by type' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        templateType: {
+          type: 'string',
+          enum: ['PROMPT_TEMPLATE', 'GRADING_PROMPT_TEMPLATE', 'ANALYSIS_PROMPT_TEMPLATE', 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE'],
+          description: 'Template type to get default value for'
+        }
+      },
+      required: ['templateType']
+    }
+  })
+  @ApiResponse({ status: 200, description: 'Default prompt template retrieved successfully' })
+  async getDefaultPromptTemplate(@Req() req: any, @Body() body: { templateType: string }) {
+    const { templateType } = body;
+    const template = await this.settingsService.getDefaultPromptTemplateByType(templateType);
+    return { template };
+  }
+
   @Delete('user')
   @ApiOperation({ summary: 'Delete a user setting' })
   @ApiResponse({ status: 200, description: 'User setting deleted successfully' })

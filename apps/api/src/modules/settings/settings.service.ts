@@ -422,7 +422,26 @@ export class SettingsService {
   ]
 }
 
+数学公式表示：
+- 行内公式：使用 $...$ 或 \\( ... \\) 包围
+- 块级公式：使用 $$...$$ 或 \\[ ... \\] 包围
+
 请只返回JSON格式的题目数据，不要包含其他说明文字。`;
+  }
+
+  async getDefaultPromptTemplateByType(templateType: string): Promise<string> {
+    switch(templateType) {
+      case 'PROMPT_TEMPLATE':
+        return this.getDefaultPromptTemplate();
+      case 'GRADING_PROMPT_TEMPLATE':
+        return this.getDefaultGradingPromptTemplate();
+      case 'ANALYSIS_PROMPT_TEMPLATE':
+        return this.getDefaultAnalysisPromptTemplate();
+      case 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE':
+        return this.getDefaultStudentAiAnalysisPromptTemplate();
+      default:
+        throw new BadRequestException(`Unknown template type: ${templateType}`);
+    }
   }
 
   getJsonStructureTemplate(): string {
@@ -456,6 +475,10 @@ export class SettingsService {
 2. 完整性（30%）：答案是否涵盖了关键要点
 3. 逻辑性（20%）：答案是否条理清晰、逻辑合理
 4. 表达质量（10%）：语言表达是否规范、清晰
+
+数学公式表示：
+- 行内公式：使用 $...$ 或 \\( ... \\) 包围
+- 块级公式：使用 $$...$$ 或 \\[ ... \\] 包围
 
 请返回JSON格式的评分结果：
 {
@@ -499,6 +522,10 @@ export class SettingsService {
 4. 知识点掌握情况分析
 5. 教学建议和改进方向
 
+数学公式表示：
+- 行内公式：使用 $...$ 或 \\( ... \\) 包围
+- 块级公式：使用 $$...$$ 或 \\[ ... \\] 包围
+
 请用中文回答，内容要专业、详细、有针对性。`;
   }
 
@@ -512,6 +539,10 @@ export class SettingsService {
 - 重点分析扣分原因、常见错误类型、薄弱知识点、作答策略问题
 - 给出可执行的改进建议（短期1周/中期1月）
 - 如果评分详情不足以判断，请明确说明缺失信息并提出你需要的补充字段
+
+数学公式表示：
+- 行内公式：使用 $...$ 或 \\( ... \\) 包围
+- 块级公式：使用 $$...$$ 或 \\[ ... \\] 包围
 
 输出格式（Markdown）：
 - 总体表现概述
