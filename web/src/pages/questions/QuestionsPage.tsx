@@ -546,24 +546,104 @@ export default function QuestionsPage() {
             </div>
 
             {meta.totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-center gap-4">
-                <Button
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={page === 1}
-                  variant="outline"
-                >
-                  上一页
-                </Button>
-                <span className="text-sm text-ink-700">
+              <div className="mt-6 flex items-center justify-center gap-1 flex-wrap">
+                {/* 页码导航 */}
+                <div className="flex items-center gap-1">
+                  {(() => {
+                    const pages = [];
+                    const totalPages = meta.totalPages;
+                    const currentPage = page;
+
+                    // 如果总页数小于等于10，显示所有页码
+                    if (totalPages <= 10) {
+                      for (let i = 1; i <= totalPages; i++) {
+                        pages.push(
+                          <Button
+                            key={i}
+                            onClick={() => handlePageChange(i)}
+                            variant={currentPage === i ? "default" : "outline"}
+                            className={currentPage === i ? "bg-accent-600 border-accent-600" : ""}
+                          >
+                            {i}
+                          </Button>
+                        );
+                      }
+                    } else {
+                      // 总页数大于10，显示前3页，后3页，当前页周围页码，以及省略号
+
+                      // 始终显示第一页
+                      pages.push(
+                        <Button
+                          key={1}
+                          onClick={() => handlePageChange(1)}
+                          variant={currentPage === 1 ? "default" : "outline"}
+                          className={currentPage === 1 ? "bg-accent-600 border-accent-600" : ""}
+                        >
+                          1
+                        </Button>
+                      );
+
+                      // 计算需要显示的页码范围
+                      let startPage = Math.max(2, currentPage - 1);
+                      let endPage = Math.min(totalPages - 1, currentPage + 1);
+
+                      // 如果当前页靠近开头，扩展结束页
+                      if (currentPage <= 4) {
+                        endPage = Math.min(totalPages - 1, 7); // 显示前7页
+                      }
+
+                      // 如果当前页靠近结尾，扩展开始页
+                      if (currentPage >= totalPages - 3) {
+                        startPage = Math.max(2, totalPages - 6); // 显示后7页
+                      }
+
+                      // 显示省略号（如果需要）
+                      if (startPage > 2) {
+                        pages.push(
+                          <span key="start-ellipsis" className="px-2 text-ink-700">...</span>
+                        );
+                      }
+
+                      // 显示中间页码
+                      for (let i = startPage; i <= endPage; i++) {
+                        pages.push(
+                          <Button
+                            key={i}
+                            onClick={() => handlePageChange(i)}
+                            variant={currentPage === i ? "default" : "outline"}
+                            className={currentPage === i ? "bg-accent-600 border-accent-600" : ""}
+                          >
+                            {i}
+                          </Button>
+                        );
+                      }
+
+                      // 显示省略号（如果需要）
+                      if (endPage < totalPages - 1) {
+                        pages.push(
+                          <span key="end-ellipsis" className="px-2 text-ink-700">...</span>
+                        );
+                      }
+
+                      // 始终显示最后一页
+                      pages.push(
+                        <Button
+                          key={totalPages}
+                          onClick={() => handlePageChange(totalPages)}
+                          variant={currentPage === totalPages ? "default" : "outline"}
+                          className={currentPage === totalPages ? "bg-accent-600 border-accent-600" : ""}
+                        >
+                          {totalPages}
+                        </Button>
+                      );
+                    }
+
+                    return pages;
+                  })()}
+                </div>
+                <div className="ml-4 text-sm text-ink-700">
                   第 {page} / {meta.totalPages} 页
-                </span>
-                <Button
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={page === meta.totalPages}
-                  variant="outline"
-                >
-                  下一页
-                </Button>
+                </div>
               </div>
             )}
           </>
