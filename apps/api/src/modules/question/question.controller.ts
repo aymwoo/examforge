@@ -108,6 +108,21 @@ export class QuestionController {
     return this.questionService.clearAll();
   }
 
+  @Post('clear-questions')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Clear all questions from the question bank (Admin only)' })
+  @ApiResponse({ status: 200, description: 'All questions cleared successfully' })
+  async clearQuestions(@Request() req) {
+    // 验证用户是否为管理员
+    if (req.user.role !== 'ADMIN') {
+      throw new BadRequestException('Only administrators can clear the question bank');
+    }
+
+    return this.questionService.clearAll();
+  }
+
   @Post(':id/images')
   @ApiOperation({ summary: 'Upload image for question' })
   @ApiConsumes('multipart/form-data')

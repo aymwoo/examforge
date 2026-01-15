@@ -34,6 +34,7 @@ export class AuthService {
           role: 'STUDENT',
           email: null,
           isActive: true,
+          isApproved: true, // 学生默认视为已审核
           createdAt: student.createdAt,
           updatedAt: student.updatedAt,
         } as any;
@@ -41,8 +42,8 @@ export class AuthService {
       }
     }
 
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('用户名或密码错误');
+    if (!user || !user.isActive || !user.isApproved) {
+      throw new UnauthorizedException('用户名或密码错误，或账户尚未通过审核');
     }
 
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
@@ -89,26 +90,22 @@ export class AuthService {
       password: hashedPassword,
       name: registerDto.name,
       role,
-      email: null,
-      isActive: true,
+      email: registerDto.email || null,
+      isActive: false, // 新注册用户默认非活跃，需要审核
+      isApproved: false, // 新注册用户默认未审核
     });
 
-    const payload = {
-      sub: user.id,
-      username: user.username,
-      role: user.role,
-    };
-
-    const token = this.jwtService.sign(payload);
-
+    // 不返回token，因为用户需要等待审核
     return {
-      access_token: token,
+      message: '注册成功，请等待管理员审核',
       user: {
         id: user.id,
         username: user.username,
         name: user.name,
         role: user.role,
         email: user.email,
+        isActive: user.isActive,
+        isApproved: user.isApproved,
       },
     };
   }
@@ -128,14 +125,15 @@ export class AuthService {
         name: student.name,
         role: 'STUDENT',
         isActive: true,
+        isApproved: true, // 学生默认视为已审核
         isStudent: true
       };
     }
 
     // 普通用户查找用户表
     const user = await this.userService.findOne(payload.sub);
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('用户不存在或已被禁用');
+    if (!user || !user.isActive || !user.isApproved) {
+      throw new UnauthorizedException('用户不存在、已被禁用或尚未通过审核');
     }
     return user;
   }

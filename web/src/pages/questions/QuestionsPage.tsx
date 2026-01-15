@@ -195,36 +195,59 @@ export default function QuestionsPage() {
     if (!confirm('确定要清空整个题库吗？此操作不可撤销！')) return;
     if (!confirm('再次确认：这将删除所有题目，确定继续吗？')) return;
 
+    // 检查用户权限
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('请先登录');
+      return;
+    }
+
+    try {
+      // 获取当前用户信息以验证权限
+      const userResponse = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!userResponse.ok) {
+        setError('获取用户信息失败');
+        return;
+      }
+
+      const userData = await userResponse.json();
+      if (userData.role !== 'ADMIN') {
+        setError('只有系统管理员可以清空题库');
+        return;
+      }
+    } catch (error) {
+      setError('验证权限失败');
+      return;
+    }
+
     setClearing(true);
     try {
-      // Get all question IDs in batches and delete them
-      let page = 1;
-      let hasMore = true;
-      const allIds: string[] = [];
+      // 调用新的清空题库API端点
+      const response = await fetch('/api/questions/clear-questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
 
-      while (hasMore) {
-        const batch = await listQuestions({ page, limit: 100 });
-        allIds.push(...batch.data.map((q: any) => q.id));
-        hasMore = batch.data.length === 100;
-        page++;
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '清空题库失败');
       }
 
-      if (allIds.length > 0) {
-        await deleteQuestions(allIds);
-      }
-
+      // 重新加载题目列表（应该为空）
       loadQuestions(1);
       setSelectedIds(new Set());
+      setError('题库已清空');
     } catch (err: unknown) {
-      const axiosError = err as {
-        response?: { data?: { message?: string } };
-        message?: string;
-      };
-      setError(
-        axiosError.response?.data?.message ||
-          axiosError.message ||
-          "清空题库失败",
-      );
+      const error = err as { message?: string };
+      setError(error.message || '清空题库失败');
     } finally {
       setClearing(false);
     }

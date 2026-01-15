@@ -20,7 +20,8 @@ model User {
   password  String
   name      String
   role      String   @default("STUDENT") // ADMIN, TEACHER, STUDENT
-  isActive  Boolean  @default(true)
+  isActive  Boolean  @default(false)  // 新注册用户默认非活跃（需要审核）
+  isApproved Boolean @default(false)  // 用户是否已通过审核
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

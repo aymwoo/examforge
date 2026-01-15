@@ -211,4 +211,90 @@ export class UserService {
 
     return { message: '密码修改成功' };
   }
+
+  async findPendingApprovalUsers(page: number = 1, limit: number = 10) {
+    const skip = (page - 1) * limit;
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          isApproved: false,
+        },
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          isApproved: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.user.count({
+        where: {
+          isApproved: false,
+        },
+      }),
+    ]);
+
+    return {
+      data: users,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async approveUser(id: string) {
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: {
+        isApproved: true,
+        isActive: true, // 激活用户账户
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        isApproved: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return user;
+  }
+
+  async rejectUser(id: string) {
+    // 删除待审核用户
+    const user = await this.prisma.user.delete({
+      where: { id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        isApproved: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return user;
+  }
 }

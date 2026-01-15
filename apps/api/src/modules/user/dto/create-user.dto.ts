@@ -23,8 +23,13 @@ export class CreateUserDto {
   @IsIn(['ADMIN', 'TEACHER', 'STUDENT'])
   role: string;
 
-  @ApiProperty({ description: 'Is user active', default: true })
+  @ApiProperty({ description: 'Is user active', default: false })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({ description: 'Has user been approved', default: false })
+  @IsOptional()
+  @IsBoolean()
+  isApproved?: boolean;
 }
