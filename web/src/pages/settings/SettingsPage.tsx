@@ -876,16 +876,16 @@ function AIProviderTab() {
 
   const handleSetDefault = async (provider: AIProviderItem) => {
     if (userRole !== 'ADMIN') {
-      alert('只有管理员可以设置系统默认Provider');
+      showError('只有管理员可以设置系统默认Provider');
       return;
     }
     if (!confirm(`确定要将 "${provider.name}" 设为系统默认AI Provider吗？`)) return;
     try {
       const result = await setDefaultProvider(provider.id);
-      alert(result.message);
+      showSuccess(result.message);
       loadProviders();
     } catch (error: any) {
-      alert('设置失败: ' + (error.response?.data?.message || error.message));
+      showError('设置失败: ' + (error.response?.data?.message || error.message));
     }
   };
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Settings, Plus, Edit, Trash2, Globe, User, Lock, Zap, Star } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import { useToast } from '@/components/ui/Toast';
 import api from "@/services/api";
 import { getCurrentUser } from "@/utils/auth";
 import { testAIConnection, getDefaultProviderId, setDefaultProvider } from "@/services/settings";
@@ -24,6 +25,7 @@ interface AIProvider {
 }
 
 export default function SettingsPage() {
+  const { success: showSuccess, error: showError } = useToast();
   const [providers, setProviders] = useState<AIProvider[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -182,18 +184,18 @@ export default function SettingsPage() {
 
   const handleSetDefault = async (provider: AIProvider) => {
     if (userRole !== 'ADMIN') {
-      alert('只有管理员可以设置系统默认Provider');
+      showError('只有管理员可以设置系统默认Provider');
       return;
     }
-    
+
     if (!confirm(`确定要将 "${provider.name}" 设为系统默认AI Provider吗？`)) return;
-    
+
     try {
       const result = await setDefaultProvider(provider.id);
-      alert(result.message);
+      showSuccess(result.message);
       loadProviders();
     } catch (error: any) {
-      alert('设置失败: ' + (error.response?.data?.message || error.message));
+      showError('设置失败: ' + (error.response?.data?.message || error.message));
     }
   };
 
