@@ -217,39 +217,42 @@ export default function ExamAnalyticsPage() {
   const Heatmap = ({ data }: { data: any[] }) => {
     const students = [...new Set(data.map(d => d.student))];
     const questions = [...new Set(data.map(d => d.question))];
-    
+
     return (
       <div className="overflow-x-auto">
         <div className="min-w-[600px]">
-          <div className="grid grid-cols-11 gap-1 text-xs">
-            <div></div>
+          {/* Header row */}
+          <div className="grid grid-cols-11 gap-1 text-xs mb-1">
+            <div className="font-semibold p-2 text-center">学生</div>
             {questions.map(q => (
               <div key={q} className="text-center font-semibold p-2">{q}</div>
             ))}
-            {students.map(student => (
-              <div key={student} className="contents">
-                <div className="font-semibold p-2 text-right">{student}</div>
-                {questions.map(question => {
-                  const item = data.find(d => d.student === student && d.question === question);
-                  const score = item?.score || 0;
-                  const intensity = score / 100;
-                  return (
-                    <div
-                      key={`${student}-${question}`}
-                      className="aspect-square flex items-center justify-center text-white text-xs font-semibold rounded"
-                      style={{
-                        backgroundColor: `rgba(59, 130, 246, ${intensity})`,
-                        color: intensity > 0.5 ? 'white' : 'black'
-                      }}
-                      title={`${student} - ${question}: ${score}分`}
-                    >
-                      {score}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
           </div>
+
+          {/* Student rows */}
+          {students.map(student => (
+            <div key={student} className="grid grid-cols-11 gap-1 text-xs">
+              <div className="font-semibold p-2 text-right">{student}</div>
+              {questions.map(question => {
+                const item = data.find(d => d.student === student && d.question === question);
+                const score = item?.score || 0;
+                const intensity = score / 100;
+                return (
+                  <div
+                    key={`${student}-${question}`}
+                    className="aspect-square flex items-center justify-center text-white text-xs font-semibold rounded"
+                    style={{
+                      backgroundColor: `rgba(59, 130, 246, ${intensity})`,
+                      color: intensity > 0.5 ? 'white' : 'black'
+                    }}
+                    title={`${student} - ${question}: ${score}分`}
+                  >
+                    {score}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
     );
