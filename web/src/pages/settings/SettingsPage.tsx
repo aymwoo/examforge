@@ -70,10 +70,12 @@ export default function SettingsPage() {
   const [savingGradingPromptTemplate, setSavingGradingPromptTemplate] = useState(false);
   const [savingAnalysisPromptTemplate, setSavingAnalysisPromptTemplate] = useState(false);
   const [savingStudentAiAnalysisPromptTemplate, setSavingStudentAiAnalysisPromptTemplate] = useState(false);
+  const [savingJsonGenerationPromptTemplate, setSavingJsonGenerationPromptTemplate] = useState(false);
   const [promptTemplateChanged, setPromptTemplateChanged] = useState(false);
   const [gradingPromptTemplateChanged, setGradingPromptTemplateChanged] = useState(false);
   const [analysisPromptTemplateChanged, setAnalysisPromptTemplateChanged] = useState(false);
   const [studentAiAnalysisPromptTemplateChanged, setStudentAiAnalysisPromptTemplateChanged] = useState(false);
+  const [jsonGenerationPromptTemplateChanged, setJsonGenerationPromptTemplateChanged] = useState(false);
 
   // Users tab state
   const [users, setUsers] = useState<User[]>([]);
@@ -158,6 +160,38 @@ export default function SettingsPage() {
 【评分详情数据(JSON)】
 {payload}`;
         setSettings((prev) => ({ ...prev, studentAiAnalysisPromptTemplate: defaultStudentAiAnalysisPrompt }));
+      }
+
+      if (!userSettingsData.jsonGenerationPromptTemplate) {
+        const defaultJsonGenerationPrompt = `你是一个专业的题目生成AI助手。
+根据用户提供的试卷图像或文本，生成一次线上考试的JSON格式数据。
+
+要求：
+1. 根据输入识别所有题目
+2. 确保题目格式正确，包括题干、选项（选择题）、答案、解析
+3. 为每道题提供合理的难度（1-5）、知识点和标签
+4. 输出严格的JSON格式，格式要求：
+{
+  "questions": [
+    {
+      "content": "题干内容",
+      "type": "题型(SINGLE_CHOICE/MULTIPLE_CHOICE/TRUE_FALSE/FILL_BLANK/ESSAY)",
+      "options": [{"label": "A", "content": "选项1"}, ...],
+      "answer": "正确答案",
+      "explanation": "题目解析",
+      "difficulty": 1,
+      "tags": ["标签1", "标签2"],
+      "knowledgePoint": "知识点"
+    }
+  ]
+}
+
+数学公式表示：
+- 行内公式：使用 $...$ 或 \\( ... \\) 包围
+- 块级公式：使用 $$...$$ 或 \\[ ... \\] 包围
+
+请只返回JSON格式的题目数据，不要包含其他说明文字。`;
+        setSettings((prev) => ({ ...prev, jsonGenerationPromptTemplate: defaultJsonGenerationPrompt }));
       }
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
@@ -271,6 +305,21 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveJsonGenerationPromptTemplate = async () => {
+    setSavingJsonGenerationPromptTemplate(true);
+    setError(null);
+    try {
+      await updateUserSetting("JSON_GENERATION_PROMPT_TEMPLATE", settings.jsonGenerationPromptTemplate);
+      setJsonGenerationPromptTemplateChanged(false);
+      setError("AI生成JSON格式提示词保存成功");
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } }; message?: string };
+      setError(axiosError.response?.data?.message || axiosError.message || "保存提示词失败");
+    } finally {
+      setSavingJsonGenerationPromptTemplate(false);
+    }
+  };
+
   const handleSaveAnalysisPromptTemplate = async () => {
     setSavingAnalysisPromptTemplate(true);
     setError(null);
@@ -293,6 +342,7 @@ export default function SettingsPage() {
     else if (field === "gradingPromptTemplate") setGradingPromptTemplateChanged(true);
     else if (field === "analysisPromptTemplate") setAnalysisPromptTemplateChanged(true);
     else if (field === "studentAiAnalysisPromptTemplate") setStudentAiAnalysisPromptTemplateChanged(true);
+    else if (field === "jsonGenerationPromptTemplate") setJsonGenerationPromptTemplateChanged(true);
   };
 
   const handleInsertJsonStructure = async () => {
@@ -332,6 +382,8 @@ export default function SettingsPage() {
               return { ...prev, analysisPromptTemplate: defaultTemplate };
             case 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE':
               return { ...prev, studentAiAnalysisPromptTemplate: defaultTemplate };
+            case 'JSON_GENERATION_PROMPT_TEMPLATE':
+              return { ...prev, jsonGenerationPromptTemplate: defaultTemplate };
             default:
               return prev;
           }
@@ -351,6 +403,9 @@ export default function SettingsPage() {
           case 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE':
             setStudentAiAnalysisPromptTemplateChanged(true);
             break;
+          case 'JSON_GENERATION_PROMPT_TEMPLATE':
+            setJsonGenerationPromptTemplateChanged(true);
+            break;
         }
 
         let message = "";
@@ -366,6 +421,9 @@ export default function SettingsPage() {
             break;
           case 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE':
             message = "学生AI分析提示词";
+            break;
+          case 'JSON_GENERATION_PROMPT_TEMPLATE':
+            message = "AI生成JSON格式提示词";
             break;
           default:
             message = "提示词";
@@ -543,15 +601,18 @@ export default function SettingsPage() {
               savingGradingPromptTemplate={savingGradingPromptTemplate}
               savingAnalysisPromptTemplate={savingAnalysisPromptTemplate}
               savingStudentAiAnalysisPromptTemplate={savingStudentAiAnalysisPromptTemplate}
+              savingJsonGenerationPromptTemplate={savingJsonGenerationPromptTemplate}
               promptTemplateChanged={promptTemplateChanged}
               gradingPromptTemplateChanged={gradingPromptTemplateChanged}
               analysisPromptTemplateChanged={analysisPromptTemplateChanged}
               studentAiAnalysisPromptTemplateChanged={studentAiAnalysisPromptTemplateChanged}
+              jsonGenerationPromptTemplateChanged={jsonGenerationPromptTemplateChanged}
               onInputChange={handleInputChange}
               onSavePromptTemplate={handleSavePromptTemplate}
               onSaveGradingPromptTemplate={handleSaveGradingPromptTemplate}
               onSaveAnalysisPromptTemplate={handleSaveAnalysisPromptTemplate}
               onSaveStudentAiAnalysisPromptTemplate={handleSaveStudentAiAnalysisPromptTemplate}
+              onSaveJsonGenerationPromptTemplate={handleSaveJsonGenerationPromptTemplate}
               onInsertJsonStructure={handleInsertJsonStructure}
               onResetToDefault={handleResetToDefault}
               onInsertGradingVariables={handleInsertGradingVariables}
@@ -1103,10 +1164,13 @@ function AIProviderTab() {
 // Prompts Tab Component
 function PromptsTab({
   settings, savingPromptTemplate, savingGradingPromptTemplate, savingAnalysisPromptTemplate,
-  savingStudentAiAnalysisPromptTemplate, promptTemplateChanged, gradingPromptTemplateChanged,
-  analysisPromptTemplateChanged, studentAiAnalysisPromptTemplateChanged, onInputChange,
+  savingStudentAiAnalysisPromptTemplate, savingJsonGenerationPromptTemplate,
+  promptTemplateChanged, gradingPromptTemplateChanged,
+  analysisPromptTemplateChanged, studentAiAnalysisPromptTemplateChanged, jsonGenerationPromptTemplateChanged,
+  onInputChange,
   onSavePromptTemplate, onSaveGradingPromptTemplate, onSaveAnalysisPromptTemplate,
-  onSaveStudentAiAnalysisPromptTemplate, onInsertJsonStructure, onResetToDefault,
+  onSaveStudentAiAnalysisPromptTemplate, onSaveJsonGenerationPromptTemplate,
+  onInsertJsonStructure, onResetToDefault,
   onInsertGradingVariables, onInsertAnalysisVariables, setSettings
 }: any) {
   return (
@@ -1231,6 +1295,33 @@ function PromptsTab({
           className={`mt-4 w-full ${analysisPromptTemplateChanged ? "bg-ink-900 hover:bg-ink-800 text-white" : "bg-gray-100 text-gray-400 hover:bg-gray-200"}`}
         >
           <Save className="h-4 w-4 mr-2" />{savingAnalysisPromptTemplate ? "保存中..." : "保存分析提示词设置"}
+        </Button>
+      </div>
+
+      {/* AI生成JSON格式提示词 */}
+      <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-ink-900">AI生成JSON格式提示词配置</h2>
+          <div className="flex gap-2">
+            <Button onClick={() => onResetToDefault('JSON_GENERATION_PROMPT_TEMPLATE')} variant="outline" size="sm">重置默认</Button>
+          </div>
+        </div>
+        <div>
+          <label className="mb-2 block text-sm font-semibold text-ink-900">AI生成JSON格式提示词模板</label>
+          <textarea
+            className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[200px] font-mono"
+            value={settings.jsonGenerationPromptTemplate}
+            onChange={(e) => onInputChange("jsonGenerationPromptTemplate", e.target.value)}
+            placeholder="输入AI生成JSON格式提示词模板..."
+          />
+          <p className="mt-1 text-xs text-ink-700">提示词模板用于指导AI如何生成JSON格式的题目数据。此为您的个人设置。</p>
+        </div>
+        <Button
+          onClick={onSaveJsonGenerationPromptTemplate}
+          disabled={savingJsonGenerationPromptTemplate || !jsonGenerationPromptTemplateChanged}
+          className={`mt-4 w-full ${jsonGenerationPromptTemplateChanged ? "bg-ink-900 hover:bg-ink-800 text-white" : "bg-gray-100 text-gray-400 hover:bg-gray-200"}`}
+        >
+          <Save className="h-4 w-4 mr-2" />{savingJsonGenerationPromptTemplate ? "保存中..." : "保存JSON生成提示词设置"}
         </Button>
       </div>
     </div>

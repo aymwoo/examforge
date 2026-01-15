@@ -216,14 +216,22 @@ export default function Layout() {
                 </>
               )}
               {!user && (
-                <button
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent("show401Login"));
-                  }}
-                  className="flex items-center gap-2 hover:text-primary"
-                >
-                  登录
-                </button>
+                <div className="flex items-center gap-4">
+                  <Link
+                    to="/register"
+                    className="flex items-center gap-2 hover:text-primary"
+                  >
+                    注册
+                  </Link>
+                  <button
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("show401Login"));
+                    }}
+                    className="flex items-center gap-2 hover:text-primary"
+                  >
+                    登录
+                  </button>
+                </div>
               )}
             </div>
           </div>

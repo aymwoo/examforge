@@ -16,6 +16,7 @@ export enum SettingKey {
   GRADING_PROMPT_TEMPLATE = 'GRADING_PROMPT_TEMPLATE',
   ANALYSIS_PROMPT_TEMPLATE = 'ANALYSIS_PROMPT_TEMPLATE',
   STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE = 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE',
+  JSON_GENERATION_PROMPT_TEMPLATE = 'JSON_GENERATION_PROMPT_TEMPLATE',
 }
 
 export enum UserSettingKey {
@@ -23,6 +24,7 @@ export enum UserSettingKey {
   GRADING_PROMPT_TEMPLATE = 'GRADING_PROMPT_TEMPLATE',
   ANALYSIS_PROMPT_TEMPLATE = 'ANALYSIS_PROMPT_TEMPLATE',
   STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE = 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE',
+  JSON_GENERATION_PROMPT_TEMPLATE = 'JSON_GENERATION_PROMPT_TEMPLATE',
 }
 
 export interface AIModelConfig {
@@ -80,6 +82,7 @@ export interface SystemSettings {
   gradingPromptTemplate: string;
   analysisPromptTemplate: string;
   studentAiAnalysisPromptTemplate: string;
+  jsonGenerationPromptTemplate: string;
 }
 
 @Injectable()
@@ -120,6 +123,9 @@ export class SettingsService {
           studentAiAnalysisPromptTemplate:
             settingsMap.get(SettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
             this.getDefaultStudentAiAnalysisPromptTemplate(),
+          jsonGenerationPromptTemplate:
+            settingsMap.get(SettingKey.JSON_GENERATION_PROMPT_TEMPLATE) ||
+            this.getDefaultJsonGenerationPromptTemplate(),
         };
       }
     }
@@ -143,6 +149,9 @@ export class SettingsService {
       studentAiAnalysisPromptTemplate:
         settingsMap.get(SettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
         this.getDefaultStudentAiAnalysisPromptTemplate(),
+      jsonGenerationPromptTemplate:
+        settingsMap.get(SettingKey.JSON_GENERATION_PROMPT_TEMPLATE) ||
+        this.getDefaultJsonGenerationPromptTemplate(),
     };
   }
 
@@ -184,6 +193,9 @@ export class SettingsService {
             studentAiAnalysisPromptTemplate:
               userSettingsMap.get(UserSettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
               systemSettings.studentAiAnalysisPromptTemplate,
+            jsonGenerationPromptTemplate:
+              userSettingsMap.get(UserSettingKey.JSON_GENERATION_PROMPT_TEMPLATE) ||
+              systemSettings.jsonGenerationPromptTemplate,
           };
         }
       }
@@ -202,6 +214,9 @@ export class SettingsService {
       studentAiAnalysisPromptTemplate:
         userSettingsMap.get(UserSettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE) ||
         systemSettings.studentAiAnalysisPromptTemplate,
+      jsonGenerationPromptTemplate:
+        userSettingsMap.get(UserSettingKey.JSON_GENERATION_PROMPT_TEMPLATE) ||
+        systemSettings.jsonGenerationPromptTemplate,
     };
   }
 
@@ -256,6 +271,8 @@ export class SettingsService {
           return this.getDefaultAnalysisPromptTemplate();
         case SettingKey.STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE:
           return this.getDefaultStudentAiAnalysisPromptTemplate();
+        case SettingKey.JSON_GENERATION_PROMPT_TEMPLATE:
+          return this.getDefaultJsonGenerationPromptTemplate();
         default:
           return '';
       }
@@ -439,6 +456,8 @@ export class SettingsService {
         return this.getDefaultAnalysisPromptTemplate();
       case 'STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE':
         return this.getDefaultStudentAiAnalysisPromptTemplate();
+      case 'JSON_GENERATION_PROMPT_TEMPLATE':
+        return this.getDefaultJsonGenerationPromptTemplate();
       default:
         throw new BadRequestException(`Unknown template type: ${templateType}`);
     }
@@ -560,5 +579,36 @@ export class SettingsService {
 
 【评分详情数据(JSON)】
 {payload}`;
+  }
+
+  private getDefaultJsonGenerationPromptTemplate(): string {
+    return `你是一个专业的题目生成AI助手。
+根据用户提供的试卷图像或文本，生成一次线上考试的JSON格式数据。
+
+要求：
+1. 根据输入识别所有题目
+2. 确保题目格式正确，包括题干、选项（选择题）、答案、解析
+3. 为每道题提供合理的难度（1-5）、知识点和标签
+4. 输出严格的JSON格式，格式要求：
+{
+  "questions": [
+    {
+      "content": "题干内容",
+      "type": "题型(SINGLE_CHOICE/MULTIPLE_CHOICE/TRUE_FALSE/FILL_BLANK/ESSAY)",
+      "options": [{"label": "A", "content": "选项1"}, ...],
+      "answer": "正确答案",
+      "explanation": "题目解析",
+      "difficulty": 1,
+      "tags": ["标签1", "标签2"],
+      "knowledgePoint": "知识点"
+    }
+  ]
+}
+
+数学公式表示：
+- 行内公式：使用 $...$ 或 \\( ... \\) 包围
+- 块级公式：使用 $$...$$ 或 \\[ ... \\] 包围
+
+请只返回JSON格式的题目数据，不要包含其他说明文字。`;
   }
 }

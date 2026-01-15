@@ -36,23 +36,26 @@ export interface BatchOperationResponse {
 export const userAdminApi = {
   // 获取待审核用户列表
   getPendingApprovalUsers: (page: number = 1, limit: number = 10) => {
-    return api.get('/admin/users/pending-approval', {
+    return api.get('/api/admin/users/pending-approval', {
       params: { page, limit }
-    });
+    }).then(response => response.data);
   },
 
   // 批量批准用户
   batchApproveUsers: (ids: string[]) => {
-    return api.post('/admin/users/batch-approve', { ids });
+    return api.post('/api/admin/users/batch-approve', { ids })
+      .then(response => response.data);
   },
 
   // 批量拒绝用户
   batchRejectUsers: (ids: string[]) => {
-    return api.post('/admin/users/batch-reject', { ids });
+    return api.post('/api/admin/users/batch-reject', { ids })
+      .then(response => response.data);
   },
 
   // 获取待审核用户数量
   getPendingApprovalCount: () => {
-    return api.get('/admin/users/pending-count');
+    return api.get('/api/admin/users/pending-count')
+      .then(response => response.data);
   }
 };

@@ -45,12 +45,12 @@ export default function RegisterPage() {
           </h2>
           <p className="mt-2 text-center text-sm text-ink-600">
             已有账户？{' '}
-            <Link
-              to="/login"
-              className="font-medium text-blue-600 hover:text-blue-500"
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("show401Login"))}
+              className="font-medium text-blue-600 hover:text-blue-500 bg-transparent border-none cursor-pointer"
             >
               立即登录
-            </Link>
+            </button>
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

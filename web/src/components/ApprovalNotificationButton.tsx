@@ -26,7 +26,7 @@ const ApprovalNotificationButton: React.FC = () => {
     try {
       setLoading(true);
       const response = await userAdminApi.getPendingApprovalCount();
-      setPendingCount(response.data.count);
+      setPendingCount(response.count);
     } catch (error) {
       console.error('Failed to fetch pending approval count:', error);
       showError('获取待审核用户数量失败');

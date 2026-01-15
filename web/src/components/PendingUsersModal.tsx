@@ -31,9 +31,21 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
     try {
       setLoading(true);
       const response = await userAdminApi.getPendingApprovalUsers(currentPage, 10);
-      setUsers(response.data.data);
-      setTotalPages(response.data.meta.totalPages);
-      setTotalUsers(response.data.meta.total);
+      console.log('Pending users response:', response); // 调试日志
+      // 确保响应具有正确的结构
+      if (!response || typeof response !== 'object' || !response.data || !response.meta) {
+        console.error('Invalid response structure:', response);
+        throw new Error('Invalid response structure from server');
+      }
+      if (typeof response.meta !== 'object' ||
+          typeof response.meta.totalPages === 'undefined' ||
+          typeof response.meta.total === 'undefined') {
+        console.error('Invalid meta structure in response:', response);
+        throw new Error('Invalid meta structure in response from server');
+      }
+      setUsers(response.data);
+      setTotalPages(response.meta.totalPages);
+      setTotalUsers(response.meta.total);
     } catch (error) {
       showError?.('获取待审核用户失败');
       console.error('Error fetching pending users:', error);
@@ -107,10 +119,10 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
       isOpen={open}
       onClose={() => onOpenChange(false)}
       title="待审核用户列表"
-      size="large"
+      size="extra-large"
     >
-      <div className="flex justify-between items-center mb-4">
-        <div className="text-sm text-gray-500">
+      <div className="flex justify-between items-center mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg">
+        <div className="text-sm font-medium text-gray-700">
           共 {totalUsers} 个待审核用户
         </div>
 
@@ -119,13 +131,15 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
             variant="outline"
             onClick={handleApproveSelected}
             disabled={selectedUsers.length === 0}
+            className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
           >
             批准选中
           </Button>
           <Button
-            variant="destructive"
+            variant="outline"
             onClick={handleRejectSelected}
             disabled={selectedUsers.length === 0}
+            className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
           >
             拒绝选中
           </Button>
@@ -133,50 +147,61 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="flex justify-center py-12">
+          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       ) : (
         <>
-          <div className="border rounded-lg overflow-hidden">
+          <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                 <tr>
-                  <th className="p-3 text-left">
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">
                     <input
                       type="checkbox"
-                      className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       checked={selectedUsers.length === users.length && users.length > 0}
                       onChange={handleSelectAll}
                     />
                   </th>
-                  <th className="p-3 text-left">用户名</th>
-                  <th className="p-3 text-left">姓名</th>
-                  <th className="p-3 text-left">邮箱</th>
-                  <th className="p-3 text-left">角色</th>
-                  <th className="p-3 text-left">注册时间</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户名</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">角色</th>
+                  <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">注册时间</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-200 bg-white">
                 {users.map((user) => (
-                  <tr key={user.id} className="border-t hover:bg-gray-50">
-                    <td className="p-3">
+                  <tr
+                    key={user.id}
+                    className={`hover:bg-blue-50 transition-colors duration-150 ${
+                      selectedUsers.includes(user.id) ? 'bg-blue-50' : ''
+                    }`}
+                  >
+                    <td className="p-4">
                       <input
                         type="checkbox"
-                        className="rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         checked={selectedUsers.includes(user.id)}
                         onChange={() => handleSelectUser(user.id)}
                       />
                     </td>
-                    <td className="p-3 font-medium">{user.username}</td>
-                    <td className="p-3">{user.name}</td>
-                    <td className="p-3 text-gray-600">{user.email || '-'}</td>
-                    <td className="p-3">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {user.role}
+                    <td className="p-4 font-medium text-gray-900">{user.username}</td>
+                    <td className="p-4 text-gray-700">{user.name}</td>
+                    <td className="p-4 text-gray-600">{user.email || '-'}</td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        user.role === 'ADMIN'
+                          ? 'bg-purple-100 text-purple-800'
+                          : user.role === 'TEACHER'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-green-100 text-green-800'
+                      }`}>
+                        {user.role === 'ADMIN' ? '管理员' : user.role === 'TEACHER' ? '教师' : '学生'}
                       </span>
                     </td>
-                    <td className="p-3 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
+                    <td className="p-4 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -184,8 +209,8 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
           </div>
 
           {totalPages > 1 && (
-            <div className="flex justify-between items-center mt-4">
-              <div className="text-sm text-gray-500">
+            <div className="flex justify-between items-center mt-6">
+              <div className="text-sm text-gray-600">
                 第 {page} 页，共 {totalPages} 页
               </div>
               <div className="flex space-x-2">
@@ -193,6 +218,7 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
                   variant="outline"
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
+                  className="px-4 py-2"
                 >
                   上一页
                 </Button>
@@ -200,6 +226,7 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
                   variant="outline"
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
+                  className="px-4 py-2"
                 >
                   下一页
                 </Button>

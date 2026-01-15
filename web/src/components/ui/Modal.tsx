@@ -2,6 +2,8 @@ import { ReactNode } from "react";
 import { X } from "lucide-react";
 import Button from "./Button";
 
+type Size = "small" | "medium" | "large" | "extra-large";
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -11,7 +13,22 @@ interface ModalProps {
   confirmText?: string;
   cancelText?: string;
   confirmVariant?: "primary" | "danger";
-  maxWidthClassName?: string;
+  size?: Size;
+}
+
+function getSizeClassName(size: Size = "medium"): string {
+  switch (size) {
+    case "small":
+      return "max-w-sm";
+    case "medium":
+      return "max-w-md";
+    case "large":
+      return "max-w-2xl";
+    case "extra-large":
+      return "max-w-4xl";
+    default:
+      return "max-w-md";
+  }
 }
 
 export default function Modal({
@@ -23,15 +40,17 @@ export default function Modal({
   confirmText = "确定",
   cancelText = "取消",
   confirmVariant = "primary",
-  maxWidthClassName = "max-w-md",
+  size = "medium",
 }: ModalProps) {
   if (!isOpen) return null;
+
+  const sizeClassName = getSizeClassName(size);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
       <div
-        className={`relative bg-white rounded-lg shadow-lg ${maxWidthClassName} w-full mx-4`}
+        className={`relative bg-white rounded-lg shadow-lg ${sizeClassName} w-full mx-4 max-h-[90vh] overflow-y-auto`}
       >
         <div className="flex items-center justify-between p-4 border-b">
           <h3 className="text-lg font-semibold">{title}</h3>
