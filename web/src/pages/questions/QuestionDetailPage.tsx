@@ -317,13 +317,49 @@ export default function QuestionDetailPage() {
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-ink-900">标签</label>
-                <input
-                  type="text"
-                  className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
-                  value={editForm.tags ? editForm.tags.join(', ') : ''}
-                  onChange={(e) => handleTagsChange(e.target.value)}
-                  placeholder="多个标签用逗号分隔"
-                />
+                <div className="mt-2">
+                  {/* 显示已存在的标签按钮 */}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {editForm.tags && editForm.tags.map((tag: string, index: number) => (
+                      <div
+                        key={index}
+                        className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-800 border border-blue-200"
+                      >
+                        <span>{tag}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newTags = [...editForm.tags];
+                            newTags.splice(index, 1);
+                            handleInputChange("tags", newTags);
+                          }}
+                          className="ml-1 text-blue-500 hover:text-blue-700"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 标签输入框 */}
+                  <input
+                    type="text"
+                    className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const input = e.currentTarget.value.trim();
+                        if (input && !editForm.tags?.includes(input)) {
+                          handleInputChange("tags", [...(editForm.tags || []), input]);
+                          e.currentTarget.value = '';
+                        }
+                      }
+                    }}
+                    placeholder="输入标签后按回车添加"
+                  />
+                </div>
               </div>
 
               <div>
