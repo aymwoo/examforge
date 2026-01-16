@@ -14,7 +14,6 @@ import axios from "axios";
 import api from "@/services/api";
 import {
   getProviders,
-  getSettings,
   getUserSettings,
   getPromptTemplate,
   updateSetting,
@@ -50,7 +49,6 @@ export default function ImportPage() {
   const [tempPrompt, setTempPrompt] = useState<string>("");
   const [showPromptEditor, setShowPromptEditor] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const [showJsonModal, setShowJsonModal] = useState(false);
   const [jsonContent, setJsonContent] = useState("");
   const [isJsonImporting, setIsJsonImporting] = useState(false);
 
@@ -61,14 +59,14 @@ export default function ImportPage() {
     subject: "",
     knowledgePoint: "",
     count: 5,
-    difficulty: "中等"
+    difficulty: "中等",
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState({
     current: 0,
     total: 0,
     message: "",
-    stage: ""
+    stage: "",
   });
   const [showImportResultModal, setShowImportResultModal] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
@@ -248,18 +246,25 @@ export default function ImportPage() {
           getUserSettings(),
           getProviders(),
         ]);
+
+        // Only show providers that exist in DB (custom providers)
+        const dbProviders = providersData.filter(
+          (p) => p.provider === "custom",
+        );
+
+        // If current setting is not a DB provider, fallback to the first DB provider
         const preferredId =
-          providersData.find((p) => p.provider === settingsData.aiProvider)
-            ?.id ||
-          providersData[0]?.id ||
+          dbProviders.find((p) => p.id === settingsData.aiProvider)?.id ||
+          dbProviders[0]?.id ||
           "";
+
         setAiProvider(preferredId);
-        setProviderOptions(providersData);
+        setProviderOptions(dbProviders);
 
         // Load user's prompt template (includes user customizations)
         const promptTemplate = settingsData.promptTemplate || "";
-        console.log('Loaded prompt template:', promptTemplate);
-        
+        console.log("Loaded prompt template:", promptTemplate);
+
         if (promptTemplate.trim()) {
           setTempPrompt(promptTemplate);
         } else {
@@ -325,7 +330,7 @@ export default function ImportPage() {
         if (imageType) {
           const blob = await item.getType(imageType);
           // 根据实际的MIME类型确定文件扩展名，并添加时间戳避免重名
-          const extension = imageType.split('/')[1] || 'png';
+          const extension = imageType.split("/")[1] || "png";
           const timestamp = Date.now();
           const fileName = `clipboard-image-${timestamp}.${extension}`;
           const file = new File([blob], fileName, {
@@ -412,7 +417,9 @@ export default function ImportPage() {
       }
 
       // 发送JSON数据到后端进行处理
-      const response = await api.post("/api/import/json", { questions: jsonData });
+      const response = await api.post("/api/import/json", {
+        questions: jsonData,
+      });
       setImportResult(response.data);
       setShowImportResultModal(true);
       // 注意：现在JSON导入是tab形式，不需要关闭模态框
@@ -423,7 +430,9 @@ export default function ImportPage() {
       if (error instanceof SyntaxError) {
         alert("JSON格式不正确，请检查语法");
       } else {
-        alert(error instanceof Error ? error.message : "导入失败，请检查网络连接");
+        alert(
+          error instanceof Error ? error.message : "导入失败，请检查网络连接",
+        );
       }
     } finally {
       setIsJsonImporting(false);
@@ -432,7 +441,11 @@ export default function ImportPage() {
 
   // AI生成JSON字符串
   const handleAiGenerate = async () => {
-    if (!aiGenerationParams.grade || !aiGenerationParams.subject || !aiGenerationParams.knowledgePoint) {
+    if (
+      !aiGenerationParams.grade ||
+      !aiGenerationParams.subject ||
+      !aiGenerationParams.knowledgePoint
+    ) {
       alert("请填写完整的年级、学科和知识点信息");
       return;
     }
@@ -460,12 +473,16 @@ export default function ImportPage() {
 - 题干和选项中可以包含LaTeX公式，但需要正确转义`;
 
       // 调用AI生成（使用流式API）- 设置较长的超时时间
-      const response = await api.post("/api/ai/generate-questions-json-stream", {
-        prompt: prompt,
-        count: aiGenerationParams.count
-      }, {
-        timeout: 300000 // 5分钟超时，足够AI处理较长时间
-      });
+      const response = await api.post(
+        "/api/ai/generate-questions-json-stream",
+        {
+          prompt: prompt,
+          count: aiGenerationParams.count,
+        },
+        {
+          timeout: 300000, // 5分钟超时，足够AI处理较长时间
+        },
+      );
 
       // 从响应中获取任务ID
       const jobId = response.data.jobId;
@@ -475,7 +492,7 @@ export default function ImportPage() {
         current: 0,
         total: 0,
         message: "开始生成...",
-        stage: "initiated"
+        stage: "initiated",
       });
 
       // 使用轮询方式获取进度（避免SSE的认证问题）
@@ -484,7 +501,7 @@ export default function ImportPage() {
 
       // 确保jobId存在
       if (!jobId) {
-        console.error('Job ID is undefined');
+        console.error("Job ID is undefined");
         setIsGenerating(false);
         return;
       }
@@ -494,16 +511,19 @@ export default function ImportPage() {
         if (isCompleted) return; // 如果已完成则停止轮询
 
         try {
-          const response = await fetch(`/api/ai/generate-questions-json-stream/progress/${jobId}?format=json`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Accept': 'application/json', // 使用普通请求而非SSE
-            }
-          });
+          const response = await fetch(
+            `/api/ai/generate-questions-json-stream/progress/${jobId}?format=json`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/json", // 使用普通请求而非SSE
+              },
+            },
+          );
 
           if (!response.ok) {
             if (response.status === 401) {
-              console.error('认证失败');
+              console.error("认证失败");
               setIsGenerating(false);
               return;
             }
@@ -514,10 +534,12 @@ export default function ImportPage() {
           if (events.length > 0) {
             const latestEvent = events[events.length - 1];
 
-            if (latestEvent.stage === 'completed') {
+            if (latestEvent.stage === "completed") {
               isCompleted = true;
               // 生成完成，将结果插入到JSON输入框
-              setJsonContent(JSON.stringify(latestEvent.result?.questions || [], null, 2));
+              setJsonContent(
+                JSON.stringify(latestEvent.result?.questions || [], null, 2),
+              );
 
               // 显示成功消息，但不自动导入
               setShowAiCompletionModal(true);
@@ -526,7 +548,7 @@ export default function ImportPage() {
               setShowAiGenerateModal(false);
               setIsGenerating(false);
               return;
-            } else if (latestEvent.stage === 'error') {
+            } else if (latestEvent.stage === "error") {
               isCompleted = true;
               alert(`AI生成失败：${latestEvent.message}`);
               setIsGenerating(false);
@@ -537,7 +559,7 @@ export default function ImportPage() {
                 current: latestEvent.current || 0,
                 total: latestEvent.total || 0,
                 message: latestEvent.message || "",
-                stage: latestEvent.stage || ""
+                stage: latestEvent.stage || "",
               });
             }
           }
@@ -547,7 +569,7 @@ export default function ImportPage() {
             setTimeout(pollProgress, 2000); // 每2秒轮询一次
           }
         } catch (error) {
-          console.error('获取进度失败:', error);
+          console.error("获取进度失败:", error);
           if (!isCompleted) {
             setTimeout(pollProgress, 5000); // 出错后5秒重试
           }
@@ -558,7 +580,9 @@ export default function ImportPage() {
       pollProgress();
     } catch (error) {
       console.error("AI生成失败:", error);
-      alert("AI生成失败：" + (error instanceof Error ? error.message : "未知错误"));
+      alert(
+        "AI生成失败：" + (error instanceof Error ? error.message : "未知错误"),
+      );
       setIsGenerating(false);
     }
   };
@@ -591,7 +615,10 @@ export default function ImportPage() {
       const axiosError = error as {
         response?: { data?: { message?: string } };
       };
-      setPdfError(axiosError.response?.data?.message || `${fileType === "image" ? "图片" : "PDF"} 上传失败`);
+      setPdfError(
+        axiosError.response?.data?.message ||
+          `${fileType === "image" ? "图片" : "PDF"} 上传失败`,
+      );
     } finally {
       setIsUploading(false);
     }
@@ -611,7 +638,7 @@ export default function ImportPage() {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => navigate('/import/history')}
+              onClick={() => navigate("/import/history")}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50"
             >
               导入历史
@@ -856,7 +883,9 @@ export default function ImportPage() {
               </p>
 
               <div className="mb-4">
-                <h4 className="text-sm font-semibold text-ink-900 mb-2">JSON格式说明</h4>
+                <h4 className="text-sm font-semibold text-ink-900 mb-2">
+                  JSON格式说明
+                </h4>
                 <div className="rounded-xl border border-border bg-white p-3 text-xs overflow-x-auto">
                   <pre className="whitespace-pre-wrap">
                     {`[
@@ -1036,26 +1065,13 @@ export default function ImportPage() {
                           // Always save the selected provider ID
                           await updateSetting("AI_PROVIDER", provider.id);
 
-                          // For built-in providers, also save their settings to system_settings
-                          const isBuiltInProvider = [
-                            "gpt-4",
-                            "gpt-3.5-turbo",
-                            "qwen-turbo",
-                            "qwen-plus",
-                            "qwen-max",
-                          ].includes(provider.id);
-
-                          if (isBuiltInProvider) {
-                            if (provider.defaultBaseUrl) {
-                              await updateSetting("AI_BASE_URL", provider.defaultBaseUrl);
-                            }
-                            if (provider.defaultModel) {
-                              await updateSetting("AI_MODEL", provider.defaultModel);
-                            }
-                          } else {
-                            // For custom providers, clear system settings as they're stored in ai_providers table
+                          // DB providers store baseUrl/model in ai_providers table
+                          // Keep system settings cleared to avoid confusion
+                          try {
                             await updateSetting("AI_BASE_URL", "");
                             await updateSetting("AI_MODEL", "");
+                          } catch {
+                            // ignore
                           }
                         } catch {
                           // ignore update errors here (Settings page is source of truth)
@@ -1069,7 +1085,8 @@ export default function ImportPage() {
                     >
                       <div className="font-medium text-sm">{provider.name}</div>
                       <div className="text-xs text-ink-600 mt-1">
-                        {PROVIDER_LABELS[provider.provider] || provider.provider}
+                        {PROVIDER_LABELS[provider.provider] ||
+                          provider.provider}
                       </div>
                     </button>
                   ))}
@@ -1262,7 +1279,10 @@ export default function ImportPage() {
                 <div className="mt-4">
                   <button
                     onClick={handlePdfUpload}
-                    disabled={isUploading}
+                    disabled={isUploading || !aiProvider}
+                    title={
+                      !aiProvider ? "请先到设置页新增 AI Provider" : undefined
+                    }
                     className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isUploading ? (
@@ -1685,7 +1705,6 @@ export default function ImportPage() {
             )}
           </div>
         )}
-
       </div>
 
       {/* AI生成参数输入模态框 */}
@@ -1722,7 +1741,12 @@ export default function ImportPage() {
                 <input
                   type="text"
                   value={aiGenerationParams.grade}
-                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, grade: e.target.value})}
+                  onChange={(e) =>
+                    setAiGenerationParams({
+                      ...aiGenerationParams,
+                      grade: e.target.value,
+                    })
+                  }
                   placeholder="例如：高三"
                   className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 />
@@ -1735,7 +1759,12 @@ export default function ImportPage() {
                 <input
                   type="text"
                   value={aiGenerationParams.subject}
-                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, subject: e.target.value})}
+                  onChange={(e) =>
+                    setAiGenerationParams({
+                      ...aiGenerationParams,
+                      subject: e.target.value,
+                    })
+                  }
                   placeholder="例如：数学"
                   className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 />
@@ -1748,7 +1777,12 @@ export default function ImportPage() {
                 <input
                   type="text"
                   value={aiGenerationParams.knowledgePoint}
-                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, knowledgePoint: e.target.value})}
+                  onChange={(e) =>
+                    setAiGenerationParams({
+                      ...aiGenerationParams,
+                      knowledgePoint: e.target.value,
+                    })
+                  }
                   placeholder="例如：三角函数"
                   className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 />
@@ -1763,7 +1797,12 @@ export default function ImportPage() {
                   min="1"
                   max="50"
                   value={aiGenerationParams.count}
-                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, count: parseInt(e.target.value) || 5})}
+                  onChange={(e) =>
+                    setAiGenerationParams({
+                      ...aiGenerationParams,
+                      count: parseInt(e.target.value) || 5,
+                    })
+                  }
                   className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 placeholder-ink-500 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 />
               </div>
@@ -1774,7 +1813,12 @@ export default function ImportPage() {
                 </label>
                 <select
                   value={aiGenerationParams.difficulty}
-                  onChange={(e) => setAiGenerationParams({...aiGenerationParams, difficulty: e.target.value})}
+                  onChange={(e) =>
+                    setAiGenerationParams({
+                      ...aiGenerationParams,
+                      difficulty: e.target.value,
+                    })
+                  }
                   className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-600 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
                 >
                   <option value="简单">简单</option>
@@ -1791,16 +1835,19 @@ export default function ImportPage() {
                   <div className="flex justify-between text-sm mb-1">
                     <span>{generationProgress.message}</span>
                     {generationProgress.total > 0 && (
-                      <span>{generationProgress.current}/{generationProgress.total}</span>
+                      <span>
+                        {generationProgress.current}/{generationProgress.total}
+                      </span>
                     )}
                   </div>
                   <div className="h-2 w-full bg-slate-200 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-accent-600 rounded-full transition-all duration-300"
                       style={{
-                        width: generationProgress.total > 0
-                          ? `${(generationProgress.current / generationProgress.total) * 100}%`
-                          : '0%'
+                        width:
+                          generationProgress.total > 0
+                            ? `${(generationProgress.current / generationProgress.total) * 100}%`
+                            : "0%",
                       }}
                     ></div>
                   </div>
@@ -1942,11 +1989,15 @@ export default function ImportPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-xl border border-border bg-green-50 p-4">
                   <p className="text-sm font-semibold text-green-900">成功</p>
-                  <p className="text-2xl font-bold text-green-600">{importResult.success || 0}</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {importResult.success || 0}
+                  </p>
                 </div>
                 <div className="rounded-xl border border-border bg-red-50 p-4">
                   <p className="text-sm font-semibold text-red-900">失败</p>
-                  <p className="text-2xl font-bold text-red-600">{importResult.failed || 0}</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {importResult.failed || 0}
+                  </p>
                 </div>
               </div>
 
@@ -1959,22 +2010,30 @@ export default function ImportPage() {
 
               {importResult.errors && importResult.errors.length > 0 && (
                 <div className="rounded-xl border border-border bg-white p-4">
-                  <h4 className="text-sm font-semibold text-ink-900 mb-2">错误详情</h4>
+                  <h4 className="text-sm font-semibold text-ink-900 mb-2">
+                    错误详情
+                  </h4>
                   <div className="max-h-64 overflow-y-auto">
                     <table className="w-full text-sm">
                       <thead className="border-b border-border">
                         <tr>
                           <th className="py-2 text-left text-ink-900">行号</th>
-                          <th className="py-2 text-left text-ink-900">错误信息</th>
+                          <th className="py-2 text-left text-ink-900">
+                            错误信息
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
-                        {importResult.errors.map((error: any, index: number) => (
-                          <tr key={index} className="border-b border-border">
-                            <td className="py-2 text-ink-700">{error.row}</td>
-                            <td className="py-2 text-ink-900">{error.message}</td>
-                          </tr>
-                        ))}
+                        {importResult.errors.map(
+                          (error: any, index: number) => (
+                            <tr key={index} className="border-b border-border">
+                              <td className="py-2 text-ink-700">{error.row}</td>
+                              <td className="py-2 text-ink-900">
+                                {error.message}
+                              </td>
+                            </tr>
+                          ),
+                        )}
                       </tbody>
                     </table>
                   </div>
