@@ -1,4 +1,4 @@
-import api from './api';
+import api from "./api";
 
 export interface LoginRequest {
   username: string;
@@ -22,14 +22,28 @@ export interface AuthResponse {
   };
 }
 
+export interface RegisterResponse {
+  access_token?: string;
+  message?: string;
+  user: {
+    id: string;
+    username: string;
+    name: string;
+    role: string;
+    email?: string;
+    isActive?: boolean;
+    isApproved?: boolean;
+  };
+}
+
 export const authService = {
   async login(data: LoginRequest): Promise<AuthResponse> {
-    const response = await api.post('/api/auth/login', data);
+    const response = await api.post("/api/auth/login", data);
     return response.data;
   },
 
-  async register(data: RegisterRequest): Promise<AuthResponse> {
-    const response = await api.post('/api/auth/register', data);
+  async register(data: RegisterRequest): Promise<RegisterResponse> {
+    const response = await api.post("/api/auth/register", data);
     return response.data;
   },
 };

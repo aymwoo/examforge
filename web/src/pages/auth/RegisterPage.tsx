@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { authService } from '../../services/auth';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { authService } from "../../services/auth";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    name: '',
+    username: "",
+    password: "",
+    name: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // 当显示注册成功消息时，3秒后自动跳转到首页
   useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (error.includes('注册成功')) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (error.includes("注册成功")) {
       timer = setTimeout(() => {
-        navigate('/');
+        navigate("/");
       }, 3000);
     }
 
@@ -31,21 +31,21 @@ export default function RegisterPage() {
     e.preventDefault();
 
     // 如果已经有成功消息，点击按钮应跳转到首页
-    if (error.includes('注册成功')) {
-      navigate('/');
+    if (error.includes("注册成功")) {
+      navigate("/");
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const response = await authService.register(formData);
       // 不再自动登录，而是显示成功消息
-      setError('注册成功！您的账户正在等待管理员审核，审核通过后即可登录使用系统。');
-      setFormData({ username: '', password: '', name: '' }); // 清空表单
+      setError(response.message || "注册成功！");
+      setFormData({ username: "", password: "", name: "" }); // 清空表单
     } catch (err: any) {
-      setError(err.response?.data?.message || '注册失败');
+      setError(err.response?.data?.message || "注册失败");
     } finally {
       setLoading(false);
     }
@@ -63,15 +63,14 @@ export default function RegisterPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-ink-900">
-            {error.includes('注册成功') ? '注册成功' : '注册账户'}
+            {error.includes("注册成功") ? "注册成功" : "注册账户"}
           </h2>
           <p className="mt-2 text-center text-sm text-ink-600">
-            {error.includes('注册成功')
-              ? '系统将在3秒后自动跳转到首页...'
-              : '已有账户？'}
-            {' '}
+            {error.includes("注册成功")
+              ? "系统将在3秒后自动跳转到首页..."
+              : "已有账户？"}{" "}
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate("/")}
               className="font-medium text-blue-600 hover:text-blue-500 bg-transparent border-none cursor-pointer"
             >
               返回首页
@@ -80,17 +79,22 @@ export default function RegisterPage() {
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
-            <div className={`px-4 py-3 rounded ${
-              error.includes('注册成功')
-                ? 'bg-green-50 border border-green-200 text-green-700'
-                : 'bg-red-50 border border-red-200 text-red-700'
-            }`}>
+            <div
+              className={`px-4 py-3 rounded ${
+                error.includes("注册成功")
+                  ? "bg-green-50 border border-green-200 text-green-700"
+                  : "bg-red-50 border border-red-200 text-red-700"
+              }`}
+            >
               {error}
             </div>
           )}
           <div className="space-y-4">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-ink-700">
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-ink-700"
+              >
                 用户名
               </label>
               <input
@@ -105,7 +109,10 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-ink-700">
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-ink-700"
+              >
                 姓名
               </label>
               <input
@@ -120,7 +127,10 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-ink-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-ink-700"
+              >
                 密码
               </label>
               <input
@@ -142,7 +152,11 @@ export default function RegisterPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? '注册中...' : error.includes('注册成功') ? '返回首页 (3s)' : '注册'}
+              {loading
+                ? "注册中..."
+                : error.includes("注册成功")
+                  ? "返回首页 (3s)"
+                  : "注册"}
             </button>
           </div>
         </form>
