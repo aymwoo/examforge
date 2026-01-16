@@ -323,6 +323,53 @@ JWT_SECRET="your-jwt-secret"
 4. Run lint and tests
 5. Submit a pull request
 
+## Production Deployment
+
+For a complete production deployment from scratch, use the deployment script:
+
+```bash
+# Make the script executable
+chmod +x start-deploy.sh
+
+# Run the deployment script
+./start-deploy.sh
+```
+
+This script will:
+- Install all dependencies
+- Build both API and web applications
+- Initialize the database with all migrations
+- Seed the database with initial data
+- Package everything for production
+- Create a production startup script
+
+After deployment, you can start the production server with:
+```bash
+cd dist && ./start-production.sh
+```
+
+The deployment includes default credentials:
+- Admin: `admin` / `admin123`
+- Teacher: `teacher` / `teacher123`
+
+### Migration Management
+
+The project includes tools to manage database migrations:
+
+1. **Consolidate Migrations**: Combine all individual migration files into a single SQL file:
+   ```bash
+   ./consolidate-migrations.sh
+   ```
+
+   This creates a `consolidated-migrations.sql` file that contains all database schema changes in a single file, useful for production deployments or database resets.
+
+2. **Generate Single Migration**: Create a fresh migration based on the current schema:
+   ```bash
+   ./generate-single-migration.sh
+   ```
+
+   This generates a single SQL file representing the complete database schema.
+
 ## License
 
 ISC License - see LICENSE file for details.
