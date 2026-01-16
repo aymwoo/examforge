@@ -77,4 +77,15 @@ export class UserController {
   changePassword(@Request() req: any, @Body() body: { currentPassword: string; newPassword: string }) {
     return this.userService.changePassword(req.user.id, body.currentPassword, body.newPassword);
   }
+
+  @Patch(':id/reset-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Reset user password (admin only)' })
+  resetUserPassword(@Request() req: any, @Param('id') id: string, @Body() body: { newPassword: string }) {
+    // 检查用户是否为管理员
+    if (req.user.role !== 'ADMIN') {
+      throw new Error('Only administrators can reset other users\' passwords');
+    }
+    return this.userService.resetUserPassword(id, body.newPassword);
+  }
 }

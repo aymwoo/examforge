@@ -223,7 +223,7 @@ export class UserService {
       throw new NotFoundException('用户不存在');
     }
 
-    // 验证当前密码
+    // 驗证当前密码
     const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isCurrentPasswordValid) {
       throw new BadRequestException('当前密码不正确');
@@ -238,6 +238,48 @@ export class UserService {
     });
 
     return { message: '密码修改成功' };
+  }
+
+  async resetUserPassword(id: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        isApproved: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
+    // 加密新密码
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { password: hashedNewPassword },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        isApproved: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return { message: '密码重置成功', user: updatedUser };
   }
 
   async findPendingApprovalUsers(page: number = 1, limit: number = 10) {

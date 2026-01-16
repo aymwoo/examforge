@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/auth';
 
@@ -12,12 +12,27 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // 当显示注册成功消息时，3秒后自动跳转到首页
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (error.includes('注册成功')) {
+      timer = setTimeout(() => {
+        navigate('/');
+      }, 3000);
+    }
+
+    // 清理定时器
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [error]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 如果已经有成功消息，点击按钮应打开登录模态框
+    // 如果已经有成功消息，点击按钮应跳转到首页
     if (error.includes('注册成功')) {
-      window.dispatchEvent(new CustomEvent("show401Login"));
+      navigate('/');
       return;
     }
 
@@ -52,24 +67,15 @@ export default function RegisterPage() {
           </h2>
           <p className="mt-2 text-center text-sm text-ink-600">
             {error.includes('注册成功')
-              ? '请等待管理员审核，审核通过后即可登录系统'
+              ? '系统将在3秒后自动跳转到首页...'
               : '已有账户？'}
             {' '}
-            {error.includes('注册成功') ? (
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent("show401Login"))}
-                className="font-medium text-blue-600 hover:text-blue-500 bg-transparent border-none cursor-pointer"
-              >
-                立即登录
-              </button>
-            ) : (
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent("show401Login"))}
-                className="font-medium text-blue-600 hover:text-blue-500 bg-transparent border-none cursor-pointer"
-              >
-                立即登录
-              </button>
-            )}
+            <button
+              onClick={() => navigate('/')}
+              className="font-medium text-blue-600 hover:text-blue-500 bg-transparent border-none cursor-pointer"
+            >
+              返回首页
+            </button>
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -136,7 +142,7 @@ export default function RegisterPage() {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? '注册中...' : error.includes('注册成功') ? '返回登录' : '注册'}
+              {loading ? '注册中...' : error.includes('注册成功') ? '返回首页 (3s)' : '注册'}
             </button>
           </div>
         </form>

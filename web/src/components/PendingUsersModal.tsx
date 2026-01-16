@@ -10,9 +10,10 @@ import { zhCN } from 'date-fns/locale';
 interface PendingUsersModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onModalClose?: () => void;
 }
 
-const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChange }) => {
+const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChange, onModalClose }) => {
   const { success: showSuccess, error: showError, warning: showWarning } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -117,7 +118,12 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
   return (
     <Modal
       isOpen={open}
-      onClose={() => onOpenChange(false)}
+      onClose={() => {
+        onOpenChange(false);
+        if (onModalClose) {
+          onModalClose();
+        }
+      }}
       title="待审核用户列表"
       size="extra-large"
     >

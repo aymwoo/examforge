@@ -39,10 +39,27 @@ const ApprovalNotificationButton: React.FC<ApprovalNotificationButtonProps> = ({
     }
   };
 
+  // 在组件挂载时和模态框关闭后获取待审核用户数量
+  useEffect(() => {
+    if (modalOpen) {
+      // 当打开模态框时，重新获取计数
+      fetchPendingCount();
+    }
+  }, [modalOpen]);
+
+  // 初始加载时获取待审核用户数量
+  useEffect(() => {
+    fetchPendingCount();
+  }, []);
+
   const handleModalChange = (open: boolean) => {
     setModalOpen(open);
-    if (!open && onModalClose) {
-      onModalClose();
+    if (!open) {
+      // 模态框关闭时，重新获取待审核用户数量以更新角标
+      fetchPendingCount();
+      if (onModalClose) {
+        onModalClose();
+      }
     }
   };
 
@@ -70,6 +87,7 @@ const ApprovalNotificationButton: React.FC<ApprovalNotificationButtonProps> = ({
       <PendingUsersModal
         open={modalOpen}
         onOpenChange={handleModalChange}
+        onModalClose={onModalClose}
       />
     </>
   );

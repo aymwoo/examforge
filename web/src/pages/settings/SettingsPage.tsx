@@ -36,9 +36,13 @@ export default function SettingsPage() {
   const currentUser = getCurrentUser();
   const isTeacher = currentUser?.role === "TEACHER";
   const isAdmin = currentUser?.role === "ADMIN";
-  
+
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>("ai-provider");
+
+  // AI Provider state
+  const [providers, setProviders] = useState<AIProviderItem[]>([]);
+  const [defaultProviderId, setDefaultProviderId] = useState<string | null>(null);
 
   // AI Provider settings state
   const [settings, setSettings] = useState<SystemSettings>({
@@ -248,7 +252,23 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSettings();
+    loadProviders();
   }, []);
+
+  // 加载AI Providers
+  const loadProviders = async () => {
+    try {
+      const [providersResponse, defaultId] = await Promise.all([
+        api.get('/api/ai-providers'),
+        getDefaultProviderId().catch(() => null),
+      ]);
+      setProviders(providersResponse.data);
+      setDefaultProviderId(defaultId);
+    } catch (error) {
+      console.error('加载AI Providers失败:', error);
+      // 不显示错误，因为这不应该阻止用户使用其他功能
+    }
+  };
 
   useEffect(() => {
     loadStudentsForPromptManagement();
@@ -591,7 +611,34 @@ export default function SettingsPage() {
           )}
 
           {!loading && activeTab === "ai-provider" && (
-            <AIProviderTab />
+            <AIProviderTab
+              providers={providers}
+              loading={loading}
+              showModal={showModal}
+              setShowModal={setShowModal}
+              editingProvider={editingProvider}
+              setEditingProvider={setEditingProvider}
+              formData={formData}
+              setFormData={setFormData}
+              testResult={testResult}
+              setTestResult={setTestResult}
+              testLoading={testLoading}
+              setTestLoading={setTestLoading}
+              defaultProviderId={defaultProviderId}
+              loadProviders={loadProviders}
+              handleEdit={handleEdit}
+              handleDelete={handleDelete}
+              handleSetDefault={handleSetDefault}
+              handleUserProviderSelect={handleUserProviderSelect}
+              canEditProvider={canEditProvider}
+              canDeleteProvider={canDeleteProvider}
+              handleSubmit={handleSubmit}
+              resetForm={resetForm}
+              handleTestAIConnection={handleTestAIConnection}
+              userRole={userRole}
+              showError={showError}
+              showSuccess={showSuccess}
+            />
           )}
 
           {!loading && activeTab === "prompts" && (
@@ -618,6 +665,10 @@ export default function SettingsPage() {
               onInsertGradingVariables={handleInsertGradingVariables}
               onInsertAnalysisVariables={handleInsertAnalysisVariables}
               setSettings={setSettings}
+              providers={providers}
+              defaultProviderId={defaultProviderId}
+              handleSetDefault={handleSetDefault}
+              handleUserProviderSelect={handleUserProviderSelect}
             />
           )}
 
@@ -741,14 +792,37 @@ interface AIProviderItem {
 }
 
 // AI Provider Tab Component
-function AIProviderTab() {
-  const [providers, setProviders] = useState<AIProviderItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingProvider, setEditingProvider] = useState<AIProviderItem | null>(null);
+function AIProviderTab({
+  providers,
+  loading,
+  showModal,
+  setShowModal,
+  editingProvider,
+  setEditingProvider,
+  formData,
+  setFormData,
+  testResult,
+  setTestResult,
+  testLoading,
+  setTestLoading,
+  defaultProviderId,
+  loadProviders,
+  handleEdit,
+  handleDelete,
+  handleSetDefault,
+  handleUserProviderSelect,
+  canEditProvider,
+  canDeleteProvider,
+  handleSubmit,
+  resetForm,
+  handleTestAIConnection,
+  userRole,
+  showError,
+  showSuccess
+}: any) {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [localFormData, setLocalFormData] = useState({
     name: '',
     apiKey: '',
     baseUrl: '',
@@ -760,6 +834,16 @@ function AIProviderTab() {
 
   const currentUser = getCurrentUser();
   const userRole = currentUser?.role || 'TEACHER';
+
+  // 同步传入的 formData 到本地状态
+  useEffect(() => {
+    setLocalFormData(formData);
+  }, [formData]);
+
+  // 同步传入的 defaultProviderId 到本地状态
+  useEffect(() => {
+    setDefaultProviderIdState(defaultProviderId);
+  }, [defaultProviderId]);
 
   const loadProviders = async () => {
     try {
@@ -800,9 +884,9 @@ function AIProviderTab() {
           alert('您没有权限编辑此Provider');
           return;
         }
-        await api.patch(`/api/ai-providers/${editingProvider.id}`, formData);
+        await api.patch(`/api/ai-providers/${editingProvider.id}`, localFormData);
       } else {
-        await api.post('/api/ai-providers', formData);
+        await api.post('/api/ai-providers', localFormData);
       }
       setShowModal(false);
       setEditingProvider(null);
@@ -814,12 +898,12 @@ function AIProviderTab() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', apiKey: '', baseUrl: '', model: '', isGlobal: false, isActive: true });
+    setLocalFormData({ name: '', apiKey: '', baseUrl: '', model: '', isGlobal: false, isActive: true });
     setTestResult(null);
   };
 
   const handleTestAIConnection = async () => {
-    if (!formData.apiKey.trim()) {
+    if (!localFormData.apiKey.trim()) {
       setTestResult("请先输入 API Key");
       return;
     }
@@ -829,9 +913,9 @@ function AIProviderTab() {
       const response = await api.post<{ response: string }>("/api/ai/test", {
         message: "Hello, please respond with just 'Connection successful!'",
         // 传递当前表单数据用于测试
-        testApiKey: formData.apiKey,
-        testBaseUrl: formData.baseUrl,
-        testModel: formData.model
+        testApiKey: localFormData.apiKey,
+        testBaseUrl: localFormData.baseUrl,
+        testModel: localFormData.model
       });
 
       setTestResult(`✅ AI 连接测试成功！AI响应: ${response.data.response}`);
@@ -849,7 +933,7 @@ function AIProviderTab() {
       return;
     }
     setEditingProvider(provider);
-    setFormData({
+    setLocalFormData({
       name: provider.name,
       apiKey: provider.apiKey,
       baseUrl: provider.baseUrl || '',
@@ -871,6 +955,18 @@ function AIProviderTab() {
       loadProviders();
     } catch (error: any) {
       alert('删除失败: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleUserProviderSelect = async (providerId: string) => {
+    try {
+      // 更新用户设置
+      await updateUserSetting('AI_PROVIDER', providerId);
+      // 更新本地状态
+      setSettings(prev => ({ ...prev, aiProvider: providerId }));
+      showSuccess('AI Provider 设置成功');
+    } catch (error: any) {
+      showError('设置失败: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -998,22 +1094,23 @@ function AIProviderTab() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button 
-                      onClick={() => handleEdit(provider)}
-                      variant="outline"
-                      className="flex-1 flex items-center justify-center gap-2"
-                      disabled={!canEditProvider(provider)}
-                    >
-                      <Edit className="h-4 w-4" />
-                      编辑
-                    </Button>
+                    {canEditProvider(provider) && (
+                      <Button
+                        onClick={() => handleEdit(provider)}
+                        variant="outline"
+                        className="flex-1 flex items-center justify-center gap-2"
+                      >
+                        <Edit className="h-4 w-4" />
+                        编辑
+                      </Button>
+                    )}
                     {userRole === 'ADMIN' && (
-                      <Button 
+                      <Button
                         onClick={() => handleSetDefault(provider)}
                         variant="outline"
                         className={`flex items-center justify-center gap-2 ${
-                          defaultProviderId === provider.id 
-                            ? 'bg-blue-50 text-blue-600 border-blue-200' 
+                          defaultProviderId === provider.id
+                            ? 'bg-blue-50 text-blue-600 border-blue-200'
                             : 'text-blue-600 hover:text-blue-700'
                         }`}
                         disabled={defaultProviderId === provider.id || !provider.isActive}
@@ -1022,15 +1119,17 @@ function AIProviderTab() {
                         {defaultProviderId === provider.id ? '默认' : '设为默认'}
                       </Button>
                     )}
-                    <Button 
-                      onClick={() => handleDelete(provider)}
-                      variant="outline"
-                      className="flex items-center justify-center gap-2 text-red-600 hover:text-red-700"
-                      disabled={!canDeleteProvider(provider) || defaultProviderId === provider.id}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      删除
-                    </Button>
+                    {canDeleteProvider(provider) && (
+                      <Button
+                        onClick={() => handleDelete(provider)}
+                        variant="outline"
+                        className="flex items-center justify-center gap-2 text-red-600 hover:text-red-700"
+                        disabled={defaultProviderId === provider.id}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        删除
+                      </Button>
+                    )}
                   </div>
                   </div>
                 );
@@ -1052,8 +1151,8 @@ function AIProviderTab() {
             <input
               type="text"
               required
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              value={localFormData.name}
+              onChange={(e) => setLocalFormData(prev => ({ ...prev, name: e.target.value }))}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               placeholder="例如: OpenAI GPT-4"
               disabled={editingProvider?.isGlobal && userRole !== 'ADMIN'}
@@ -1066,8 +1165,8 @@ function AIProviderTab() {
               <input
                 type="password"
                 required
-                value={formData.apiKey}
-                onChange={(e) => setFormData(prev => ({ ...prev, apiKey: e.target.value }))}
+                value={localFormData.apiKey}
+                onChange={(e) => setLocalFormData(prev => ({ ...prev, apiKey: e.target.value }))}
                 className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 placeholder="sk-..."
               />
@@ -1097,8 +1196,8 @@ function AIProviderTab() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Base URL (可选)</label>
             <input
               type="url"
-              value={formData.baseUrl}
-              onChange={(e) => setFormData(prev => ({ ...prev, baseUrl: e.target.value }))}
+              value={localFormData.baseUrl}
+              onChange={(e) => setLocalFormData(prev => ({ ...prev, baseUrl: e.target.value }))}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               placeholder="https://api.openai.com/v1"
               disabled={editingProvider?.isGlobal && userRole !== 'ADMIN'}
@@ -1110,8 +1209,8 @@ function AIProviderTab() {
             <input
               type="text"
               required
-              value={formData.model}
-              onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
+              value={localFormData.model}
+              onChange={(e) => setLocalFormData(prev => ({ ...prev, model: e.target.value }))}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               placeholder="gpt-4, claude-3, qwen-turbo 等"
               disabled={editingProvider?.isGlobal && userRole !== 'ADMIN'}
@@ -1123,8 +1222,8 @@ function AIProviderTab() {
               <input
                 type="checkbox"
                 id="providerIsGlobal"
-                checked={formData.isGlobal}
-                onChange={(e) => setFormData(prev => ({ ...prev, isGlobal: e.target.checked }))}
+                checked={localFormData.isGlobal}
+                onChange={(e) => setLocalFormData(prev => ({ ...prev, isGlobal: e.target.checked }))}
                 className="mr-2"
               />
               <label htmlFor="providerIsGlobal" className="text-sm font-medium text-gray-700">
@@ -1137,8 +1236,8 @@ function AIProviderTab() {
             <input
               type="checkbox"
               id="providerIsActive"
-              checked={formData.isActive}
-              onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
+              checked={localFormData.isActive}
+              onChange={(e) => setLocalFormData(prev => ({ ...prev, isActive: e.target.checked }))}
               className="mr-2"
             />
             <label htmlFor="providerIsActive" className="text-sm font-medium text-gray-700">
@@ -1171,10 +1270,34 @@ function PromptsTab({
   onSavePromptTemplate, onSaveGradingPromptTemplate, onSaveAnalysisPromptTemplate,
   onSaveStudentAiAnalysisPromptTemplate, onSaveJsonGenerationPromptTemplate,
   onInsertJsonStructure, onResetToDefault,
-  onInsertGradingVariables, onInsertAnalysisVariables, setSettings
+  onInsertGradingVariables, onInsertAnalysisVariables, setSettings,
+  providers, defaultProviderId, handleSetDefault, handleUserProviderSelect
 }: any) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
+      {/* 选择AI Provider */}
+      <div className="rounded-3xl border border-border bg-white p-6 shadow-soft col-span-2">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-ink-900">AI Provider 选择</h2>
+        </div>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">选择您个人使用的AI Provider</label>
+          <select
+            value={settings.aiProvider || ''}
+            onChange={(e) => handleUserProviderSelect(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+          >
+            <option value="">使用系统默认设置</option>
+            {providers.map((provider) => (
+              <option key={provider.id} value={provider.id}>
+                {provider.name} {provider.isGlobal ? '(全局)' : '(个人)'} {defaultProviderId === provider.id ? '(系统默认)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="text-xs text-ink-700">选择您个人使用的AI Provider，此设置仅影响您的个人使用体验，不影响其他用户。</p>
+      </div>
+
       {/* 试卷生成提示词 */}
       <div className="rounded-3xl border border-border bg-white p-6 shadow-soft">
         <div className="mb-6 flex items-center justify-between">
