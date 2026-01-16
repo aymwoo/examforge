@@ -13,6 +13,7 @@ import {
   Edit,
   Zap,
   KeyRound,
+  User,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -79,6 +80,7 @@ export default function SettingsPage() {
 
   // AI Provider form state
   const [showModal, setShowModal] = useState(false);
+  const [showJsonImportModal, setShowJsonImportModal] = useState(false);
   const [editingProvider, setEditingProvider] = useState<AIProviderItem | null>(
     null,
   );
@@ -90,6 +92,27 @@ export default function SettingsPage() {
     isGlobal: false,
     isActive: true,
   });
+  const [jsonImportData, setJsonImportData] = useState('');
+
+  // JSON导入示例数据
+  const jsonImportExample = [
+    {
+      name: "OpenAI GPT-4",
+      apiKey: "sk-...",
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-4",
+      isGlobal: false,
+      isActive: true
+    },
+    {
+      name: "Anthropic Claude",
+      apiKey: "sk-ant-...",
+      baseUrl: "https://api.anthropic.com/v1",
+      model: "claude-3-opus",
+      isGlobal: false,
+      isActive: true
+    }
+  ];
 
   // AI Provider test connection state
   const [testResult, setTestResult] = useState<string | null>(null);
@@ -739,7 +762,7 @@ export default function SettingsPage() {
 
   const handleEdit = (provider: AIProviderItem) => {
     if (!canEditProvider(provider)) {
-      alert("您没有权限编辑此Provider");
+      showError("您没有权限编辑此Provider");
       return;
     }
     setEditingProvider(provider);
@@ -756,7 +779,7 @@ export default function SettingsPage() {
 
   const handleDelete = async (provider: AIProviderItem) => {
     if (!canDeleteProvider(provider)) {
-      alert("您没有权限删除此Provider");
+      showError("您没有权限删除此Provider");
       return;
     }
     if (!confirm(`确定要删除AI Provider "${provider.name}" 吗？`)) return;
@@ -764,7 +787,7 @@ export default function SettingsPage() {
       await api.delete(`/api/ai-providers/${provider.id}`);
       loadProviders();
     } catch (error: any) {
-      alert("删除失败: " + (error.response?.data?.message || error.message));
+      showError("删除失败: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -805,7 +828,7 @@ export default function SettingsPage() {
     try {
       if (editingProvider) {
         if (!canEditProvider(editingProvider)) {
-          alert("您没有权限编辑此Provider");
+          showError("您没有权限编辑此Provider");
           return;
         }
         await api.patch(`/api/ai-providers/${editingProvider.id}`, formData);
@@ -817,7 +840,7 @@ export default function SettingsPage() {
       resetForm();
       loadProviders();
     } catch (error: any) {
-      alert("操作失败: " + (error.response?.data?.message || error.message));
+      showError("操作失败: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -856,6 +879,71 @@ export default function SettingsPage() {
       setTestResult(`❌ ${errorMessage}`);
     } finally {
       setTestLoading(false);
+    }
+  };
+
+  const handleJsonImport = async () => {
+    if (!jsonImportData.trim()) {
+      showError('请输入JSON数据');
+      return;
+    }
+
+    try {
+      const parsedData = JSON.parse(jsonImportData);
+
+      // 验证数据格式
+      if (!Array.isArray(parsedData)) {
+        throw new Error('JSON数据必须是一个数组');
+      }
+
+      // 验证每个provider对象的必需字段
+      for (const provider of parsedData) {
+        if (!provider.name || !provider.apiKey || !provider.model) {
+          throw new Error(`Provider缺少必需字段: name, apiKey, 或 model`);
+        }
+      }
+
+      // 批量导入providers
+      for (const provider of parsedData) {
+        try {
+          // 检查是否已存在同名provider
+          const existingProvider = providers.find((p: AIProviderItem) => p.name === provider.name);
+          if (existingProvider) {
+            // 如果已存在，跳过或询问是否覆盖
+            if (!confirm(`Provider "${provider.name}" 已存在，是否覆盖？`)) {
+              continue;
+            }
+          }
+
+          // 准备要发送的数据
+          const providerData = {
+            name: provider.name,
+            apiKey: provider.apiKey,
+            baseUrl: provider.baseUrl || '',
+            model: provider.model,
+            isGlobal: provider.isGlobal || false,
+            isActive: provider.isActive !== undefined ? provider.isActive : true,
+          };
+
+          // 如果是编辑现有provider，则使用PATCH，否则使用POST
+          if (existingProvider) {
+            await api.patch(`/api/ai-providers/${existingProvider.id}`, providerData);
+          } else {
+            await api.post('/api/ai-providers', providerData);
+          }
+        } catch (error: any) {
+          console.error(`导入Provider "${provider.name}" 失败:`, error);
+          showError(`导入Provider "${provider.name}" 失败: ${error.response?.data?.message || error.message}`);
+        }
+      }
+
+      showSuccess('JSON导入完成');
+      setShowJsonImportModal(false);
+      setJsonImportData('');
+      loadProviders(); // 重新加载provider列表
+    } catch (error: any) {
+      console.error('JSON解析错误:', error);
+      showError('JSON格式错误: ' + error.message);
     }
   };
 
@@ -1208,6 +1296,7 @@ function AIProviderTab({
   showError,
   showSuccess,
 }: any) {
+
   const [localTestResult, setLocalTestResult] = useState<string | null>(null);
   const [localTestLoading, setLocalTestLoading] = useState(false);
   const [localFormData, setLocalFormData] = useState({
@@ -1222,6 +1311,122 @@ function AIProviderTab({
     string | null
   >(null);
 
+  // 类型别名
+  type LocalAIProviderItem = AIProviderItem;
+  const [localShowJsonImportModal, setLocalShowJsonImportModal] = useState(false);
+  const [localJsonImportData, setLocalJsonImportData] = useState('');
+
+  // JSON导入示例数据
+  const localJsonImportExample = [
+    {
+      name: "OpenAI GPT-4",
+      apiKey: "sk-...",
+      baseUrl: "https://api.openai.com/v1",
+      model: "gpt-4",
+      isGlobal: false,
+      isActive: true
+    },
+    {
+      name: "Anthropic Claude",
+      apiKey: "sk-ant-...",
+      baseUrl: "https://api.anthropic.com/v1",
+      model: "claude-3-opus",
+      isGlobal: false,
+      isActive: true
+    }
+  ];
+
+  const handleLocalJsonImport = async () => {
+    if (!localJsonImportData.trim()) {
+      showError('请输入JSON数据');
+      return;
+    }
+
+    try {
+      const parsedData = JSON.parse(localJsonImportData);
+
+      // 验证数据格式
+      if (!Array.isArray(parsedData)) {
+        throw new Error('JSON数据必须是一个数组');
+      }
+
+      // 验证每个provider对象的必需字段
+      for (const provider of parsedData) {
+        if (!provider.name || !provider.apiKey || !provider.model) {
+          throw new Error(`Provider缺少必需字段: name, apiKey, 或 model`);
+        }
+      }
+
+      // 批量导入providers
+      for (const provider of parsedData) {
+        try {
+          // 检查是否已存在同名provider
+          const existingProvider = providers.find((p: AIProviderItem) => p.name === provider.name);
+          if (existingProvider) {
+            // 如果已存在，跳过或询问是否覆盖
+            if (!confirm(`Provider "${provider.name}" 已存在，是否覆盖？`)) {
+              continue;
+            }
+          }
+
+          // 准备要发送的数据
+          const providerData = {
+            name: provider.name,
+            apiKey: provider.apiKey,
+            baseUrl: provider.baseUrl || '',
+            model: provider.model,
+            isGlobal: provider.isGlobal || false,
+            isActive: provider.isActive !== undefined ? provider.isActive : true,
+          };
+
+          // 如果是编辑现有provider，则使用PATCH，否则使用POST
+          if (existingProvider) {
+            await api.patch(`/api/ai-providers/${existingProvider.id}`, providerData);
+          } else {
+            await api.post('/api/ai-providers', providerData);
+          }
+        } catch (error: any) {
+          console.error(`导入Provider "${provider.name}" 失败:`, error);
+          showError(`导入Provider "${provider.name}" 失败: ${error.response?.data?.message || error.message}`);
+        }
+      }
+
+      showSuccess('JSON导入完成');
+      setLocalShowJsonImportModal(false);
+      setLocalJsonImportData('');
+      loadProviders(); // 重新加载provider列表
+    } catch (error: any) {
+      console.error('JSON解析错误:', error);
+      showError('JSON格式错误: ' + error.message);
+    }
+  };
+
+  const handleLocalTestAIConnection = async () => {
+    if (!localFormData.apiKey.trim()) {
+      setLocalTestResult("请先输入 API Key");
+      return;
+    }
+    setLocalTestLoading(true);
+    setLocalTestResult(null);
+    try {
+      const response = await api.post<{ response: string }>("/api/ai/test", {
+        message: "Hello, please respond with just 'Connection successful!'",
+        // 传递当前表单数据用于测试
+        testApiKey: localFormData.apiKey,
+        testBaseUrl: localFormData.baseUrl,
+        testModel: localFormData.model,
+      });
+
+      setLocalTestResult(`✅ AI 连接测试成功！AI响应: ${response.data.response}`);
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message || err.message || "连接测试失败";
+      setLocalTestResult(`❌ ${errorMessage}`);
+    } finally {
+      setLocalTestLoading(false);
+    }
+  };
+
   // 同步传入的 formData 到本地状态
   useEffect(() => {
     setLocalFormData(formData);
@@ -1231,6 +1436,20 @@ function AIProviderTab({
   useEffect(() => {
     setLocalDefaultProviderId(defaultProviderId);
   }, [defaultProviderId]);
+
+  // 当editingProvider改变时，同步更新本地表单数据
+  useEffect(() => {
+    if (editingProvider) {
+      setLocalFormData({
+        name: editingProvider.name,
+        apiKey: editingProvider.apiKey,
+        baseUrl: editingProvider.baseUrl || "",
+        model: editingProvider.model,
+        isGlobal: editingProvider.isGlobal,
+        isActive: editingProvider.isActive,
+      });
+    }
+  }, [editingProvider]);
 
   // 注意：loadProviders 已经通过 props 传入，不需要重新定义
   // 使用传入的 loadProviders 函数
@@ -1255,18 +1474,31 @@ function AIProviderTab({
             <h2 className="text-xl font-semibold text-ink-900">
               AI Provider 列表
             </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                resetForm();
-                setEditingProvider(null);
-                setShowModal(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              添加 Provider
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  resetForm();
+                  setEditingProvider(null);
+                  setShowModal(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                添加 Provider
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setLocalShowJsonImportModal(true);
+                  setLocalJsonImportData('');
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                JSON导入
+              </Button>
+            </div>
           </div>
 
           {providers.length === 0 ? (
@@ -1494,9 +1726,11 @@ function AIProviderTab({
               type="text"
               required
               value={localFormData.name}
-              onChange={(e) =>
-                setLocalFormData((prev) => ({ ...prev, name: e.target.value }))
-              }
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setLocalFormData((prev) => ({ ...prev, name: newValue }));
+                setFormData((prev) => ({ ...prev, name: newValue }));
+              }}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               placeholder="例如: OpenAI GPT-4"
               disabled={editingProvider?.isGlobal && userRole !== "ADMIN"}
@@ -1512,18 +1746,23 @@ function AIProviderTab({
                 type="password"
                 required
                 value={localFormData.apiKey}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const newValue = e.target.value;
                   setLocalFormData((prev) => ({
                     ...prev,
-                    apiKey: e.target.value,
-                  }))
-                }
+                    apiKey: newValue,
+                  }));
+                  setFormData((prev) => ({
+                    ...prev,
+                    apiKey: newValue,
+                  }));
+                }}
                 className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
                 placeholder="sk-..."
               />
               <Button
                 type="button"
-                onClick={handleTestAIConnection}
+                onClick={handleLocalTestAIConnection}
                 disabled={localTestLoading}
                 variant="outline"
                 className="flex items-center gap-2"
@@ -1552,12 +1791,17 @@ function AIProviderTab({
             <input
               type="url"
               value={localFormData.baseUrl}
-              onChange={(e) =>
+              onChange={(e) => {
+                const newValue = e.target.value;
                 setLocalFormData((prev) => ({
                   ...prev,
-                  baseUrl: e.target.value,
-                }))
-              }
+                  baseUrl: newValue,
+                }));
+                setFormData((prev) => ({
+                  ...prev,
+                  baseUrl: newValue,
+                }));
+              }}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               placeholder="https://api.openai.com/v1"
               disabled={editingProvider?.isGlobal && userRole !== "ADMIN"}
@@ -1572,9 +1816,11 @@ function AIProviderTab({
               type="text"
               required
               value={localFormData.model}
-              onChange={(e) =>
-                setLocalFormData((prev) => ({ ...prev, model: e.target.value }))
-              }
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setLocalFormData((prev) => ({ ...prev, model: newValue }));
+                setFormData((prev) => ({ ...prev, model: newValue }));
+              }}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
               placeholder="gpt-4, claude-3, qwen-turbo 等"
               disabled={editingProvider?.isGlobal && userRole !== "ADMIN"}
@@ -1587,12 +1833,17 @@ function AIProviderTab({
                 type="checkbox"
                 id="providerIsGlobal"
                 checked={localFormData.isGlobal}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const newValue = e.target.checked;
                   setLocalFormData((prev) => ({
                     ...prev,
-                    isGlobal: e.target.checked,
-                  }))
-                }
+                    isGlobal: newValue,
+                  }));
+                  setFormData((prev) => ({
+                    ...prev,
+                    isGlobal: newValue,
+                  }));
+                }}
                 className="mr-2"
               />
               <label
@@ -1609,12 +1860,17 @@ function AIProviderTab({
               type="checkbox"
               id="providerIsActive"
               checked={localFormData.isActive}
-              onChange={(e) =>
+              onChange={(e) => {
+                const newValue = e.target.checked;
                 setLocalFormData((prev) => ({
                   ...prev,
-                  isActive: e.target.checked,
-                }))
-              }
+                  isActive: newValue,
+                }));
+                setFormData((prev) => ({
+                  ...prev,
+                  isActive: newValue,
+                }));
+              }}
               className="mr-2"
             />
             <label
@@ -1636,6 +1892,50 @@ function AIProviderTab({
             <Button type="submit">{editingProvider ? "更新" : "创建"}</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* JSON导入模态框 */}
+      <Modal
+        isOpen={localShowJsonImportModal}
+        onClose={() => setLocalShowJsonImportModal(false)}
+        title="从JSON导入 AI Provider"
+      >
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              JSON 格式示例
+            </label>
+            <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
+              {JSON.stringify(localJsonImportExample, null, 2)}
+            </pre>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              导入的 JSON 数据
+            </label>
+            <textarea
+              value={localJsonImportData}
+              onChange={(e) => setLocalJsonImportData(e.target.value)}
+              rows={8}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono"
+              placeholder='[{ "name": "OpenAI GPT-4", "apiKey": "sk-...", "baseUrl": "https://api.openai.com/v1", "model": "gpt-4", "isGlobal": false, "isActive": true }]'
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLocalShowJsonImportModal(false)}
+            >
+              取消
+            </Button>
+            <Button onClick={handleLocalJsonImport}>
+              导入
+            </Button>
+          </div>
+        </div>
       </Modal>
     </>
   );

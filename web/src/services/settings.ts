@@ -110,6 +110,8 @@ export const updateAIProvider = async (
     apiKey?: string;
     baseUrl?: string;
     model?: string;
+    isGlobal?: boolean;
+    isActive?: boolean;
   }
 ): Promise<void> => {
   await api.patch(`/api/ai-providers/${providerId}`, updates);
