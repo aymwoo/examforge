@@ -12,7 +12,7 @@ export class UserAdminController {
   @ApiResponse({ status: 200, description: '返回待审核用户列表' })
   async getPendingApprovalUsers(
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Query('limit') limit: number = 10
   ) {
     return this.userService.findPendingApprovalUsers(+page, +limit);
   }
@@ -36,7 +36,7 @@ export class UserAdminController {
   @ApiResponse({ status: 200, description: '用户已批量批准' })
   async batchApproveUsers(@Body('ids') ids: string[]) {
     const results = [];
-    
+
     for (const id of ids) {
       try {
         const result = await this.userService.approveUser(id);
@@ -45,7 +45,7 @@ export class UserAdminController {
         results.push({ id, status: 'error', message: error.message });
       }
     }
-    
+
     return { results };
   }
 
@@ -54,7 +54,7 @@ export class UserAdminController {
   @ApiResponse({ status: 200, description: '用户已批量拒绝' })
   async batchRejectUsers(@Body('ids') ids: string[]) {
     const results = [];
-    
+
     for (const id of ids) {
       try {
         const result = await this.userService.rejectUser(id);
@@ -63,7 +63,7 @@ export class UserAdminController {
         results.push({ id, status: 'error', message: error.message });
       }
     }
-    
+
     return { results };
   }
 
@@ -76,7 +76,44 @@ export class UserAdminController {
         isApproved: false,
       },
     });
-    
+
     return { count };
+  }
+
+  @Post('batch-delete')
+  @ApiOperation({ summary: '批量删除用户' })
+  @ApiResponse({ status: 200, description: '用户已批量删除' })
+  async batchDeleteUsers(@Body('ids') ids: string[]) {
+    const results = [];
+
+    for (const id of ids) {
+      try {
+        const result = await this.userService.remove(id);
+        results.push({ id, status: 'success', data: result });
+      } catch (error) {
+        results.push({ id, status: 'error', message: error.message });
+      }
+    }
+
+    return { results };
+  }
+
+  @Post('batch-reset-password')
+  @ApiOperation({ summary: '批量重置用户密码' })
+  @ApiResponse({ status: 200, description: '用户密码已批量重置' })
+  async batchResetPasswords(@Body('ids') ids: string[]) {
+    const results = [];
+    const defaultPassword = '123456';
+
+    for (const id of ids) {
+      try {
+        const result = await this.userService.resetUserPassword(id, defaultPassword);
+        results.push({ id, status: 'success', data: result });
+      } catch (error) {
+        results.push({ id, status: 'error', message: error.message });
+      }
+    }
+
+    return { results };
   }
 }
