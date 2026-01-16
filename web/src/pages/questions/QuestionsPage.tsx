@@ -5,13 +5,15 @@ import Button from "@/components/ui/Button";
 import {
   listQuestions,
   deleteQuestions,
+  batchUpdateTags,
   type Question,
 } from "@/services/questions";
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
-import rehypeHighlight from 'rehype-highlight';
-import 'katex/dist/katex.min.css'; // KaTeX CSS
+import { getCurrentUser } from "@/utils/auth";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import rehypeHighlight from "rehype-highlight";
+import "katex/dist/katex.min.css"; // KaTeX CSS
 
 const typeLabels: Record<string, string> = {
   SINGLE_CHOICE: "单选题",
@@ -28,7 +30,7 @@ export default function QuestionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize] = useState(20);
   const [meta, setMeta] = useState({
     total: 0,
     page: 1,
@@ -46,7 +48,8 @@ export default function QuestionsPage() {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
   // Batch update tags modal state
-  const [showBatchUpdateTagsModal, setShowBatchUpdateTagsModal] = useState(false);
+  const [showBatchUpdateTagsModal, setShowBatchUpdateTagsModal] =
+    useState(false);
   const [batchUpdateTagsInput, setBatchUpdateTagsInput] = useState("");
 
   const [filters, setFilters] = useState({
@@ -57,7 +60,8 @@ export default function QuestionsPage() {
   });
 
   // Get specific question IDs from URL params
-  const specificIds = searchParams.get('ids')?.split(',').filter(Boolean) || null;
+  const specificIds =
+    searchParams.get("ids")?.split(",").filter(Boolean) || null;
 
   const loadQuestions = async (pageNum: number = 1) => {
     setLoading(true);
@@ -74,14 +78,15 @@ export default function QuestionsPage() {
         page: pageNum,
         limit: pageSize,
       };
-      
+
       // If specific IDs are provided, use them
       if (specificIds && specificIds.length > 0) {
-        params.ids = specificIds.join(',');
+        params.ids = specificIds.join(",");
       } else {
         // Otherwise use normal filters
         if (filters.type) params.type = filters.type;
-        if (filters.difficulty) params.difficulty = parseInt(filters.difficulty);
+        if (filters.difficulty)
+          params.difficulty = parseInt(filters.difficulty);
         if (filters.tags) params.tags = filters.tags;
       }
 
@@ -192,62 +197,67 @@ export default function QuestionsPage() {
   };
 
   const handleClearQuestionBank = async () => {
-    if (!confirm('确定要清空整个题库吗？此操作不可撤销！')) return;
-    if (!confirm('再次确认：这将删除所有题目，确定继续吗？')) return;
+    if (!confirm("确定要清空整个题库吗？此操作不可撤销！")) return;
+    if (!confirm("再次确认：这将删除所有题目，确定继续吗？")) return;
 
-    // 检查用户权限
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setError('请先登录');
+    const token = localStorage.getItem("token");
+    const currentUser = getCurrentUser();
+    if (!token || !currentUser) {
+      setError("请先登录");
+      return;
+    }
+
+    if (currentUser.role !== "ADMIN") {
+      setError("只有系统管理员可以清空题库");
       return;
     }
 
     try {
       // 获取当前用户信息以验证权限
-      const userResponse = await fetch('/api/auth/me', {
+      const userResponse = await fetch("/api/auth/me", {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (!userResponse.ok) {
-        setError('获取用户信息失败');
+        setError("获取用户信息失败");
         return;
       }
 
       const userData = await userResponse.json();
-      if (userData.role !== 'ADMIN') {
-        setError('只有系统管理员可以清空题库');
+      if (userData.role !== "ADMIN") {
+        setError("只有系统管理员可以清空题库");
         return;
       }
     } catch (error) {
-      setError('验证权限失败');
+      setError("验证权限失败");
       return;
     }
 
     setClearing(true);
     try {
       // 调用新的清空题库API端点
-      const response = await fetch('/api/questions/clear-questions', {
-        method: 'POST',
+      const response = await fetch("/api/questions/clear-questions", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || '清空题库失败');
+        throw new Error(errorData.message || "清空题库失败");
       }
 
       // 重新加载题目列表（应该为空）
       loadQuestions(1);
       setSelectedIds(new Set());
-      setError('题库已清空');
+      setError("题库已清空");
     } catch (err: unknown) {
       const error = err as { message?: string };
-      setError(error.message || '清空题库失败');
+      setError(error.message || "清空题库失败");
     } finally {
       setClearing(false);
     }
@@ -259,8 +269,8 @@ export default function QuestionsPage() {
     // 解析标签，支持逗号或空格分隔
     const tags = batchUpdateTagsInput
       .split(/[,\s]+/)
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0);
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
 
     if (tags.length === 0) {
       alert("请输入至少一个标签");
@@ -283,14 +293,11 @@ export default function QuestionsPage() {
         message?: string;
       };
       setError(
-        axiosError.response?.data?.message || axiosError.message || "批量更新标签失败",
+        axiosError.response?.data?.message ||
+          axiosError.message ||
+          "批量更新标签失败",
       );
     }
-  };
-
-  const handlePageSizeChange = (newSize: number) => {
-    setPageSize(newSize);
-    setPage(1);
   };
 
   const showImages = (images: string[], e: React.MouseEvent) => {
@@ -336,8 +343,19 @@ export default function QuestionsPage() {
                   onClick={() => setShowBatchUpdateTagsModal(true)}
                   className="text-blue-600 border-blue-300 hover:bg-blue-50"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z"
+                    />
                   </svg>
                   批量设置标签 ({selectedIds.size})
                 </Button>
@@ -516,43 +534,102 @@ export default function QuestionsPage() {
                         <ReactMarkdown
                           remarkPlugins={[remarkMath]}
                           rehypePlugins={[
-                            [rehypeKatex, {
-                              // 配置KaTeX选项
-                              throwOnError: false,
-                              trust: false,
-                              strict: false,
-                            }],
-                            rehypeHighlight
+                            [
+                              rehypeKatex,
+                              {
+                                // 配置KaTeX选项
+                                throwOnError: false,
+                                trust: false,
+                                strict: false,
+                              },
+                            ],
+                            rehypeHighlight,
                           ]}
                           components={{
-                            p: ({node, ...props}) => <p className="my-2" {...props} />,
-                            h1: ({node, ...props}) => <h1 className="text-xl font-bold mt-4 mb-2" {...props} />,
-                            h2: ({node, ...props}) => <h2 className="text-lg font-bold mt-3 mb-2" {...props} />,
-                            h3: ({node, ...props}) => <h3 className="text-base font-bold mt-2 mb-1" {...props} />,
-                            code: ({node, inline, ...props}) => {
-                              if (inline) {
-                                return <code className="bg-gray-100 px-1 py-0.5 rounded text-sm" {...props} />;
+                            p: ({ node, ...props }) => (
+                              <p className="my-2" {...props} />
+                            ),
+                            h1: ({ node, ...props }) => (
+                              <h1
+                                className="text-xl font-bold mt-4 mb-2"
+                                {...props}
+                              />
+                            ),
+                            h2: ({ node, ...props }) => (
+                              <h2
+                                className="text-lg font-bold mt-3 mb-2"
+                                {...props}
+                              />
+                            ),
+                            h3: ({ node, ...props }) => (
+                              <h3
+                                className="text-base font-bold mt-2 mb-1"
+                                {...props}
+                              />
+                            ),
+                            code: ({ node, className, ...props }) => {
+                              const isBlock = Boolean(className);
+                              if (!isBlock) {
+                                return (
+                                  <code
+                                    className="bg-gray-100 px-1 py-0.5 rounded text-sm"
+                                    {...props}
+                                  />
+                                );
                               }
-                              return <code className="block bg-gray-100 p-3 rounded text-sm overflow-x-auto" {...props} />;
+                              return (
+                                <code
+                                  className="block bg-gray-100 p-3 rounded text-sm overflow-x-auto"
+                                  {...props}
+                                />
+                              );
                             },
-                            pre: ({node, ...props}) => <pre className="bg-gray-100 p-3 rounded my-2 overflow-x-auto" {...props} />,
-                            strong: ({node, ...props}) => <strong className="font-semibold" {...props} />,
-                            em: ({node, ...props}) => <em className="italic" {...props} />,
-                            ul: ({node, ...props}) => <ul className="list-disc list-inside ml-4 my-2" {...props} />,
-                            ol: ({node, ...props}) => <ol className="list-decimal list-inside ml-4 my-2" {...props} />,
-                            li: ({node, ...props}) => <li className="my-1" {...props} />,
-                            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic text-gray-600" {...props} />,
-                            div: ({node, ...props}) => {
+                            pre: ({ node, ...props }) => (
+                              <pre
+                                className="bg-gray-100 p-3 rounded my-2 overflow-x-auto"
+                                {...props}
+                              />
+                            ),
+                            strong: ({ node, ...props }) => (
+                              <strong className="font-semibold" {...props} />
+                            ),
+                            em: ({ node, ...props }) => (
+                              <em className="italic" {...props} />
+                            ),
+                            ul: ({ node, ...props }) => (
+                              <ul
+                                className="list-disc list-inside ml-4 my-2"
+                                {...props}
+                              />
+                            ),
+                            ol: ({ node, ...props }) => (
+                              <ol
+                                className="list-decimal list-inside ml-4 my-2"
+                                {...props}
+                              />
+                            ),
+                            li: ({ node, ...props }) => (
+                              <li className="my-1" {...props} />
+                            ),
+                            blockquote: ({ node, ...props }) => (
+                              <blockquote
+                                className="border-l-4 border-gray-300 pl-4 italic text-gray-600"
+                                {...props}
+                              />
+                            ),
+                            div: ({ node, ...props }) => {
                               // 特殊处理数学公式容器
-                              if (props.className?.includes('math')) {
+                              if (props.className?.includes("math")) {
                                 return <div className="my-2" {...props} />;
                               }
                               return <div {...props} />;
                             },
-                            span: ({node, ...props}) => {
+                            span: ({ node, ...props }) => {
                               // 特殊处理数学公式元素
-                              if (props.className?.includes('math')) {
-                                return <span className="align-middle" {...props} />;
+                              if (props.className?.includes("math")) {
+                                return (
+                                  <span className="align-middle" {...props} />
+                                );
                               }
                               return <span {...props} />;
                             },
@@ -587,24 +664,34 @@ export default function QuestionsPage() {
                         <span>{q.knowledgePoint}</span>
                       </span>
                     )}
-                    {(q.images && q.images.length > 0) && (
-                      <span 
+                    {q.images && q.images.length > 0 && (
+                      <span
                         className="flex items-center gap-1 cursor-pointer text-blue-600 hover:text-blue-700"
                         onClick={(e) => showImages(q.images!, e)}
                       >
                         <Image className="h-4 w-4" />
-                        <span className="font-semibold">示意图 ({q.images.length})</span>
+                        <span className="font-semibold">
+                          示意图 ({q.images.length})
+                        </span>
                       </span>
                     )}
                     <span className="flex items-center gap-1">
-                      <span className="font-semibold text-ink-900">可见性:</span>
-                      <span className={q.isPublic ? "text-green-600" : "text-orange-600"}>
+                      <span className="font-semibold text-ink-900">
+                        可见性:
+                      </span>
+                      <span
+                        className={
+                          q.isPublic ? "text-green-600" : "text-orange-600"
+                        }
+                      >
                         {q.isPublic ? "公开" : "私有"}
                       </span>
                     </span>
                     {q.creator && (
                       <span className="flex items-center gap-1">
-                        <span className="font-semibold text-ink-900">创建者:</span>
+                        <span className="font-semibold text-ink-900">
+                          创建者:
+                        </span>
                         <span>{q.creator.name}</span>
                       </span>
                     )}
@@ -636,10 +723,14 @@ export default function QuestionsPage() {
                             key={i}
                             onClick={() => handlePageChange(i)}
                             variant={currentPage === i ? "default" : "outline"}
-                            className={currentPage === i ? "bg-accent-600 border-accent-600" : ""}
+                            className={
+                              currentPage === i
+                                ? "bg-accent-600 border-accent-600"
+                                : ""
+                            }
                           >
                             {i}
-                          </Button>
+                          </Button>,
                         );
                       }
                     } else {
@@ -651,10 +742,14 @@ export default function QuestionsPage() {
                           key={1}
                           onClick={() => handlePageChange(1)}
                           variant={currentPage === 1 ? "default" : "outline"}
-                          className={currentPage === 1 ? "bg-accent-600 border-accent-600" : ""}
+                          className={
+                            currentPage === 1
+                              ? "bg-accent-600 border-accent-600"
+                              : ""
+                          }
                         >
                           1
-                        </Button>
+                        </Button>,
                       );
 
                       // 计算需要显示的页码范围
@@ -674,7 +769,12 @@ export default function QuestionsPage() {
                       // 显示省略号（如果需要）
                       if (startPage > 2) {
                         pages.push(
-                          <span key="start-ellipsis" className="px-2 text-ink-700">...</span>
+                          <span
+                            key="start-ellipsis"
+                            className="px-2 text-ink-700"
+                          >
+                            ...
+                          </span>,
                         );
                       }
 
@@ -685,17 +785,26 @@ export default function QuestionsPage() {
                             key={i}
                             onClick={() => handlePageChange(i)}
                             variant={currentPage === i ? "default" : "outline"}
-                            className={currentPage === i ? "bg-accent-600 border-accent-600" : ""}
+                            className={
+                              currentPage === i
+                                ? "bg-accent-600 border-accent-600"
+                                : ""
+                            }
                           >
                             {i}
-                          </Button>
+                          </Button>,
                         );
                       }
 
                       // 显示省略号（如果需要）
                       if (endPage < totalPages - 1) {
                         pages.push(
-                          <span key="end-ellipsis" className="px-2 text-ink-700">...</span>
+                          <span
+                            key="end-ellipsis"
+                            className="px-2 text-ink-700"
+                          >
+                            ...
+                          </span>,
                         );
                       }
 
@@ -704,11 +813,17 @@ export default function QuestionsPage() {
                         <Button
                           key={totalPages}
                           onClick={() => handlePageChange(totalPages)}
-                          variant={currentPage === totalPages ? "default" : "outline"}
-                          className={currentPage === totalPages ? "bg-accent-600 border-accent-600" : ""}
+                          variant={
+                            currentPage === totalPages ? "default" : "outline"
+                          }
+                          className={
+                            currentPage === totalPages
+                              ? "bg-accent-600 border-accent-600"
+                              : ""
+                          }
                         >
                           {totalPages}
-                        </Button>
+                        </Button>,
                       );
                     }
 
@@ -726,8 +841,14 @@ export default function QuestionsPage() {
 
       {/* Image Modal */}
       {showImageModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" onClick={() => setShowImageModal(false)}>
-          <div className="max-w-4xl max-h-[90vh] bg-white rounded-2xl p-6 overflow-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+          onClick={() => setShowImageModal(false)}
+        >
+          <div
+            className="max-w-4xl max-h-[90vh] bg-white rounded-2xl p-6 overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-ink-900">题目示意图</h3>
               <button
@@ -741,11 +862,16 @@ export default function QuestionsPage() {
               {selectedImages.map((imagePath, index) => (
                 <div key={index} className="text-center">
                   <img
-                    src={imagePath.startsWith('data:') ? imagePath : `http://localhost:3000/${imagePath}`}
+                    src={
+                      imagePath.startsWith("data:")
+                        ? imagePath
+                        : `http://localhost:3000/${imagePath}`
+                    }
                     alt={`示意图 ${index + 1}`}
                     className="max-w-full h-auto rounded-xl border border-border"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7lm77niYfml6Dms5XliqDovb08L3RleHQ+PC9zdmc+';
+                      (e.target as HTMLImageElement).src =
+                        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTk5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7lm77niYfml6Dms5XliqDovb08L3RleHQ+PC9zdmc+";
                     }}
                   />
                 </div>
@@ -760,7 +886,9 @@ export default function QuestionsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
           <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-ink-900">批量设置标签</h3>
+              <h3 className="text-lg font-semibold text-ink-900">
+                批量设置标签
+              </h3>
               <button
                 onClick={() => {
                   setShowBatchUpdateTagsModal(false);

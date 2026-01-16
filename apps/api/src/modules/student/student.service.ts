@@ -15,7 +15,9 @@ export class StudentService {
     }
 
     const { page = 1, limit = 20 } = paginationDto;
-    const skip = (page - 1) * limit;
+    const normalizedPage = Number(page) || 1;
+    const normalizedLimit = Number(limit) || 20;
+    const skip = (normalizedPage - 1) * normalizedLimit;
     const search = (paginationDto.search || '').trim();
 
     const where: any = {};
@@ -31,7 +33,7 @@ export class StudentService {
       this.prisma.student.findMany({
         where,
         skip,
-        take: limit,
+        take: normalizedLimit,
         orderBy: [{ updatedAt: 'desc' }],
         select: {
           id: true,
@@ -55,9 +57,9 @@ export class StudentService {
       data,
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: normalizedPage,
+        limit: normalizedLimit,
+        totalPages: Math.ceil(total / normalizedLimit),
       },
     };
   }
