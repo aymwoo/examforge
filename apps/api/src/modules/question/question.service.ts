@@ -12,7 +12,7 @@ import { PaginationDto } from '@/common/dto/pagination.dto';
 import { serializeQuestionAnswer } from '@/common/utils/question-answer';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class QuestionService {
@@ -51,7 +51,7 @@ export class QuestionService {
     const skip = (page - 1) * limit;
 
     const where: any = {};
-    
+
     // If specific IDs are provided, filter by them
     if (ids) {
       const idArray = ids.split(',').filter(Boolean);
@@ -72,10 +72,7 @@ export class QuestionService {
 
     // 权限过滤：只显示公开题目或自己创建的题目（管理员可以看到所有题目）
     if (userRole !== 'ADMIN') {
-      where.OR = [
-        { isPublic: true },
-        { createdBy: userId },
-      ];
+      where.OR = [{ isPublic: true }, { createdBy: userId }];
     }
 
     const [data, total] = await Promise.all([
@@ -84,8 +81,8 @@ export class QuestionService {
         skip,
         take: limit,
         orderBy: [
-          { createdAt: 'desc' },  // 按创建时间倒序排列（最新的在前）
-          { importOrder: 'asc' }  // 在创建时间相同的情况下，按导入顺序排列
+          { createdAt: 'desc' }, // 按创建时间倒序排列（最新的在前）
+          { importOrder: 'asc' }, // 在创建时间相同的情况下，按导入顺序排列
         ],
         include: {
           creator: {
@@ -112,7 +109,7 @@ export class QuestionService {
   }
 
   async findById(id: string, userId?: string, userRole?: string) {
-    const question = await this.prisma.question.findUnique({ 
+    const question = await this.prisma.question.findUnique({
       where: { id },
       include: {
         creator: {
@@ -124,7 +121,7 @@ export class QuestionService {
         },
       },
     });
-    
+
     if (!question) {
       throw new NotFoundException(`Question #${id} not found`);
     }
@@ -192,7 +189,12 @@ export class QuestionService {
     return { deleted: result.count };
   }
 
-  async batchUpdateTags(ids: string[], tags: string[], userId?: string, userRole?: string): Promise<{ updated: number }> {
+  async batchUpdateTags(
+    ids: string[],
+    tags: string[],
+    userId?: string,
+    userRole?: string
+  ): Promise<{ updated: number }> {
     if (!ids || ids.length === 0) {
       throw new BadRequestException('No question IDs provided');
     }
@@ -202,10 +204,10 @@ export class QuestionService {
       // 检查所有题目是否都是当前用户创建的
       const questions = await this.prisma.question.findMany({
         where: { id: { in: ids } },
-        select: { createdBy: true }
+        select: { createdBy: true },
       });
 
-      const hasUnownedQuestions = questions.some(q => q.createdBy !== userId);
+      const hasUnownedQuestions = questions.some((q) => q.createdBy !== userId);
       if (hasUnownedQuestions) {
         throw new UnprocessableEntityException('You can only update tags for your own questions');
       }
@@ -239,93 +241,106 @@ export class QuestionService {
     }
   }
 
-  async addImage(questionId: string, imageBuffer: Buffer, originalName: string, userId: string): Promise<{ imagePath: string }> {
+  async addImage(
+    questionId: string,
+    imageBuffer: Buffer,
+    originalName: string,
+    userId: string
+  ): Promise<{ imagePath: string }> {
     const question = await this.findById(questionId, userId, 'ADMIN');
-    
+
     // 处理文件名编码问题
     const decodedName = Buffer.from(originalName, 'latin1').toString('utf8');
-    
+
     // 生成唯一文件名
     const ext = path.extname(decodedName);
-    const fileName = `${uuidv4()}${ext}`;
+    const fileName = `${randomUUID()}${ext}`;
     const imagePath = path.join('uploads', 'images', 'questions', fileName);
     const fullPath = path.join(process.cwd(), imagePath);
-    
+
     // 保存文件
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
     await fs.writeFile(fullPath, imageBuffer);
-    
+
     // 更新数据库
     const currentImages = this.safeParseImages(question.images);
     currentImages.push(imagePath);
-    
+
     await this.prisma.question.update({
       where: { id: questionId },
       data: { images: JSON.stringify(currentImages) },
     });
-    
+
     return { imagePath };
   }
 
-  async removeImage(questionId: string, imageIndex: number, userId: string): Promise<{ success: boolean }> {
+  async removeImage(
+    questionId: string,
+    imageIndex: number,
+    userId: string
+  ): Promise<{ success: boolean }> {
     const question = await this.findById(questionId, userId, 'ADMIN');
-    
+
     const currentImages = this.safeParseImages(question.images);
     if (imageIndex < 0 || imageIndex >= currentImages.length) {
       throw new BadRequestException('Invalid image index');
     }
-    
+
     const imagePath = currentImages[imageIndex];
     const fullPath = path.join(process.cwd(), imagePath);
-    
+
     // 删除文件
     try {
       await fs.unlink(fullPath);
     } catch (error) {
       // 文件可能已经不存在，继续执行
     }
-    
+
     // 更新数据库
     currentImages.splice(imageIndex, 1);
     await this.prisma.question.update({
       where: { id: questionId },
       data: { images: JSON.stringify(currentImages) },
     });
-    
+
     return { success: true };
   }
 
-  async addClipboardImage(questionId: string, imageData: string, userId: string): Promise<{ imagePath: string }> {
+  async addClipboardImage(
+    questionId: string,
+    imageData: string,
+    userId: string
+  ): Promise<{ imagePath: string }> {
     const question = await this.findById(questionId, userId, 'ADMIN');
-    
+
     // 解析base64数据
     const matches = imageData.match(/^data:image\/([a-zA-Z]+);base64,(.+)$/);
     if (!matches) {
       throw new BadRequestException('Invalid image data format');
     }
-    
+
     const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
     const base64Data = matches[2];
     const buffer = Buffer.from(base64Data, 'base64');
-    
+
     // 生成唯一文件名
-    const fileName = `${uuidv4()}.${ext}`;
+    const fileName = `${randomUUID()}.${ext}`;
     const imagePath = path.join('uploads', 'images', 'questions', fileName);
     const fullPath = path.join(process.cwd(), imagePath);
-    
+
     // 保存文件
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
     await fs.writeFile(fullPath, buffer);
-    
+
     // 更新数据库
     const currentImages = this.safeParseImages(question.images);
     currentImages.push(imagePath);
-    
+
     await this.prisma.question.update({
       where: { id: questionId },
       data: { images: JSON.stringify(currentImages) },
     });
-    
+
     return { imagePath };
   }
 

@@ -12,8 +12,7 @@
 - `web/` — Vite + React + Tailwind frontend (UI style: `demo.html`)
 - `packages/shared-types/` — Shared TypeScript types across apps
 - `packages/config/` — Shared Prettier/Tailwind preset
-
-API code: `apps/api/src/` (features in `src/modules/`, shared in `src/common/`).
+  API code: `apps/api/src/` (features in `src/modules/`, shared in `src/common/`).
 
 ## Environment
 
@@ -37,11 +36,11 @@ API code: `apps/api/src/` (features in `src/modules/`, shared in `src/common/`).
 
 ### Package-specific
 
-| Package      | Commands                                                                                        |
-| ------------ | ----------------------------------------------------------------------------------------------- |
-| API          | `pnpm dev:api`, `pnpm build:api`, `pnpm --filter ./apps/api run lint\|test\|test:e2e\|prisma:*` |
-| Web          | `pnpm dev:web`, `pnpm build:web`, `pnpm --filter ./web run lint\|lint:fix\|format`              |
-| Shared types | `pnpm --filter @examforge/shared-types run build\|watch\|clean`                                 |
+| Package      | Commands                                                             |
+| ------------ | -------------------------------------------------------------------- | -------- | -------- | ---------- |
+| API          | `pnpm dev:api`, `pnpm build:api`, `pnpm --filter ./apps/api run lint | test     | test:e2e | prisma:\*` |
+| Web          | `pnpm dev:web`, `pnpm build:web`, `pnpm --filter ./web run lint      | lint:fix | format`  |
+| Shared types | `pnpm --filter @examforge/shared-types run build                     | watch    | clean`   |
 
 ### Single test (API - Jest)
 
@@ -70,8 +69,8 @@ pnpm --filter ./apps/api run prisma:deploy     # Production migrations
 
 ## Cursor / Copilot Rules
 
-- No `.cursorrules`, `.cursor/rules/`, or `.github/copilot-instructions.md` exist.
-- If added later, those rules override this file.
+- No `.cursorrules`, `.cursor/rules/`, or `.github/copilot-instructions.md` exist
+- If added later, those rules override this file
 
 ## Code Style
 
@@ -101,8 +100,9 @@ Run `pnpm format` to format code; avoid manual formatting.
 
 ### Imports
 
-Order: framework → third-party → internal alias → relative. API: keep `@nestjs/*` imports at the top.
-Use alias imports for cross-module code: `@/common/...`, `@/modules/...`.
+- Order: framework → third-party → internal alias → relative
+- API: keep `@nestjs/*` imports at the top
+- Use alias imports for cross-module code: `@/common/...`, `@/modules/...`
 
 ### Naming Conventions
 
@@ -156,7 +156,7 @@ Use alias imports for cross-module code: `@/common/...`, `@/modules/...`.
 
 ## Scope
 
-- More-specific `AGENTS.md` files (if present in subdirectories) override this file.
+- More-specific `AGENTS.md` files (if present in subdirectories) override this file
 
 ## Notes
 

@@ -10,7 +10,7 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaService
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -88,11 +88,9 @@ export class AuthService {
     const isFirstUser = userCount === 0;
     const role = isFirstUser ? 'ADMIN' : 'TEACHER';
 
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-
     const user = await this.userService.create({
       username: registerDto.username,
-      password: hashedPassword,
+      password: registerDto.password,
       name: registerDto.name,
       role,
       email: registerDto.email || null,
@@ -145,7 +143,7 @@ export class AuthService {
     // 如果是学生用户，查找学生表
     if (payload.isStudent) {
       const student = await this.prisma.student.findUnique({
-        where: { id: payload.sub }
+        where: { id: payload.sub },
       });
       if (!student) {
         throw new UnauthorizedException('学生不存在');
@@ -157,7 +155,7 @@ export class AuthService {
         role: 'STUDENT',
         isActive: true,
         isApproved: true, // 学生默认视为已审核
-        isStudent: true
+        isStudent: true,
       };
     }
 

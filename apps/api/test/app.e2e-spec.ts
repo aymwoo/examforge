@@ -7,6 +7,7 @@ describe('API E2E Tests', () => {
   let app: INestApplication;
   let questionId: string;
   let examId: string;
+  let authToken: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -22,10 +23,46 @@ describe('API E2E Tests', () => {
     await app.close();
   });
 
+  describe('Auth', () => {
+    it('should register and login after approval', async () => {
+      const username = `user_${Date.now()}`;
+      const password = 'TestPass123!';
+
+      const registerResponse = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          username,
+          password,
+          name: 'Test User',
+        })
+        .expect(201);
+
+      const userId = registerResponse.body.user?.id;
+      const isApproved = registerResponse.body.user?.isApproved;
+      expect(userId).toBeDefined();
+
+      if (isApproved === false) {
+        await request(app.getHttpServer()).patch(`/admin/users/${userId}/approve`).expect(200);
+      }
+
+      const loginResponse = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          username,
+          password,
+        })
+        .expect(201);
+
+      expect(loginResponse.body).toHaveProperty('access_token');
+      authToken = loginResponse.body.access_token;
+    });
+  });
+
   describe('Questions', () => {
     it('should create a question', () => {
       return request(app.getHttpServer())
         .post('/questions')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           content: 'What is 2 + 2?',
           type: 'SINGLE_CHOICE',
@@ -49,6 +86,7 @@ describe('API E2E Tests', () => {
     it('should get all questions', () => {
       return request(app.getHttpServer())
         .get('/questions')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('data');
@@ -59,6 +97,7 @@ describe('API E2E Tests', () => {
     it('should get a question by id', () => {
       return request(app.getHttpServer())
         .get(`/questions/${questionId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200)
         .expect((res) => {
           expect(res.body.id).toBe(questionId);
@@ -70,6 +109,7 @@ describe('API E2E Tests', () => {
     it('should create an exam', () => {
       return request(app.getHttpServer())
         .post('/exams')
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           title: 'Math Quiz',
           description: 'Basic mathematics quiz',
@@ -87,6 +127,7 @@ describe('API E2E Tests', () => {
     it('should get all exams', () => {
       return request(app.getHttpServer())
         .get('/exams')
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('data');
@@ -97,6 +138,7 @@ describe('API E2E Tests', () => {
     it('should add question to exam', () => {
       return request(app.getHttpServer())
         .post(`/exams/${examId}/questions`)
+        .set('Authorization', `Bearer ${authToken}`)
         .send({
           questionId,
           order: 1,
@@ -108,10 +150,11 @@ describe('API E2E Tests', () => {
     it('should get exam with questions', () => {
       return request(app.getHttpServer())
         .get(`/exams/${examId}`)
+        .set('Authorization', `Bearer ${authToken}`)
         .expect(200)
         .expect((res) => {
           expect(res.body.id).toBe(examId);
-          expect(Array.isArray(res.body.questions)).toBe(true);
+          expect(Array.isArray(res.body.examQuestions)).toBe(true);
         });
     });
   });
