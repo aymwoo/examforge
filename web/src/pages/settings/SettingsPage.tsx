@@ -36,6 +36,7 @@ export default function SettingsPage() {
   const currentUser = getCurrentUser();
   const isTeacher = currentUser?.role === "TEACHER";
   const isAdmin = currentUser?.role === "ADMIN";
+  const userRole = currentUser?.role || 'TEACHER';
 
   // Tab state
   const [activeTab, setActiveTab] = useState<TabType>("ai-provider");
@@ -55,6 +56,22 @@ export default function SettingsPage() {
     analysisPromptTemplate: "",
     studentAiAnalysisPromptTemplate: "",
   });
+
+  // AI Provider form state
+  const [showModal, setShowModal] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<AIProviderItem | null>(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    apiKey: '',
+    baseUrl: '',
+    model: '',
+    isGlobal: false,
+    isActive: true,
+  });
+
+  // AI Provider test connection state
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
 
   const [studentSearch] = useState("");
   const [studentPage] = useState(1);
@@ -534,6 +551,128 @@ export default function SettingsPage() {
     }
   };
 
+  // AI Provider handlers
+  const canEditProvider = (provider: AIProviderItem): boolean => {
+    if (currentUser?.role === 'ADMIN') return true;
+    if (provider.isGlobal) return false;
+    return provider.createdBy === currentUser?.id;
+  };
+
+  const canDeleteProvider = (provider: AIProviderItem): boolean => {
+    if (currentUser?.role === 'ADMIN') return true;
+    if (provider.isGlobal) return false;
+    return provider.createdBy === currentUser?.id;
+  };
+
+  const handleEdit = (provider: AIProviderItem) => {
+    if (!canEditProvider(provider)) {
+      alert('您没有权限编辑此Provider');
+      return;
+    }
+    setEditingProvider(provider);
+    setFormData({
+      name: provider.name,
+      apiKey: provider.apiKey,
+      baseUrl: provider.baseUrl || '',
+      model: provider.model,
+      isGlobal: provider.isGlobal,
+      isActive: provider.isActive,
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (provider: AIProviderItem) => {
+    if (!canDeleteProvider(provider)) {
+      alert('您没有权限删除此Provider');
+      return;
+    }
+    if (!confirm(`确定要删除AI Provider "${provider.name}" 吗？`)) return;
+    try {
+      await api.delete(`/api/ai-providers/${provider.id}`);
+      loadProviders();
+    } catch (error: any) {
+      alert('删除失败: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleUserProviderSelect = async (providerId: string) => {
+    try {
+      // 更新用户设置
+      await updateUserSetting('AI_PROVIDER', providerId);
+      // 更新本地状态
+      setSettings(prev => ({ ...prev, aiProvider: providerId }));
+      showSuccess('AI Provider 设置成功');
+    } catch (error: any) {
+      showError('设置失败: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleSetDefault = async (provider: AIProviderItem) => {
+    if (currentUser?.role !== 'ADMIN') {
+      showError('只有管理员可以设置系统默认Provider');
+      return;
+    }
+    if (!confirm(`确定要将 "${provider.name}" 设为系统默认AI Provider吗？`)) return;
+    try {
+      const result = await setDefaultProvider(provider.id);
+      showSuccess(result.message);
+      loadProviders();
+    } catch (error: any) {
+      showError('设置失败: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingProvider) {
+        if (!canEditProvider(editingProvider)) {
+          alert('您没有权限编辑此Provider');
+          return;
+        }
+        await api.patch(`/api/ai-providers/${editingProvider.id}`, formData);
+      } else {
+        await api.post('/api/ai-providers', formData);
+      }
+      setShowModal(false);
+      setEditingProvider(null);
+      resetForm();
+      loadProviders();
+    } catch (error: any) {
+      alert('操作失败: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ name: '', apiKey: '', baseUrl: '', model: '', isGlobal: false, isActive: true });
+    setTestResult(null);
+  };
+
+  const handleTestAIConnection = async () => {
+    if (!formData.apiKey.trim()) {
+      setTestResult("请先输入 API Key");
+      return;
+    }
+    setTestLoading(true);
+    setTestResult(null);
+    try {
+      const response = await api.post<{ response: string }>("/api/ai/test", {
+        message: "Hello, please respond with just 'Connection successful!'",
+        // 传递当前表单数据用于测试
+        testApiKey: formData.apiKey,
+        testBaseUrl: formData.baseUrl,
+        testModel: formData.model
+      });
+
+      setTestResult(`✅ AI 连接测试成功！AI响应: ${response.data.response}`);
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || err.message || "连接测试失败";
+      setTestResult(`❌ ${errorMessage}`);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
   const getRoleName = (role: string) => {
     const roleMap: Record<string, string> = { 'ADMIN': '系统管理员', 'TEACHER': '教师', 'STUDENT': '学生' };
     return roleMap[role] || role;
@@ -620,10 +759,6 @@ export default function SettingsPage() {
               setEditingProvider={setEditingProvider}
               formData={formData}
               setFormData={setFormData}
-              testResult={testResult}
-              setTestResult={setTestResult}
-              testLoading={testLoading}
-              setTestLoading={setTestLoading}
               defaultProviderId={defaultProviderId}
               loadProviders={loadProviders}
               handleEdit={handleEdit}
@@ -801,10 +936,6 @@ function AIProviderTab({
   setEditingProvider,
   formData,
   setFormData,
-  testResult,
-  setTestResult,
-  testLoading,
-  setTestLoading,
   defaultProviderId,
   loadProviders,
   handleEdit,
@@ -820,8 +951,8 @@ function AIProviderTab({
   showError,
   showSuccess
 }: any) {
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [testLoading, setTestLoading] = useState(false);
+  const [localTestResult, setLocalTestResult] = useState<string | null>(null);
+  const [localTestLoading, setLocalTestLoading] = useState(false);
   const [localFormData, setLocalFormData] = useState({
     name: '',
     apiKey: '',
@@ -830,10 +961,8 @@ function AIProviderTab({
     isGlobal: false,
     isActive: true,
   });
-  const [defaultProviderId, setDefaultProviderIdState] = useState<string | null>(null);
+  const [localDefaultProviderId, setLocalDefaultProviderId] = useState<string | null>(null);
 
-  const currentUser = getCurrentUser();
-  const userRole = currentUser?.role || 'TEACHER';
 
   // 同步传入的 formData 到本地状态
   useEffect(() => {
@@ -842,148 +971,19 @@ function AIProviderTab({
 
   // 同步传入的 defaultProviderId 到本地状态
   useEffect(() => {
-    setDefaultProviderIdState(defaultProviderId);
+    setLocalDefaultProviderId(defaultProviderId);
   }, [defaultProviderId]);
 
-  const loadProviders = async () => {
-    try {
-      const [providersResponse, defaultId] = await Promise.all([
-        api.get('/api/ai-providers'),
-        getDefaultProviderId().catch(() => null),
-      ]);
-      setProviders(providersResponse.data);
-      setDefaultProviderIdState(defaultId);
-    } catch (error) {
-      console.error('加载AI Provider失败:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 注意：loadProviders 已经通过 props 传入，不需要重新定义
+  // 使用传入的 loadProviders 函数
 
   useEffect(() => {
     loadProviders();
   }, []);
 
-  const canEditProvider = (provider: AIProviderItem): boolean => {
-    if (userRole === 'ADMIN') return true;
-    if (provider.isGlobal) return false;
-    return provider.createdBy === currentUser?.id;
-  };
 
-  const canDeleteProvider = (provider: AIProviderItem): boolean => {
-    if (userRole === 'ADMIN') return true;
-    if (provider.isGlobal) return false;
-    return provider.createdBy === currentUser?.id;
-  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingProvider) {
-        if (!canEditProvider(editingProvider)) {
-          alert('您没有权限编辑此Provider');
-          return;
-        }
-        await api.patch(`/api/ai-providers/${editingProvider.id}`, localFormData);
-      } else {
-        await api.post('/api/ai-providers', localFormData);
-      }
-      setShowModal(false);
-      setEditingProvider(null);
-      resetForm();
-      loadProviders();
-    } catch (error: any) {
-      alert('操作失败: ' + (error.response?.data?.message || error.message));
-    }
-  };
 
-  const resetForm = () => {
-    setLocalFormData({ name: '', apiKey: '', baseUrl: '', model: '', isGlobal: false, isActive: true });
-    setTestResult(null);
-  };
-
-  const handleTestAIConnection = async () => {
-    if (!localFormData.apiKey.trim()) {
-      setTestResult("请先输入 API Key");
-      return;
-    }
-    setTestLoading(true);
-    setTestResult(null);
-    try {
-      const response = await api.post<{ response: string }>("/api/ai/test", {
-        message: "Hello, please respond with just 'Connection successful!'",
-        // 传递当前表单数据用于测试
-        testApiKey: localFormData.apiKey,
-        testBaseUrl: localFormData.baseUrl,
-        testModel: localFormData.model
-      });
-
-      setTestResult(`✅ AI 连接测试成功！AI响应: ${response.data.response}`);
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || "连接测试失败";
-      setTestResult(`❌ ${errorMessage}`);
-    } finally {
-      setTestLoading(false);
-    }
-  };
-
-  const handleEdit = (provider: AIProviderItem) => {
-    if (!canEditProvider(provider)) {
-      alert('您没有权限编辑此Provider');
-      return;
-    }
-    setEditingProvider(provider);
-    setLocalFormData({
-      name: provider.name,
-      apiKey: provider.apiKey,
-      baseUrl: provider.baseUrl || '',
-      model: provider.model,
-      isGlobal: provider.isGlobal,
-      isActive: provider.isActive,
-    });
-    setShowModal(true);
-  };
-
-  const handleDelete = async (provider: AIProviderItem) => {
-    if (!canDeleteProvider(provider)) {
-      alert('您没有权限删除此Provider');
-      return;
-    }
-    if (!confirm(`确定要删除AI Provider "${provider.name}" 吗？`)) return;
-    try {
-      await api.delete(`/api/ai-providers/${provider.id}`);
-      loadProviders();
-    } catch (error: any) {
-      alert('删除失败: ' + (error.response?.data?.message || error.message));
-    }
-  };
-
-  const handleUserProviderSelect = async (providerId: string) => {
-    try {
-      // 更新用户设置
-      await updateUserSetting('AI_PROVIDER', providerId);
-      // 更新本地状态
-      setSettings(prev => ({ ...prev, aiProvider: providerId }));
-      showSuccess('AI Provider 设置成功');
-    } catch (error: any) {
-      showError('设置失败: ' + (error.response?.data?.message || error.message));
-    }
-  };
-
-  const handleSetDefault = async (provider: AIProviderItem) => {
-    if (userRole !== 'ADMIN') {
-      showError('只有管理员可以设置系统默认Provider');
-      return;
-    }
-    if (!confirm(`确定要将 "${provider.name}" 设为系统默认AI Provider吗？`)) return;
-    try {
-      const result = await setDefaultProvider(provider.id);
-      showSuccess(result.message);
-      loadProviders();
-    } catch (error: any) {
-      showError('设置失败: ' + (error.response?.data?.message || error.message));
-    }
-  };
 
   if (loading) {
     return (
@@ -1026,7 +1026,7 @@ function AIProviderTab({
                   { border: 'border-emerald-200', from: 'from-emerald-50', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', hover: 'hover:border-emerald-300' },
                 ];
                 const theme = colorThemes[index % colorThemes.length];
-                const isDefault = defaultProviderId === provider.id;
+                const isDefault = localDefaultProviderId === provider.id;
 
                 return (
                   <div 
@@ -1049,7 +1049,7 @@ function AIProviderTab({
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-lg font-bold text-gray-900">{provider.name}</h3>
-                          {defaultProviderId === provider.id && (
+                          {localDefaultProviderId === provider.id && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                               <Star className="h-3 w-3" />
                               系统默认
@@ -1109,14 +1109,14 @@ function AIProviderTab({
                         onClick={() => handleSetDefault(provider)}
                         variant="outline"
                         className={`flex items-center justify-center gap-2 ${
-                          defaultProviderId === provider.id
+                          localDefaultProviderId === provider.id
                             ? 'bg-blue-50 text-blue-600 border-blue-200'
                             : 'text-blue-600 hover:text-blue-700'
                         }`}
-                        disabled={defaultProviderId === provider.id || !provider.isActive}
+                        disabled={localDefaultProviderId === provider.id || !provider.isActive}
                       >
                         <Star className="h-4 w-4" />
-                        {defaultProviderId === provider.id ? '默认' : '设为默认'}
+                        {localDefaultProviderId === provider.id ? '默认' : '设为默认'}
                       </Button>
                     )}
                     {canDeleteProvider(provider) && (
@@ -1124,7 +1124,7 @@ function AIProviderTab({
                         onClick={() => handleDelete(provider)}
                         variant="outline"
                         className="flex items-center justify-center gap-2 text-red-600 hover:text-red-700"
-                        disabled={defaultProviderId === provider.id}
+                        disabled={localDefaultProviderId === provider.id}
                       >
                         <Trash2 className="h-4 w-4" />
                         删除
@@ -1173,21 +1173,21 @@ function AIProviderTab({
               <Button
                 type="button"
                 onClick={handleTestAIConnection}
-                disabled={testLoading}
+                disabled={localTestLoading}
                 variant="outline"
                 className="flex items-center gap-2"
               >
                 <Zap className="h-4 w-4" />
-                {testLoading ? '测试中...' : '测试连接'}
+                {localTestLoading ? '测试中...' : '测试连接'}
               </Button>
             </div>
-            {testResult && (
+            {localTestResult && (
               <div className={`mt-2 p-2 rounded text-sm ${
-                testResult.startsWith('✅') 
-                  ? 'bg-green-50 text-green-700 border border-green-200' 
+                localTestResult.startsWith('✅')
+                  ? 'bg-green-50 text-green-700 border border-green-200'
                   : 'bg-red-50 text-red-700 border border-red-200'
               }`}>
-                {testResult}
+                {localTestResult}
               </div>
             )}
           </div>
@@ -1290,7 +1290,7 @@ function PromptsTab({
             <option value="">使用系统默认设置</option>
             {providers.map((provider) => (
               <option key={provider.id} value={provider.id}>
-                {provider.name} {provider.isGlobal ? '(全局)' : '(个人)'} {defaultProviderId === provider.id ? '(系统默认)' : ''}
+                {provider.name} {provider.isGlobal ? '(全局)' : '(个人)'} {localDefaultProviderId === provider.id ? '(系统默认)' : ''}
               </option>
             ))}
           </select>
@@ -1471,7 +1471,12 @@ function UsersTab({ users, loading, onAddUser, onEditUser, onDeleteUser, getRole
           <h2 className="text-lg font-semibold text-ink-900">用户管理</h2>
         </div>
         <div className="flex items-center gap-2">
-          <ApprovalNotificationButton onModalClose={() => activeTab === 'users' && loadUsers()} />
+          <ApprovalNotificationButton onModalClose={() => {
+            // 检查当前是否在用户标签页，如果是则刷新用户列表
+            if (activeTab === 'users') {
+              loadUsers();
+            }
+          }} />
           <Button onClick={onAddUser} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />添加用户
           </Button>

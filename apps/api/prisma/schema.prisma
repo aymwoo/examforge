@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,99 +8,89 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  email     String?  @unique
-  password  String
-  name      String
-  role      String   @default("STUDENT") // ADMIN, TEACHER, STUDENT
-  isActive  Boolean  @default(false)  // 新注册用户默认非活跃（需要审核）
-  isApproved Boolean @default(false)  // 用户是否已通过审核
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // 关联关系
-  createdQuestions Question[] @relation("CreatedBy")
-  createdExams     Exam[]     @relation("CreatedBy")
-  createdClasses   Class[]    @relation("CreatedClasses")
-  aiProviders      AIProvider[] @relation("CreatedAIProviders")
-  userSettings     UserSetting[]
+  id               String         @id @default(cuid())
+  username         String         @unique
+  email            String?        @unique
+  password         String
+  name             String
+  role             String         @default("STUDENT")
+  isActive         Boolean        @default(false)
+  isApproved       Boolean        @default(false)
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  aiProviders      AIProvider[]   @relation("CreatedAIProviders")
+  createdClasses   Class[]        @relation("CreatedClasses")
+  createdExams     Exam[]         @relation("CreatedBy")
   importRecords    ImportRecord[] @relation("ImportRecords")
+  createdQuestions Question[]     @relation("CreatedBy")
+  userSettings     UserSetting[]
 
   @@map("users")
 }
 
 model AIProvider {
-  id          String   @id @default(cuid())
-  name        String
-  apiKey      String
-  baseUrl     String?
-  model       String
-  isGlobal    Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdBy   String?  @map("created_by")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // 关联关系
-  creator User? @relation("CreatedAIProviders", fields: [createdBy], references: [id])
+  id        String   @id @default(cuid())
+  name      String
+  apiKey    String
+  baseUrl   String?
+  model     String
+  isGlobal  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  creator   User?    @relation("CreatedAIProviders", fields: [createdBy], references: [id])
 
   @@map("ai_providers")
 }
 
 model Question {
-  id             String   @id @default(cuid())
+  id             String         @id @default(cuid())
   content        String
   type           String
   options        String?
   answer         String?
   explanation    String?
-  illustration   String?  // 图例字段，存储图片URL或base64
-  images         String?  @default("[]") // JSON array of image paths
+  illustration   String?
   tags           String
-  difficulty     Int      @default(1)
-  status         String   @default("DRAFT")
+  difficulty     Int            @default(1)
+  status         String         @default("DRAFT")
   knowledgePoint String?
-  isPublic       Boolean  @default(true) @map("is_public") // 是否公开
-  importOrder    Int?     @map("import_order") // 导入时的顺序
-  createdBy      String?  @map("created_by")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  // 关联关系
-  creator       User?          @relation("CreatedBy", fields: [createdBy], references: [id])
-  examQuestions ExamQuestion[]
+  isPublic       Boolean        @default(true) @map("is_public")
+  createdBy      String?        @map("created_by")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  images         String?        @default("[]")
+  importOrder    Int?           @map("import_order")
+  examQuestions  ExamQuestion[]
+  creator        User?          @relation("CreatedBy", fields: [createdBy], references: [id])
 
   @@map("questions")
 }
 
 model Exam {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  duration    Int
-  totalScore  Int      @default(100)
-  status      String   @default("DRAFT")
-  accountModes String  @default("[\"TEMPORARY_IMPORT\"]") @map("account_modes") // JSON array of enabled modes
-  startTime   DateTime?
-  endTime     DateTime?
-  createdBy   String?   @map("created_by")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  // AI分析报告（考试整体）
-  aiAnalysisReport     String?   @map("ai_analysis_report")
-  aiAnalysisStatus     String?   @map("ai_analysis_status")
-  aiAnalysisPromptUsed String?   @map("ai_analysis_prompt_used")
-  aiAnalysisProviderId String?   @map("ai_analysis_provider_id")
-  aiAnalysisModel      String?   @map("ai_analysis_model")
-  aiAnalysisUpdatedAt  DateTime? @map("ai_analysis_updated_at")
-
-  // 关联关系
-  creator       User?          @relation("CreatedBy", fields: [createdBy], references: [id])
-  examQuestions ExamQuestion[]
-  submissions   Submission[]
-  examStudents  ExamStudent[]
+  id                   String         @id @default(cuid())
+  title                String
+  description          String?
+  duration             Int
+  totalScore           Int            @default(100)
+  status               String         @default("DRAFT")
+  accountModes         String         @default("[\"TEMPORARY_IMPORT\"]") @map("account_modes")
+  startTime            DateTime?
+  endTime              DateTime?
+  createdBy            String?        @map("created_by")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  aiAnalysisModel      String?        @map("ai_analysis_model")
+  aiAnalysisPromptUsed String?        @map("ai_analysis_prompt_used")
+  aiAnalysisProviderId String?        @map("ai_analysis_provider_id")
+  aiAnalysisReport     String?        @map("ai_analysis_report")
+  aiAnalysisStatus     String?        @map("ai_analysis_status")
+  aiAnalysisUpdatedAt  DateTime?      @map("ai_analysis_updated_at")
+  examQuestions        ExamQuestion[]
+  examStudents         ExamStudent[]
+  creator              User?          @relation("CreatedBy", fields: [createdBy], references: [id])
+  submissions          Submission[]
 
   @@map("exams")
 }
@@ -117,9 +101,8 @@ model ExamQuestion {
   questionId String
   order      Int
   score      Int      @default(1)
-
-  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  exam       Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
 
   @@unique([examId, questionId])
   @@index([examId])
@@ -128,79 +111,75 @@ model ExamQuestion {
 }
 
 model Submission {
-  id                 String    @id @default(cuid())
-  examId             String
-  examStudentId      String?   @map("exam_student_id")
-  answers            String
-  score              Float?
-  isAutoGraded       Boolean   @default(false)
-  isReviewed         Boolean   @default(false) // 教师是否已复核
-  reviewedBy         String?   @map("reviewed_by") // 复核教师ID
-  reviewedAt         DateTime? @map("reviewed_at") // 复核时间
-  gradingDetails     String?   @map("grading_details") // JSON格式存储详细评分信息
-  aiAnalysisReport   String?   @map("ai_analysis_report")
-  aiAnalysisUpdatedAt DateTime? @map("ai_analysis_updated_at")
-  aiAnalysisStatus   String?   @map("ai_analysis_status")
-  aiAnalysisPromptUsed String? @map("ai_analysis_prompt_used")
-  aiAnalysisProvider String?   @map("ai_analysis_provider")
-  aiAnalysisModel    String?   @map("ai_analysis_model")
-  submittedAt        DateTime  @default(now()) @map("submitted_at")
-
-  exam        Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
-  examStudent ExamStudent? @relation(fields: [examStudentId], references: [id], onDelete: Cascade)
+  id                   String       @id @default(cuid())
+  examId               String
+  examStudentId        String?      @map("exam_student_id")
+  answers              String
+  score                Float?
+  isAutoGraded         Boolean      @default(false)
+  isReviewed           Boolean      @default(false)
+  reviewedBy           String?      @map("reviewed_by")
+  reviewedAt           DateTime?    @map("reviewed_at")
+  gradingDetails       String?      @map("grading_details")
+  submittedAt          DateTime     @default(now()) @map("submitted_at")
+  aiAnalysisModel      String?      @map("ai_analysis_model")
+  aiAnalysisPromptUsed String?      @map("ai_analysis_prompt_used")
+  aiAnalysisProvider   String?      @map("ai_analysis_provider")
+  aiAnalysisReport     String?      @map("ai_analysis_report")
+  aiAnalysisStatus     String?      @map("ai_analysis_status")
+  aiAnalysisUpdatedAt  DateTime?    @map("ai_analysis_updated_at")
+  examStudent          ExamStudent? @relation(fields: [examStudentId], references: [id], onDelete: Cascade)
+  exam                 Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
 
   @@index([examId])
   @@map("submissions")
 }
 
 model ExamStudent {
-  id          String   @id @default(cuid())
-  examId      String   @map("exam_id")
-  username    String
-  password    String
-  displayName String?  @map("display_name")
-  accountType String   @default("TEMPORARY") @map("account_type") // PERMANENT | TEMPORARY
-  studentId   String?  @map("student_id") // 关联固定学生的学号
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  exam        Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
-  student     Student?     @relation(fields: [studentId], references: [studentId])
-  submissions Submission[]
+  id                String                    @id @default(cuid())
+  examId            String                    @map("exam_id")
+  username          String
+  password          String
+  displayName       String?                   @map("display_name")
+  accountType       String                    @default("TEMPORARY") @map("account_type")
+  studentId         String?                   @map("student_id")
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+  student           Student?                  @relation(fields: [studentId], references: [studentId])
+  exam              Exam                      @relation(fields: [examId], references: [id], onDelete: Cascade)
   aiAnalysisReports StudentAiAnalysisReport[]
+  submissions       Submission[]
 
   @@unique([examId, username])
   @@map("exam_students")
 }
 
 model Student {
-  id               String   @id @default(cuid())
-  studentId        String   @unique @map("student_id") // 学号
+  id               String        @id @default(cuid())
+  studentId        String        @unique @map("student_id")
   name             String
-  gender           String?  // 性别
-  classId          String?  @map("class_id")
+  classId          String?       @map("class_id")
   password         String
-  aiAnalysisPrompt String?  @map("ai_analysis_prompt")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
-
-  class        Class?       @relation(fields: [classId], references: [id])
-  examStudents ExamStudent[]
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  gender           String?
+  aiAnalysisPrompt String?       @map("ai_analysis_prompt")
+  examStudents     ExamStudent[]
+  class            Class?        @relation(fields: [classId], references: [id])
 
   @@map("students")
 }
 
 model Class {
-  id          String   @id @default(cuid())
-  name        String   // 班级名称
-  code        String   @unique // 班级代码
-  description String?  // 班级描述
-  createdBy   String?  @map("created_by")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  creator   User?     @relation("CreatedClasses", fields: [createdBy], references: [id])
-  students  Student[]
+  id          String    @id @default(cuid())
+  name        String
+  code        String    @unique
+  description String?
+  createdBy   String?   @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  creator     User?     @relation("CreatedClasses", fields: [createdBy], references: [id])
+  students    Student[]
 
   @@map("classes")
 }
@@ -222,34 +201,28 @@ model UserSetting {
   value     String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-
-  // 关联关系
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, key])
   @@map("user_settings")
 }
 
 model StudentAiAnalysisReport {
-  id           String   @id @default(cuid())
-  submissionId String   @unique @map("submission_id")
-  examId       String   @map("exam_id")
-  examStudentId String? @map("exam_student_id")
-  studentId    String?  @map("student_id")
-
-  status       String   @default("PENDING")
-  progress     Int      @default(0)
-  providerId   String?  @map("provider_id")
-  model        String?
-  promptUsed   String?  @map("prompt_used")
-  report       String?
-  errorMessage String?  @map("error_message")
-
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  // 关联关系
-  examStudent ExamStudent? @relation(fields: [examStudentId], references: [id])
+  id            String       @id @default(cuid())
+  submissionId  String       @unique @map("submission_id")
+  examId        String       @map("exam_id")
+  examStudentId String?      @map("exam_student_id")
+  studentId     String?      @map("student_id")
+  status        String       @default("PENDING")
+  progress      Int          @default(0)
+  providerId    String?      @map("provider_id")
+  model         String?
+  promptUsed    String?      @map("prompt_used")
+  report        String?
+  errorMessage  String?      @map("error_message")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  examStudent   ExamStudent? @relation(fields: [examStudentId], references: [id])
 
   @@index([examId, examStudentId])
   @@index([studentId])
@@ -257,21 +230,19 @@ model StudentAiAnalysisReport {
 }
 
 model ImportRecord {
-  id          String    @id @default(cuid())
-  jobId       String    @unique @map("job_id")
-  fileName    String    @map("file_name")
-  fileSize    Int       @map("file_size")
-  filePath    String?   @map("file_path")
-  userId      String?   @map("user_id")
-  mode        String    @default("vision")
-  status      String    @default("processing")
-  questionIds String    @default("[]") @map("question_ids") // JSON array
-  errorMessage String?  @map("error_message")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  completedAt DateTime? @map("completed_at")
-
-  // 关联关系
-  user User? @relation("ImportRecords", fields: [userId], references: [id])
+  id           String    @id @default(cuid())
+  jobId        String    @unique @map("job_id")
+  fileName     String    @map("file_name")
+  fileSize     Int       @map("file_size")
+  filePath     String?   @map("file_path")
+  userId       String?   @map("user_id")
+  mode         String    @default("vision")
+  status       String    @default("processing")
+  questionIds  String    @default("[]") @map("question_ids")
+  errorMessage String?   @map("error_message")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  completedAt  DateTime? @map("completed_at")
+  user         User?     @relation("ImportRecords", fields: [userId], references: [id])
 
   @@map("import_records")
 }
