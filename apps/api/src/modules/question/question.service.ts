@@ -48,7 +48,8 @@ export class QuestionService {
 
   async findAll(paginationDto: PaginationDto, userId?: string, userRole?: string) {
     const { page = 1, limit = 20, type, difficulty, tags, ids } = paginationDto;
-    const skip = (page - 1) * limit;
+    const isIdFilter = Boolean(ids);
+    const skip = isIdFilter ? undefined : (page - 1) * limit;
 
     const where: any = {};
 
@@ -79,7 +80,7 @@ export class QuestionService {
       this.prisma.question.findMany({
         where,
         skip,
-        take: limit,
+        take: isIdFilter ? undefined : limit,
         orderBy: [
           { createdAt: 'desc' }, // 按创建时间倒序排列（最新的在前）
           { importOrder: 'asc' }, // 在创建时间相同的情况下，按导入顺序排列
@@ -101,9 +102,9 @@ export class QuestionService {
       data: data.map((q) => this.transformQuestion(q)),
       meta: {
         total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
+        page: isIdFilter ? 1 : page,
+        limit: isIdFilter ? total : limit,
+        totalPages: isIdFilter ? 1 : Math.ceil(total / limit),
       },
     };
   }

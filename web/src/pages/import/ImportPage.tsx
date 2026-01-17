@@ -238,6 +238,10 @@ export default function ImportPage() {
             : "PDF 转图片中"
           : undefined;
 
+  const isPdfImporting =
+    isUploading || (!!pdfJobId && pdfStage !== "done" && !pdfError);
+  const isExcelImporting = isUploading && activeTab === "excel";
+
   useEffect(() => {
     // Load current AI provider + available providers for dropdown.
     void (async () => {
@@ -690,77 +694,88 @@ export default function ImportPage() {
 
         {activeTab === "excel" && (
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-semibold text-ink-900 mb-4">
-                上传文件
-              </h2>
-
-              <div
-                className={`mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-white p-12 transition-colors ${
-                  dragActive
-                    ? "border-accent-600 bg-accent-600/5"
-                    : "hover:border-accent-600"
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-              >
-                <input
-                  type="file"
-                  id="file-upload"
-                  className="hidden"
-                  accept=".xlsx,.xls,.csv"
-                  onChange={handleFileSelect}
-                />
-                <FileSpreadsheet className="h-16 w-16 mb-4 text-ink-900" />
-                <p className="text-base font-medium text-ink-900 mb-2">
-                  拖拽文件到此处
-                </p>
-                <p className="text-sm text-ink-900 mb-4">
-                  支持 Excel (.xlsx, .xls) 和 CSV 文件，最大 10MB
-                </p>
-                <label
-                  htmlFor="file-upload"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 cursor-pointer"
-                >
-                  <Upload className="h-4 w-4" />
-                  选择文件
-                </label>
-              </div>
-
-              {selectedFile && (
-                <div className="mt-4 rounded-xl border border-border bg-slate-50 p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-ink-900">
-                        {selectedFile.name}
-                      </p>
-                      <p className="text-xs text-ink-700">
-                        {(selectedFile.size / 1024).toFixed(2)} KB
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedFile(null);
-                        setUploadResult(null);
-                      }}
-                      className="text-xs font-semibold text-link-800 hover:text-link-700"
-                    >
-                      清除
-                    </button>
-                  </div>
+            {isExcelImporting ? (
+              <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+                <h2 className="text-sm font-semibold text-ink-900 mb-4">
+                  上传文件
+                </h2>
+                <div className="rounded-2xl border border-border bg-slate-50 p-6 text-sm text-ink-700">
+                  正在导入中，请稍候完成后再上传下一份文件。
                 </div>
-              )}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
+                <h2 className="text-sm font-semibold text-ink-900 mb-4">
+                  上传文件
+                </h2>
 
-              <button
-                onClick={handleUpload}
-                disabled={!selectedFile || isUploading}
-                className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isUploading ? "上传中..." : "开始导入"}
-              </button>
-            </div>
+                <div
+                  className={`mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-white p-12 transition-colors ${
+                    dragActive
+                      ? "border-accent-600 bg-accent-600/5"
+                      : "hover:border-accent-600"
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    type="file"
+                    id="file-upload"
+                    className="hidden"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleFileSelect}
+                  />
+                  <FileSpreadsheet className="h-16 w-16 mb-4 text-ink-900" />
+                  <p className="text-base font-medium text-ink-900 mb-2">
+                    拖拽文件到此处
+                  </p>
+                  <p className="text-sm text-ink-900 mb-4">
+                    支持 Excel (.xlsx, .xls) 和 CSV 文件，最大 10MB
+                  </p>
+                  <label
+                    htmlFor="file-upload"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 cursor-pointer"
+                  >
+                    <Upload className="h-4 w-4" />
+                    选择文件
+                  </label>
+                </div>
+
+                {selectedFile && (
+                  <div className="mt-4 rounded-xl border border-border bg-slate-50 p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-ink-900">
+                          {selectedFile.name}
+                        </p>
+                        <p className="text-xs text-ink-700">
+                          {(selectedFile.size / 1024).toFixed(2)} KB
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setUploadResult(null);
+                        }}
+                        className="text-xs font-semibold text-link-800 hover:text-link-700"
+                      >
+                        清除
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleUpload}
+                  disabled={!selectedFile || isUploading}
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isUploading ? "上传中..." : "开始导入"}
+                </button>
+              </div>
+            )}
 
             <div className="rounded-2xl border border-border bg-white p-5 shadow-sm">
               <h2 className="text-sm font-semibold text-ink-900 mb-4">
@@ -1093,57 +1108,37 @@ export default function ImportPage() {
                 </div>
               </div>
 
-              <div className="mt-4">
-                {!selectedPdf ? (
-                  <div
-                    className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-colors ${
-                      dragActive
-                        ? "border-accent-600 bg-accent-600/5"
-                        : "border-border hover:border-accent-600 hover:bg-accent-600/5"
-                    }`}
-                    onDragEnter={handleAiDrag}
-                    onDragLeave={handleAiDrag}
-                    onDragOver={handleAiDrag}
-                    onDrop={handleAiDrop}
-                    onClick={() =>
-                      document.getElementById("ai-file-upload")?.click()
-                    }
-                  >
-                    <input
-                      type="file"
-                      id="ai-file-upload"
-                      className="hidden"
-                      accept="application/pdf,.pdf,image/*"
-                      onChange={handlePdfSelect}
-                    />
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent-100">
-                      <svg
-                        className="h-8 w-8 text-accent-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                        />
-                      </svg>
-                    </div>
-                    <h3 className="mb-2 text-lg font-semibold text-ink-900">
-                      上传文件或拖拽到此处
-                    </h3>
-                    <p className="mb-4 text-sm text-ink-700">
-                      支持 PDF 和图片格式 (JPG, PNG, GIF, WebP)
-                    </p>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700"
-                      >
+              {isPdfImporting ? (
+                <div className="mt-4 rounded-2xl border border-border bg-slate-50 p-6 text-sm text-ink-700">
+                  AI 导入处理中，请稍候完成后再上传新的文件。
+                </div>
+              ) : (
+                <div className="mt-4">
+                  {!selectedPdf ? (
+                    <div
+                      className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-colors ${
+                        dragActive
+                          ? "border-accent-600 bg-accent-600/5"
+                          : "border-border hover:border-accent-600 hover:bg-accent-600/5"
+                      }`}
+                      onDragEnter={handleAiDrag}
+                      onDragLeave={handleAiDrag}
+                      onDragOver={handleAiDrag}
+                      onDrop={handleAiDrop}
+                      onClick={() =>
+                        document.getElementById("ai-file-upload")?.click()
+                      }
+                    >
+                      <input
+                        type="file"
+                        id="ai-file-upload"
+                        className="hidden"
+                        accept="application/pdf,.pdf,image/*"
+                        onChange={handlePdfSelect}
+                      />
+                      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-accent-100">
                         <svg
-                          className="h-4 w-4"
+                          className="h-8 w-8 text-accent-600"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1155,109 +1150,135 @@ export default function ImportPage() {
                             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                           />
                         </svg>
-                        选择文件
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleClipboardPaste();
-                        }}
-                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                          />
-                        </svg>
-                        粘贴图片 (Ctrl+V)
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-border bg-white p-4">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-100">
-                        {fileType === "image" ? (
-                          <svg
-                            className="h-6 w-6 text-accent-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                        ) : (
-                          <svg
-                            className="h-6 w-6 text-accent-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                            />
-                          </svg>
-                        )}
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-ink-900">
-                          {selectedPdf.name}
-                        </h4>
-                        <p className="text-sm text-ink-700">
-                          {(selectedPdf.size / 1024).toFixed(2)} KB •{" "}
-                          {fileType === "image" ? "图片文件" : "PDF文件"}
-                        </p>
-                        {fileType === "image" && (
-                          <p className="text-xs text-accent-600 mt-1">
-                            仅支持图片识别模式
+                      <h3 className="mb-2 text-lg font-semibold text-ink-900">
+                        上传文件或拖拽到此处
+                      </h3>
+                      <p className="mb-4 text-sm text-ink-700">
+                        支持 PDF 和图片格式 (JPG, PNG, GIF, WebP)
+                      </p>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-700"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
+                          </svg>
+                          选择文件
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleClipboardPaste();
+                          }}
+                          className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50"
+                        >
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                            />
+                          </svg>
+                          粘贴图片 (Ctrl+V)
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-border bg-white p-4">
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-100">
+                          {fileType === "image" ? (
+                            <svg
+                              className="h-6 w-6 text-accent-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className="h-6 w-6 text-accent-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-ink-900">
+                            {selectedPdf.name}
+                          </h4>
+                          <p className="text-sm text-ink-700">
+                            {(selectedPdf.size / 1024).toFixed(2)} KB •{" "}
+                            {fileType === "image" ? "图片文件" : "PDF文件"}
                           </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedPdf(null);
-                          setFileType(null);
-                          setPdfJobId(null);
-                          setPdfEvents([]);
-                          setPdfError(null);
-                        }}
-                        className="rounded-lg p-2 text-ink-700 hover:bg-slate-100 hover:text-ink-900"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                          {fileType === "image" && (
+                            <p className="text-xs text-accent-600 mt-1">
+                              仅支持图片识别模式
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedPdf(null);
+                            setFileType(null);
+                            setPdfJobId(null);
+                            setPdfEvents([]);
+                            setPdfError(null);
+                          }}
+                          className="rounded-lg p-2 text-ink-700 hover:bg-slate-100 hover:text-ink-900"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
-                      </button>
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
 
               {selectedPdf && fileType !== "image" && (
                 <div className="mt-4">

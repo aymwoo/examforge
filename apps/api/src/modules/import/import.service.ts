@@ -121,29 +121,33 @@ export class ImportService {
   }
 
   async importFromPdf(
-    jobId: string, 
-    buffer: Buffer, 
-    mode?: string, 
-    userId?: string, 
-    customPrompt?: string, 
+    jobId: string,
+    buffer: Buffer,
+    mode?: string,
+    userId?: string,
+    customPrompt?: string,
     fileName?: string,
     imageProcessingOptions?: ImageProcessingOptions
   ): Promise<void> {
     const resolvedMode = (mode || '').toLowerCase().trim();
-    const settings = userId 
+    const settings = userId
       ? await this.settingsService.getUserSettings(userId)
       : await this.settingsService.getSettings();
-    
+
     // 处理文件名编码问题
-    const decodedFileName = fileName ? Buffer.from(fileName, 'latin1').toString('utf8') : `${jobId}.pdf`;
-    
+    const decodedFileName = fileName
+      ? Buffer.from(fileName, 'latin1').toString('utf8')
+      : `${jobId}.pdf`;
+
     // 检测文件类型
     const isImageFile = /\.(jpg|jpeg|png|gif|webp)$/i.test(decodedFileName);
-    const effectiveMode = isImageFile ? 'vision' : (resolvedMode || (settings.aiProvider === 'qwen' ? 'vision' : 'text'));
-    
+    const effectiveMode = isImageFile
+      ? 'vision'
+      : resolvedMode || (settings.aiProvider === 'qwen' ? 'vision' : 'text');
+
     // 保存文件
     const filePath = await this.savePdfFile(buffer, decodedFileName);
-    
+
     // 创建导入记录
     await this.prisma.importRecord.create({
       data: {
@@ -182,7 +186,12 @@ export class ImportService {
     return this.importFromPdfText(jobId, buffer, userId, customPrompt);
   }
 
-  private async importFromImageFile(jobId: string, buffer: Buffer, userId?: string, customPrompt?: string): Promise<void> {
+  private async importFromImageFile(
+    jobId: string,
+    buffer: Buffer,
+    userId?: string,
+    customPrompt?: string
+  ): Promise<void> {
     const questionIds: string[] = [];
 
     try {
@@ -208,12 +217,12 @@ export class ImportService {
       // 处理AI返回的题目
       for (let i = 0; i < aiResponse.questions.length; i++) {
         const q = aiResponse.questions[i];
-        
+
         try {
           if (!q.content || !q.content.trim()) {
             throw new Error('题目内容不能为空');
           }
-          
+
           const createdQuestion = await this.prisma.question.create({
             data: {
               content: q.content,
@@ -265,7 +274,7 @@ export class ImportService {
       });
     } catch (error: unknown) {
       const errorMessage = (error as any)?.message || '导入失败';
-      
+
       this.progressStore.append(jobId, {
         stage: 'error',
         message: errorMessage,
@@ -279,9 +288,9 @@ export class ImportService {
   }
 
   private async importFromPdfVision(
-    jobId: string, 
-    buffer: Buffer, 
-    userId?: string, 
+    jobId: string,
+    buffer: Buffer,
+    userId?: string,
     customPrompt?: string,
     imageProcessingOptions?: ImageProcessingOptions
   ): Promise<void> {
@@ -296,7 +305,11 @@ export class ImportService {
       // 构建PDF转图片选项
       const pdfOptions = {
         resolutionDpi: 300,
-        enableProcessing: !!(imageProcessingOptions?.cropTop || imageProcessingOptions?.cropBottom || imageProcessingOptions?.stitchPages),
+        enableProcessing: !!(
+          imageProcessingOptions?.cropTop ||
+          imageProcessingOptions?.cropBottom ||
+          imageProcessingOptions?.stitchPages
+        ),
         cropOptions: {
           topPercent: imageProcessingOptions?.cropTop,
           bottomPercent: imageProcessingOptions?.cropBottom,
@@ -308,7 +321,7 @@ export class ImportService {
 
       const images = await convertPdfToPngBuffers(buffer, pdfOptions);
 
-      const processingMessage = pdfOptions.enableProcessing 
+      const processingMessage = pdfOptions.enableProcessing
         ? `PDF 转图并处理完成，共 ${images.length} 页${imageProcessingOptions?.stitchPages ? '（已拼接）' : ''}`
         : `PDF 转图完成，共 ${images.length} 页`;
 
@@ -345,7 +358,11 @@ export class ImportService {
         let lastError: Error | null = null;
         for (let attempt = 1; attempt <= 2; attempt++) {
           try {
-            const { questions } = await this.aiService.generateExamQuestionsFromImage(b64, userId, customPrompt);
+            const { questions } = await this.aiService.generateExamQuestionsFromImage(
+              b64,
+              userId,
+              customPrompt
+            );
             this.progressStore.append(jobId, {
               stage: 'ai_response_received',
               message: `AI 返回 ${questions.length} 道题（第 ${pageIndex + 1}/${images.length} 页）`,
@@ -448,7 +465,7 @@ export class ImportService {
       });
     } catch (error: unknown) {
       const errorMessage = (error as any)?.message || '导入失败';
-      
+
       this.progressStore.append(jobId, {
         stage: 'error',
         message: errorMessage,
@@ -463,7 +480,12 @@ export class ImportService {
     }
   }
 
-  private async importFromPdfFile(jobId: string, _buffer: Buffer, userId?: string, customPrompt?: string): Promise<void> {
+  private async importFromPdfFile(
+    jobId: string,
+    _buffer: Buffer,
+    userId?: string,
+    customPrompt?: string
+  ): Promise<void> {
     const error = new BadRequestException(
       '当前 AI 提供方/模型暂不支持直接发送 PDF 文件。请改用“图片识别（推荐）”或“文本解析”。'
     );
@@ -474,7 +496,12 @@ export class ImportService {
     throw error;
   }
 
-  private async importFromPdfText(jobId: string, buffer: Buffer, userId?: string, customPrompt?: string): Promise<void> {
+  private async importFromPdfText(
+    jobId: string,
+    buffer: Buffer,
+    userId?: string,
+    customPrompt?: string
+  ): Promise<void> {
     const questionIds: string[] = [];
     try {
       this.progressStore.append(jobId, {
@@ -638,7 +665,7 @@ export class ImportService {
       });
     } catch (error: unknown) {
       const errorMessage = (error as any)?.message || '导入失败';
-      
+
       this.progressStore.append(jobId, {
         stage: 'error',
         message: errorMessage,
@@ -998,25 +1025,54 @@ export class ImportService {
   private async savePdfFile(buffer: Buffer, fileName: string): Promise<string> {
     const uploadsDir = path.join(process.cwd(), 'uploads', 'pdfs');
     await fs.mkdir(uploadsDir, { recursive: true });
-    
+
     const filePath = path.join(uploadsDir, fileName);
     await fs.writeFile(filePath, buffer);
-    
+
     return filePath;
   }
 
-  private async updateImportRecord(jobId: string, updates: { status?: string; questionIds?: string[]; errorMessage?: string }) {
+  private async updateImportRecord(
+    jobId: string,
+    updates: { status?: string; questionIds?: string[]; errorMessage?: string }
+  ) {
     const data: any = {};
-    
+
     if (updates.status) data.status = updates.status;
     if (updates.questionIds) data.questionIds = JSON.stringify(updates.questionIds);
     if (updates.errorMessage) data.errorMessage = updates.errorMessage;
     if (updates.status === 'completed') data.completedAt = new Date();
-    
+
     await this.prisma.importRecord.update({
       where: { jobId },
       data,
     });
+  }
+
+  private parseQuestionIds(raw: unknown): string[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(Boolean) as string[];
+    if (typeof raw !== 'string') return [];
+
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(Boolean) as string[];
+      }
+      if (typeof parsed === 'string') {
+        return parsed ? [parsed] : [];
+      }
+      return [];
+    } catch {
+      // Handle legacy data where a single ID was stored directly.
+      return trimmed
+        .split(',')
+        .map((id) => id.trim())
+        .filter(Boolean);
+    }
   }
 
   async createExamFromImportRecord(
@@ -1027,13 +1083,13 @@ export class ImportService {
   ) {
     // 获取导入记录
     const record = await this.getImportRecord(jobId, userId);
-    
+
     if (record.status !== 'completed') {
       throw new BadRequestException('Import is not completed yet');
     }
 
-    const questionIds = JSON.parse(record.questionIds || '[]');
-    
+    const questionIds = this.parseQuestionIds(record.questionIds);
+
     if (questionIds.length === 0) {
       throw new BadRequestException('No questions found in this import record');
     }
@@ -1041,10 +1097,7 @@ export class ImportService {
     // 验证题目是否存在
     const questions = await this.prisma.question.findMany({
       where: { id: { in: questionIds } },
-      orderBy: [
-        { importOrder: 'asc' },
-        { createdAt: 'asc' }
-      ]
+      orderBy: [{ importOrder: 'asc' }, { createdAt: 'asc' }],
     });
 
     if (questions.length !== questionIds.length) {
@@ -1082,7 +1135,7 @@ export class ImportService {
 
   async getImportHistory(userId?: string) {
     const where = userId ? { userId } : {};
-    
+
     const records = await this.prisma.importRecord.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -1101,8 +1154,8 @@ export class ImportService {
     });
 
     // 为每个记录添加题目数量信息
-    return records.map(record => {
-      const questionIds = JSON.parse(record.questionIds || '[]');
+    return records.map((record) => {
+      const questionIds = this.parseQuestionIds(record.questionIds);
       return {
         ...record,
         questionCount: questionIds.length,
@@ -1114,7 +1167,7 @@ export class ImportService {
   async getImportRecord(jobId: string, userId?: string) {
     const where: any = { jobId };
     if (userId) where.userId = userId;
-    
+
     const record = await this.prisma.importRecord.findFirst({
       where,
       include: {
@@ -1129,19 +1182,22 @@ export class ImportService {
     }
 
     // 解析questionIds
-    const questionIds = JSON.parse(record.questionIds || '[]');
-    
+    const questionIds = this.parseQuestionIds(record.questionIds);
+
     // 获取关联的题目信息
-    const questions = questionIds.length > 0 ? await this.prisma.question.findMany({
-      where: { id: { in: questionIds } },
-      select: {
-        id: true,
-        content: true,
-        type: true,
-        status: true,
-        createdAt: true,
-      },
-    }) : [];
+    const questions =
+      questionIds.length > 0
+        ? await this.prisma.question.findMany({
+            where: { id: { in: questionIds } },
+            select: {
+              id: true,
+              content: true,
+              type: true,
+              status: true,
+              createdAt: true,
+            },
+          })
+        : [];
 
     return {
       ...record,
@@ -1152,34 +1208,42 @@ export class ImportService {
 
   async getPdfImages(jobId: string, userId?: string) {
     const record = await this.getImportRecord(jobId, userId);
-    
+
     if (!record.filePath) {
       throw new BadRequestException('File not found');
     }
 
     try {
       const fileBuffer = await fs.readFile(record.filePath);
-      
+
       // 检查文件类型
       const isImageFile = /\.(jpg|jpeg|png|gif|webp)$/i.test(record.fileName);
-      
+
       if (isImageFile) {
         // 对于图片文件，直接返回base64编码
-        const mimeType = record.fileName.toLowerCase().endsWith('.png') ? 'image/png' :
-                        record.fileName.toLowerCase().endsWith('.jpg') || record.fileName.toLowerCase().endsWith('.jpeg') ? 'image/jpeg' :
-                        record.fileName.toLowerCase().endsWith('.gif') ? 'image/gif' :
-                        record.fileName.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/png';
-        
+        const mimeType = record.fileName.toLowerCase().endsWith('.png')
+          ? 'image/png'
+          : record.fileName.toLowerCase().endsWith('.jpg') ||
+              record.fileName.toLowerCase().endsWith('.jpeg')
+            ? 'image/jpeg'
+            : record.fileName.toLowerCase().endsWith('.gif')
+              ? 'image/gif'
+              : record.fileName.toLowerCase().endsWith('.webp')
+                ? 'image/webp'
+                : 'image/png';
+
         return {
-          images: [{
-            index: 0,
-            data: `data:${mimeType};base64,${fileBuffer.toString('base64')}`,
-          }],
+          images: [
+            {
+              index: 0,
+              data: `data:${mimeType};base64,${fileBuffer.toString('base64')}`,
+            },
+          ],
         };
       } else {
         // 对于PDF文件，转换为图片
         const images = await convertPdfToPngBuffers(fileBuffer, { resolutionDpi: 150 });
-        
+
         return {
           images: images.map((buffer, index) => ({
             index,
@@ -1327,16 +1391,17 @@ export class ImportService {
     });
 
     // Filter records to ensure the question ID is actually in the array
-    const filteredRecords = records.filter(record => {
+    const filteredRecords = records.filter((record) => {
       try {
-        const questionIds = JSON.parse(record.questionIds || '[]');
+        const questionIds = this.parseQuestionIds(record.questionIds);
+
         return questionIds.includes(questionId);
       } catch {
         return false;
       }
     });
 
-    return filteredRecords.map(record => ({
+    return filteredRecords.map((record) => ({
       ...record,
       questionIds: JSON.parse(record.questionIds || '[]'),
     }));

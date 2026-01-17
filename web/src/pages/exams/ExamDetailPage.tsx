@@ -54,6 +54,10 @@ function SortableTypeBlock({
   setShowBatchScoreModal,
   collapsedTypes,
   setCollapsedTypes,
+  scoreSavingMap,
+  scoreDraftMap,
+  onScoreDraftChange: handleScoreDraftChange,
+  onScoreDraftCommit: handleScoreDraftCommit,
 }: any) {
   const {
     attributes,
@@ -161,6 +165,10 @@ function SortableTypeBlock({
                 hasImages={hasImages}
                 getImages={getImages}
                 canEdit={canEdit}
+                scoreSavingMap={scoreSavingMap}
+                scoreDraftMap={scoreDraftMap}
+                onScoreDraftChange={handleScoreDraftChange}
+                onScoreDraftCommit={handleScoreDraftCommit}
               />
             ))}
           </div>
@@ -180,6 +188,10 @@ function SortableQuestion({
   onEditClick,
   hasImages,
   canEdit,
+  scoreSavingMap,
+  scoreDraftMap,
+  onScoreDraftChange: handleScoreDraftChange,
+  onScoreDraftCommit: handleScoreDraftCommit,
 }: any) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: examQuestion.id });
@@ -188,6 +200,10 @@ function SortableQuestion({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  const isSaving = scoreSavingMap?.[examQuestion.id] ?? false;
+  const scoreValue = examQuestion.score ?? 0;
+  const draftValue = scoreDraftMap?.[examQuestion.id] ?? String(scoreValue);
 
   return (
     <div
@@ -253,8 +269,37 @@ function SortableQuestion({
             )}
         </div>
         <div className="flex flex-col items-end gap-2 ml-4">
-          <div className="text-lg font-bold text-blue-600">
-            {examQuestion.score} 分
+          <div className="flex flex-col items-end gap-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              分值
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={draftValue}
+                onChange={(e) =>
+                  handleScoreDraftChange(examQuestion, e.target.value)
+                }
+                onBlur={() => handleScoreDraftCommit(examQuestion)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleScoreDraftCommit(examQuestion);
+                  }
+                  if (e.key === "Escape") {
+                    handleScoreDraftChange(examQuestion, String(scoreValue));
+                    e.currentTarget.blur();
+                  }
+                }}
+                disabled={isSaving}
+                className="w-20 rounded-md border border-gray-300 px-2 py-1 text-right text-sm font-semibold text-blue-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-gray-100"
+              />
+              <span className="text-sm text-gray-500">分</span>
+              {isSaving && (
+                <span className="text-xs text-gray-400">保存中...</span>
+              )}
+            </div>
           </div>
           {examQuestion.question?.difficulty && (
             <div className="text-sm text-gray-500">
@@ -314,6 +359,12 @@ export default function ExamDetailPage() {
   const [warningMessage, setWarningMessage] = useState("");
   const [collapsedTypes, setCollapsedTypes] = useState<Set<string>>(new Set());
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false);
+  const [scoreSavingMap, setScoreSavingMap] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [scoreDraftMap, setScoreDraftMap] = useState<Record<string, string>>(
+    {},
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -426,6 +477,56 @@ export default function ExamDetailPage() {
     } catch (err: any) {
       setWarningMessage(err.response?.data?.message || "批量设置分值失败");
       setShowWarningModal(true);
+    }
+  };
+
+  const handleScoreDraftChange = (examQuestion: any, value: string) => {
+    setScoreDraftMap((prev) => ({ ...prev, [examQuestion.id]: value }));
+  };
+
+  const handleScoreDraftCommit = async (examQuestion: any) => {
+    if (!id || !examQuestion?.questionId) return;
+
+    const rawValue = scoreDraftMap[examQuestion.id];
+    const nextScore = Number(rawValue);
+    const sanitizedScore =
+      Number.isFinite(nextScore) && nextScore > 0 ? nextScore : 1;
+
+    if (sanitizedScore === examQuestion.score) {
+      setScoreDraftMap((prev) => ({
+        ...prev,
+        [examQuestion.id]: String(examQuestion.score ?? 0),
+      }));
+      return;
+    }
+
+    setScoreSavingMap((prev) => ({ ...prev, [examQuestion.id]: true }));
+    try {
+      await api.put(`/api/exams/${id}/questions/${examQuestion.questionId}`, {
+        order: examQuestion.order,
+        score: sanitizedScore,
+      });
+
+      setExam((prev) => {
+        if (!prev?.examQuestions) return prev;
+        const updatedQuestions = prev.examQuestions.map((eq) =>
+          eq.id === examQuestion.id ? { ...eq, score: sanitizedScore } : eq,
+        );
+        return { ...prev, examQuestions: updatedQuestions };
+      });
+      setScoreDraftMap((prev) => ({
+        ...prev,
+        [examQuestion.id]: String(sanitizedScore),
+      }));
+    } catch (err: any) {
+      setWarningMessage(err.response?.data?.message || "更新题目分值失败");
+      setShowWarningModal(true);
+      setScoreDraftMap((prev) => ({
+        ...prev,
+        [examQuestion.id]: String(examQuestion.score ?? 0),
+      }));
+    } finally {
+      setScoreSavingMap((prev) => ({ ...prev, [examQuestion.id]: false }));
     }
   };
 
@@ -722,6 +823,10 @@ export default function ExamDetailPage() {
                         setShowBatchScoreModal={setShowBatchScoreModal}
                         collapsedTypes={collapsedTypes}
                         setCollapsedTypes={setCollapsedTypes}
+                        scoreSavingMap={scoreSavingMap}
+                        scoreDraftMap={scoreDraftMap}
+                        onScoreDraftChange={handleScoreDraftChange}
+                        onScoreDraftCommit={handleScoreDraftCommit}
                       />
                     );
                   })}

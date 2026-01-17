@@ -4,6 +4,7 @@
   "description": "Build and utility scripts",
   "scripts": {
     "import-excel": "ts-node import-excel.ts",
+    "normalize-import-records": "node normalize-import-records.js",
     "seed": "ts-node seed.ts"
   },
   "dependencies": {
