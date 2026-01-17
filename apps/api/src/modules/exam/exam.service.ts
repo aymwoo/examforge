@@ -735,12 +735,12 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
       console.log(`评分进度: ${progress.current}/${progress.total} - ${progress.message}`);
     });
 
-    // 检查是否有草稿记录，如果有则更新，否则创建新记录
+    // 检查是否有草稿记录（无评分详情），如果有则更新，否则创建新记录
     const draftSubmission = await this.prisma.submission.findFirst({
       where: {
         examId,
         examStudentId,
-        isAutoGraded: false, // 草稿记录
+        gradingDetails: null,
       },
     });
 
@@ -794,13 +794,60 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
 
   private progressStreams = new Map<string, any>();
 
+  private safeJsonParse(value: unknown) {
+    if (value == null) return null;
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  private parseSubmissionAnswersArray(rawAnswers: string) {
+    const parsed = this.safeJsonParse(rawAnswers);
+    if (!parsed) return [];
+
+    // Newer exam submit flow stores `{ [questionId]: answer }`
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return Object.entries(parsed as Record<string, any>).map(([questionId, answer]) => ({
+        questionId,
+        answer,
+      }));
+    }
+
+    // Older submission flow stores `[{ questionId, answer }]`
+    if (Array.isArray(parsed)) {
+      return parsed as Array<{ questionId: string; answer: any }>;
+    }
+
+    return [];
+  }
+
+  private parseSubmissionAnswersMap(rawAnswers: string) {
+    const parsed = this.safeJsonParse(rawAnswers);
+    if (!parsed) return {};
+
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, any>;
+    }
+
+    if (Array.isArray(parsed)) {
+      return Object.fromEntries(
+        (parsed as Array<{ questionId: string; answer: any }>).map((a) => [a.questionId, a.answer])
+      );
+    }
+
+    return {};
+  }
+
   async submitExamAsync(examId: string, examStudentId: string, answers: Record<string, any>) {
     const streamKey = `${examId}-${examStudentId}`;
 
     try {
-      // 检查是否已经提交过
+      // 检查是否已经提交过（以 gradingDetails 是否存在判断正式提交）
       const existingSubmission = await this.prisma.submission.findFirst({
-        where: { examId, examStudentId },
+        where: { examId, examStudentId, gradingDetails: { not: null } },
       });
 
       if (existingSubmission) {
@@ -837,21 +884,36 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
       });
 
       // 创建提交记录
-      const submission = await this.prisma.submission.create({
-        data: {
-          examId,
-          examStudentId,
-          answers: JSON.stringify(answers),
-          score: gradingResults.totalScore,
-          isAutoGraded: gradingResults.isFullyAutoGraded,
-          gradingDetails: JSON.stringify({
-            details: gradingResults.details,
-            totalScore: gradingResults.totalScore,
-            maxTotalScore: gradingResults.maxTotalScore,
-            isFullyAutoGraded: gradingResults.isFullyAutoGraded,
-          }),
-        },
+      // 如果存在草稿（来自 save-answers），则将其升级为正式提交，避免出现同一学生多条记录
+      const draftSubmission = await this.prisma.submission.findFirst({
+        where: { examId, examStudentId, gradingDetails: null },
       });
+
+      const submissionData = {
+        answers: JSON.stringify(answers),
+        score: gradingResults.totalScore,
+        isAutoGraded: gradingResults.isFullyAutoGraded,
+        gradingDetails: JSON.stringify({
+          details: gradingResults.details,
+          totalScore: gradingResults.totalScore,
+          maxTotalScore: gradingResults.maxTotalScore,
+          isFullyAutoGraded: gradingResults.isFullyAutoGraded,
+        }),
+        submittedAt: new Date(),
+      };
+
+      const submission = draftSubmission
+        ? await this.prisma.submission.update({
+            where: { id: draftSubmission.id },
+            data: submissionData,
+          })
+        : await this.prisma.submission.create({
+            data: {
+              examId,
+              examStudentId,
+              ...submissionData,
+            },
+          });
 
       this.sendProgress(streamKey, {
         type: 'complete',
@@ -883,9 +945,9 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
     const streamKey = `${examId}-${examStudentId}`;
     this.progressStreams.set(streamKey, res);
 
-    // 检查是否已完成
+    // 检查是否已完成（排除草稿）
     const existingSubmission = await this.prisma.submission.findFirst({
-      where: { examId, examStudentId },
+      where: { examId, examStudentId, gradingDetails: { not: null } },
     });
 
     if (existingSubmission) {
@@ -897,7 +959,8 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
             score: existingSubmission.score,
             isAutoGraded: existingSubmission.isAutoGraded,
             submittedAt: existingSubmission.submittedAt,
-            answers: existingSubmission.answers ? JSON.parse(existingSubmission.answers) : {},
+            answers: this.parseSubmissionAnswersMap(existingSubmission.answers),
+            answersArray: this.parseSubmissionAnswersArray(existingSubmission.answers),
           },
         })}\n\n`
       );
@@ -918,7 +981,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
 
   async checkSubmissionStatus(examId: string, examStudentId: string) {
     const submission = await this.prisma.submission.findFirst({
-      where: { examId, examStudentId },
+      where: { examId, examStudentId, gradingDetails: { not: null } },
       select: {
         id: true,
         score: true,
@@ -931,13 +994,13 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
 
     if (submission) {
       // 解析answers和gradingDetails
-      const answers = submission.answers ? JSON.parse(submission.answers) : {};
-      const gradingDetails = submission.gradingDetails
-        ? JSON.parse(submission.gradingDetails)
-        : null;
+      const answersArray = this.parseSubmissionAnswersArray(submission.answers);
+      const gradingDetails = this.safeJsonParse(submission.gradingDetails);
 
-      // 将answers对象转换为数组格式，包含评分信息
-      const answersArray = Object.entries(answers).map(([questionId, answer]) => {
+      const answersObj = Object.fromEntries(answersArray.map((a: any) => [a.questionId, a.answer]));
+
+      // 将 answers 映射转换为数组格式，包含评分信息
+      const enrichedAnswersArray = Object.entries(answersObj).map(([questionId, answer]) => {
         const detail = gradingDetails?.details?.[questionId] || {};
         return {
           questionId,
@@ -950,7 +1013,10 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
 
       const parsedSubmission = {
         ...submission,
-        answers: answersArray,
+        // 统一对外输出 answers 为对象 map
+        answers: this.parseSubmissionAnswersMap(submission.answers),
+        // 兼容字段：旧前端可能依赖数组结构
+        answersArray: enrichedAnswersArray,
         gradingDetails,
       };
 
@@ -967,6 +1033,95 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
   }
 
   // 自动评分方法
+  // NOTE: kept private; exposed via `autoGradeSubmissionForRegrade` for offline jobs.
+  async autoGradeSubmissionForRegrade(
+    exam: any,
+    answers: Record<string, any>,
+    opts?: {
+      onProgress?: (progress: { current: number; total: number; message: string }) => void;
+      noAi?: boolean;
+    }
+  ) {
+    if (opts?.noAi) {
+      return this.autoGradeSubmissionNoAi(exam, answers, opts.onProgress);
+    }
+
+    return this.autoGradeSubmission(exam, answers, opts?.onProgress);
+  }
+
+  private async autoGradeSubmissionNoAi(
+    exam: any,
+    answers: Record<string, any>,
+    onProgress?: (progress: { current: number; total: number; message: string }) => void
+  ) {
+    const details: Record<string, any> = {};
+    let totalScore = 0;
+    let isFullyAutoGraded = true;
+
+    const totalQuestions = exam.examQuestions.length;
+    let currentQuestion = 0;
+
+    for (const examQuestion of exam.examQuestions) {
+      currentQuestion++;
+      const question = examQuestion.question;
+      const studentAnswer = answers[question.id];
+      const maxScore = examQuestion.score;
+
+      onProgress?.({
+        current: currentQuestion,
+        total: totalQuestions,
+        message: `正在评分第${currentQuestion}题 (${question.type})`,
+      });
+
+      if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
+        const correctAnswerText = this.convertAnswerToText(
+          question.answer,
+          question.options,
+          question.type
+        );
+        const isCorrect = this.compareAnswers(studentAnswer, correctAnswerText, question.type);
+        const score = isCorrect ? maxScore : 0;
+
+        details[question.id] = {
+          type: 'objective',
+          studentAnswer: studentAnswer !== undefined ? studentAnswer : '',
+          correctAnswer: correctAnswerText,
+          isCorrect,
+          score,
+          maxScore,
+          feedback: isCorrect ? '答案正确' : `正确答案：${correctAnswerText}`,
+        };
+
+        totalScore += score;
+      } else if (question.type === 'ESSAY' || question.type === 'FILL_BLANK') {
+        details[question.id] = {
+          type: 'subjective',
+          studentAnswer: studentAnswer !== undefined ? studentAnswer : '',
+          referenceAnswer: question.answer,
+          aiGrading: null,
+          score: 0,
+          maxScore,
+          needsReview: true,
+        };
+
+        isFullyAutoGraded = false;
+      }
+    }
+
+    onProgress?.({
+      current: totalQuestions,
+      total: totalQuestions,
+      message: '评分完成',
+    });
+
+    return {
+      details,
+      totalScore: Math.round(totalScore * 100) / 100,
+      maxTotalScore: exam.totalScore,
+      isFullyAutoGraded,
+    };
+  }
+
   private async autoGradeSubmission(
     exam: any,
     answers: Record<string, any>,
@@ -1301,11 +1456,12 @@ ${studentAnswer}
     }
 
     // 检查是否已经有正式提交的记录
+    // 注意：正式提交不一定 `isAutoGraded === true`（存在主观题时会是 false），所以不能用它判断。
     const existingSubmission = await this.prisma.submission.findFirst({
       where: {
         examId,
         examStudentId,
-        isAutoGraded: true, // 正式提交的记录会被标记为已评分
+        gradingDetails: { not: null },
       },
     });
 
@@ -1314,11 +1470,12 @@ ${studentAnswer}
     }
 
     // 保存或更新草稿答案
+    // 草稿：没有评分详情的记录（避免把主观题导致 isAutoGraded=false 的正式提交当成草稿）
     const existingDraft = await this.prisma.submission.findFirst({
       where: {
         examId,
         examStudentId,
-        isAutoGraded: false, // 草稿状态
+        gradingDetails: null,
       },
     });
 
@@ -1328,7 +1485,6 @@ ${studentAnswer}
         where: { id: existingDraft.id },
         data: {
           answers: JSON.stringify(answers),
-          submittedAt: new Date(),
         },
       });
     } else {
@@ -1340,6 +1496,7 @@ ${studentAnswer}
           answers: JSON.stringify(answers),
           isAutoGraded: false, // 标记为草稿
           isReviewed: false,
+          gradingDetails: null,
         },
       });
     }
@@ -1396,10 +1553,7 @@ ${studentAnswer}
     let gradingDetails = null;
     if (submission.gradingDetails) {
       try {
-        gradingDetails =
-          typeof submission.gradingDetails === 'string'
-            ? JSON.parse(submission.gradingDetails)
-            : submission.gradingDetails;
+        gradingDetails = this.safeJsonParse(submission.gradingDetails);
       } catch (error) {
         console.error('解析评分详情失败:', error);
       }
@@ -1411,7 +1565,8 @@ ${studentAnswer}
       score: submission.score,
       submittedAt: submission.submittedAt,
       isAutoGraded: submission.isAutoGraded,
-      answers: submission.answers,
+      answers: this.parseSubmissionAnswersMap(submission.answers),
+      answersArray: this.parseSubmissionAnswersArray(submission.answers),
       gradingDetails,
       exam: {
         id: submission.exam.id,
@@ -1429,30 +1584,38 @@ ${studentAnswer}
   }
 
   async getExamSubmissions(examId: string) {
+    // 只返回正式提交：必须有 gradingDetails；否则会把自动保存草稿也展示到教师端
     const submissions = await this.prisma.submission.findMany({
-      where: { examId },
+      where: { examId, gradingDetails: { not: null } },
       include: {
         examStudent: true,
       },
       orderBy: { submittedAt: 'desc' },
     });
 
-    return submissions.map((submission) => ({
-      id: submission.id,
-      student: {
-        id: submission.examStudent?.id,
-        username: submission.examStudent?.username,
-        displayName: submission.examStudent?.displayName,
-      },
-      answers: JSON.parse(submission.answers),
-      score: submission.score,
-      isAutoGraded: submission.isAutoGraded,
-      isReviewed: submission.isReviewed,
-      reviewedBy: submission.reviewedBy,
-      reviewedAt: submission.reviewedAt,
-      gradingDetails: submission.gradingDetails ? JSON.parse(submission.gradingDetails) : null,
-      submittedAt: submission.submittedAt,
-    }));
+    return submissions.map((submission) => {
+      const answers = this.parseSubmissionAnswersMap(submission.answers);
+      const answersArray = this.parseSubmissionAnswersArray(submission.answers);
+      const gradingDetails = this.safeJsonParse(submission.gradingDetails);
+
+      return {
+        id: submission.id,
+        student: {
+          id: submission.examStudent?.id,
+          username: submission.examStudent?.username,
+          displayName: submission.examStudent?.displayName,
+        },
+        answers,
+        answersArray,
+        score: submission.score,
+        isAutoGraded: submission.isAutoGraded,
+        isReviewed: submission.isReviewed,
+        reviewedBy: submission.reviewedBy,
+        reviewedAt: submission.reviewedAt,
+        gradingDetails,
+        submittedAt: submission.submittedAt,
+      };
+    });
   }
 
   async gradeSubmission(
@@ -1507,7 +1670,7 @@ ${studentAnswer}
     }
 
     // 返回已存储的评分详情
-    const gradingDetails = submission.gradingDetails ? JSON.parse(submission.gradingDetails) : null;
+    const gradingDetails = this.safeJsonParse(submission.gradingDetails);
 
     if (!gradingDetails) {
       return {
@@ -1623,15 +1786,9 @@ ${studentAnswer}
       }
 
       const fallbackTotalScore = (() => {
-        if (!submission.gradingDetails) return null;
-        if (typeof submission.gradingDetails !== 'string') return null;
-        try {
-          const parsed = JSON.parse(submission.gradingDetails);
-          const totalScore = parsed?.totalScore;
-          return typeof totalScore === 'number' ? totalScore : null;
-        } catch {
-          return null;
-        }
+        const parsed = this.safeJsonParse(submission.gradingDetails);
+        const totalScore = parsed?.totalScore;
+        return typeof totalScore === 'number' ? totalScore : null;
       })();
 
       const totalScore =
@@ -2020,12 +2177,15 @@ ${studentAnswer}
 
       for (const submission of submissions) {
         if (submission.answers) {
-          const answers = JSON.parse(submission.answers);
-          const answer = answers[examQuestion.question.id];
+          const answersObj = Object.fromEntries(
+            this.parseSubmissionAnswersArray(submission.answers).map((a: any) => [
+              a.questionId,
+              a.answer,
+            ])
+          );
+          const answer = answersObj[examQuestion.question.id];
           if (answer !== undefined) {
-            const gradingDetails = submission.gradingDetails
-              ? JSON.parse(submission.gradingDetails)
-              : {};
+            const gradingDetails = this.safeJsonParse(submission.gradingDetails) || {};
             // 评分数据结构是 { details: { questionId: { score, maxScore, feedback }, ... } }
             const questionScore = gradingDetails.details?.[examQuestion.question.id]?.score;
             // 如果没有找到该题的评分，尝试从submission.score按比例计算
@@ -2117,7 +2277,12 @@ ${studentAnswer}
     // 计算每个学生的知识点掌握情况
     submissions.forEach((submission) => {
       if (submission.answers) {
-        const answers = JSON.parse(submission.answers);
+        const answers = Object.fromEntries(
+          this.parseSubmissionAnswersArray(submission.answers).map((a: any) => [
+            a.questionId,
+            a.answer,
+          ])
+        );
 
         // 对于每个知识点，检查该学生是否掌握了该知识点下的大部分题目
         knowledgePointMap.forEach((kpData, kp) => {
@@ -2130,9 +2295,7 @@ ${studentAnswer}
             kpQuestions.forEach((qs) => {
               if (answers[qs.questionId]) {
                 // 获取该题目的得分
-                const gradingDetails = submission.gradingDetails
-                  ? JSON.parse(submission.gradingDetails)
-                  : {};
+                const gradingDetails = this.safeJsonParse(submission.gradingDetails) || {};
                 // 评分数据结构是 { details: { questionId: { score, maxScore, feedback }, ... } }
                 const questionScore = gradingDetails.details?.[qs.questionId]?.score || 0;
                 const maxScore =

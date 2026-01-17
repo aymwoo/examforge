@@ -9,6 +9,51 @@ import { parseQuestionAnswer } from '@/common/utils/question-answer';
 export class SubmissionService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private safeJsonParse(value: unknown) {
+    if (value == null) return null;
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+
+  private answersToMap(rawAnswers: string) {
+    const parsed = this.safeJsonParse(rawAnswers);
+    if (!parsed) return {};
+
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, any>;
+    }
+
+    if (Array.isArray(parsed)) {
+      return Object.fromEntries(
+        (parsed as Array<{ questionId: string; answer: any }>).map((a) => [a.questionId, a.answer])
+      );
+    }
+
+    return {};
+  }
+
+  private answersToArray(rawAnswers: string) {
+    const parsed = this.safeJsonParse(rawAnswers);
+    if (!parsed) return [];
+
+    if (typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return Object.entries(parsed as Record<string, any>).map(([questionId, answer]) => ({
+        questionId,
+        answer,
+      }));
+    }
+
+    if (Array.isArray(parsed)) {
+      return parsed as Array<{ questionId: string; answer: any }>;
+    }
+
+    return [];
+  }
+
   async create(examId: string, dto: CreateSubmissionDto) {
     const exam = await this.prisma.exam.findUnique({
       where: { id: examId },
@@ -62,7 +107,7 @@ export class SubmissionService {
     });
 
     return {
-      ...submission,
+      ...this.transformSubmission(submission),
       details,
     };
   }
@@ -208,14 +253,16 @@ export class SubmissionService {
   private transformSubmission(submission: any) {
     return {
       ...submission,
-      answers: JSON.parse(submission.answers),
+      answers: this.answersToMap(submission.answers),
+      answersArray: this.answersToArray(submission.answers),
     };
   }
 
   private transformSubmissionWithDetails(submission: any) {
     return {
       ...submission,
-      answers: JSON.parse(submission.answers),
+      answers: this.answersToMap(submission.answers),
+      answersArray: this.answersToArray(submission.answers),
     };
   }
 }

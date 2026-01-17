@@ -19,6 +19,7 @@ interface Question {
   content: string;
   type: string;
   options?: string[];
+  images?: string[];
   score: number;
   order: number;
 }
@@ -397,7 +398,9 @@ export default function ExamTakePage() {
                       );
                       console.log(
                         "answers count:",
-                        submissionResult.answers?.length,
+                        Array.isArray(submissionResult.answers)
+                          ? submissionResult.answers.length
+                          : Object.keys(submissionResult.answers || {}).length,
                       );
 
                       // 设置评分详情数据（优先使用已有数据）
@@ -486,7 +489,9 @@ export default function ExamTakePage() {
                     </div>
                     <div>
                       题目数量: {exam?.questions?.length || 0} | 答案数量:{" "}
-                      {submissionResult.answers?.length || 0}
+                      {Array.isArray(submissionResult.answers)
+                        ? submissionResult.answers.length
+                        : Object.keys(submissionResult.answers || {}).length}
                     </div>
                   </div>
                 )}
@@ -813,9 +818,9 @@ export default function ExamTakePage() {
                                 document.body.appendChild(modal);
                               }}
                             />
-                            {currentQuestion.images.length > 1 && (
+                            {(currentQuestion.images?.length || 0) > 1 && (
                               <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
-                                {index + 1}/{currentQuestion.images.length}
+                                {index + 1}/{currentQuestion.images?.length}
                               </div>
                             )}
                           </div>
@@ -921,7 +926,7 @@ export default function ExamTakePage() {
                   <div className="border border-border rounded-xl overflow-hidden">
                     <MDEditor
                       value={answers[currentQuestion.id] || ""}
-                      onChange={(value) =>
+                      onChange={(value: string | undefined) =>
                         handleAnswerChange(currentQuestion.id, value || "")
                       }
                       preview="edit"
