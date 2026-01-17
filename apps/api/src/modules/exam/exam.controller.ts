@@ -365,6 +365,7 @@ export class ExamController {
 
   // 评分相关API
   @Get(':id/submissions')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get exam submissions for grading' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
   @ApiResponse({ status: 200, description: 'Submissions retrieved successfully' })
