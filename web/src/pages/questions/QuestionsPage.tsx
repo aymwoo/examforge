@@ -374,14 +374,16 @@ export default function QuestionsPage() {
               <Plus className="h-4 w-4 mr-2" />
               新增题目
             </Button>
-            <Button
-              onClick={handleClearQuestionBank}
-              disabled={clearing}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              <span className="mr-2">🗑️</span>
-              {clearing ? "清空中..." : "清空题库"}
-            </Button>
+            {getCurrentUser()?.role === "ADMIN" && (
+              <Button
+                onClick={handleClearQuestionBank}
+                disabled={clearing}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                <span className="mr-2">🗑️</span>
+                {clearing ? "清空中..." : "清空题库"}
+              </Button>
+            )}
           </div>
         </div>
 
