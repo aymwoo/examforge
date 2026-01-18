@@ -51,7 +51,7 @@ COPY . .
 RUN pnpm --filter @examforge/api build
 
 # Generate Prisma client
-RUN pnpm --filter ./apps/api run prisma:generate
+RUN export PATH=/app/node_modules/.bin:$PATH && pnpm --filter ./apps/api run prisma:generate
 
 # Stage 3: Production runtime
 FROM node:18-alpine AS runtime
