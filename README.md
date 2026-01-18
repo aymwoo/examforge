@@ -282,6 +282,8 @@ JWT_SECRET="your-jwt-secret"
 
 For a complete production deployment from scratch, use the deployment script:
 
+### Linux / macOS
+
 ```bash
 # Make the script executable
 chmod +x start-deploy.sh
@@ -290,25 +292,55 @@ chmod +x start-deploy.sh
 ./start-deploy.sh
 ```
 
-This script will:
+### Windows
+
+**PowerShell (Recommended):**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-deploy.ps1
+```
+
+**Command Prompt:**
+
+```cmd
+start-deploy.bat
+```
+
+### What the deployment script does
 
 - Install all dependencies
 - Build both API and web applications
 - Initialize the database with all migrations
-- Seed the database with initial data
-- Package everything for production
-- Create a production startup script
+- Seed the database with initial AI provider configurations
+- Package everything for production in `dist/` directory
+- Create production startup scripts
+- Start the production server automatically
+
+### Starting the production server manually
 
 After deployment, you can start the production server with:
+
+**Linux / macOS:**
 
 ```bash
 cd dist && ./start-production.sh
 ```
 
-The deployment includes default credentials:
+**Windows (PowerShell):**
 
-- Admin: `admin` / `admin123`
-- Teacher: `teacher` / `teacher123`
+```powershell
+cd dist
+powershell -ExecutionPolicy Bypass -File .\start-production.ps1
+```
+
+### First User Registration
+
+The system does not include default user accounts. Register your first user through the web interface:
+
+1. Open http://localhost:4173 in your browser
+2. Click "Register" to create a new account
+3. **The first registered user will automatically become the system administrator** with full privileges
+4. Subsequent users will need administrator approval before they can log in
 
 ### Migration Management
 

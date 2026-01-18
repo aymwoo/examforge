@@ -12,7 +12,7 @@ async function main() {
       name: '通义千问 (全局)',
       apiKey: 'sk-b190ba2a13324d968814cfe95f19ca5a',
       baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-      model: 'qwen3-omni-flash',
+      model: 'qwen3-omni-flash-2025-12-01',
       isGlobal: true,
       isActive: true,
     },
