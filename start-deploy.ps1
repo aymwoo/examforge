@@ -45,6 +45,11 @@ Set-Location $ProjectRoot
 
 Print-Status "Working in project directory: $ProjectRoot"
 
+# Set npm registry to China mirror for faster downloads
+Print-Status "Setting npm registry to China mirror (npmmirror.com)..."
+npm config set registry https://registry.npmmirror.com
+Print-Success "npm registry configured"
+
 # Install dependencies
 Print-Status "Installing dependencies..."
 npm install

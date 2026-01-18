@@ -60,6 +60,11 @@ cd "$PROJECT_ROOT"
 
 print_status "📁 Working in project directory: $PROJECT_ROOT"
 
+# Set npm registry to China mirror for faster downloads
+print_status "🌐 Setting npm registry to China mirror (npmmirror.com)..."
+npm config set registry https://registry.npmmirror.com
+print_success "✅ npm registry configured"
+
 # Install dependencies
 print_status "📦 Installing dependencies..."
 npm install

@@ -42,6 +42,11 @@ REM Navigate to project root
 cd /d "%~dp0"
 echo [INFO] Working in project directory: %CD%
 
+REM Set npm registry to China mirror for faster downloads
+echo [INFO] Setting npm registry to China mirror (npmmirror.com)...
+call npm config set registry https://registry.npmmirror.com
+echo [SUCCESS] npm registry configured
+
 REM Install dependencies
 echo [INFO] Installing dependencies...
 call npm install
