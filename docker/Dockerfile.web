@@ -37,6 +37,9 @@ RUN if [ -n "$APK_MIRROR" ]; then \
 RUN apk update && apk add --no-cache pnpm && \
     pnpm config set registry $NPM_REGISTRY
 
+# Set PATH for node_modules binaries
+ENV PATH=/app/node_modules/.bin:$PATH
+
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
