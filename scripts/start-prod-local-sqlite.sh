@@ -113,7 +113,8 @@ main() {
     export DATABASE_URL="${DATABASE_URL:-file:./prisma/prod.db}"
 
     (cd "$ROOT_DIR/apps/api" && pnpm prisma generate)
-    # For sqlite, migrate deploy works if migrations exist; fallback to db push.
+    # For sqlite, prefer migrate deploy to avoid data loss.
+    # NOTE: prisma migrate dev may reset local sqlite data.
     if [[ -d "$ROOT_DIR/apps/api/prisma/migrations" ]]; then
       (cd "$ROOT_DIR/apps/api" && pnpm prisma migrate deploy) || true
     fi

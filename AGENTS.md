@@ -62,9 +62,9 @@ pnpm --filter ./apps/api run test:e2e -- -t "health"
 
 ```bash
 pnpm --filter ./apps/api run prisma:generate   # Regenerate client after schema changes
-pnpm --filter ./apps/api run prisma:migrate    # Development migrations
+pnpm --filter ./apps/api run prisma:migrate    # Development migrations (may reset sqlite data)
 pnpm --filter ./apps/api run prisma:studio     # GUI database viewer
-pnpm --filter ./apps/api run prisma:deploy     # Production migrations
+pnpm --filter ./apps/api run prisma:deploy     # Production migrations (safe for sqlite data)
 ```
 
 ## Cursor / Copilot Rules
