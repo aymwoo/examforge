@@ -19,11 +19,7 @@ RUN apk update && apk add --no-cache pnpm && \
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install all dependencies
-RUN pnpm install --frozen-lockfile --prod=false
-
-# Export pnpm store path for next stage
-RUN pnpm store path --silent > /tmp/pnpm-store-path
+# Dependencies will be installed in builder stage
 
 
 # Stage 2: Build the application
@@ -37,12 +33,6 @@ ARG NPM_REGISTRY=https://registry.npmjs.org
 RUN if [ -n "$APK_MIRROR" ]; then \
       sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
     fi
-
-# Copy pnpm store from previous stage
-COPY --from=deps /tmp/pnpm-store-path /tmp/pnpm-store-path
-RUN PNPM_STORE_PATH=$(cat /tmp/pnpm-store-path) && \
-    mkdir -p "$PNPM_STORE_PATH"
-COPY --from=deps /root/.pnpm-store /root/.pnpm-store
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
