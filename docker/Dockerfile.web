@@ -49,6 +49,9 @@ RUN pnpm install --frozen-lockfile --prod=false
 # Copy source code
 COPY . .
 
+# Build shared types first
+RUN pnpm --filter @examforge/shared-types run build
+
 # Build the web application
 RUN pnpm --filter @examforge/web build
 
