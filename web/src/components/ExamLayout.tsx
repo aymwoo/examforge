@@ -189,7 +189,10 @@ export default function ExamLayout({
       const updatedExam = await updateExam(id, {
         accountModes: normalizedModes,
       });
-      setExam(updatedExam);
+      setExam({
+        ...updatedExam,
+        accountModes: normalizeAccountModes(updatedExam.accountModes || []),
+      });
       setModal({
         isOpen: true,
         type: "success",
