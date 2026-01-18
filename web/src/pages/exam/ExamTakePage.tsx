@@ -920,6 +920,36 @@ export default function ExamTakePage() {
                   </div>
                 )}
 
+                {currentQuestion.type === "TRUE_FALSE" && (
+                  <div className="space-y-3">
+                    {[
+                      { label: "正确 / 对", value: true },
+                      { label: "错误 / 错", value: false },
+                    ].map((option) => (
+                      <label
+                        key={String(option.value)}
+                        className="flex items-center gap-3 cursor-pointer"
+                      >
+                        <input
+                          type="radio"
+                          name={`question-${currentQuestion.id}`}
+                          checked={answers[currentQuestion.id] === option.value}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              handleAnswerChange(
+                                currentQuestion.id,
+                                option.value,
+                              );
+                            }
+                          }}
+                          className="w-4 h-4 text-blue-600"
+                        />
+                        <span className="text-ink-900">{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
                 {(currentQuestion.type === "FILL_BLANK" ||
                   currentQuestion.type === "SHORT_ANSWER" ||
                   currentQuestion.type === "ESSAY") && (

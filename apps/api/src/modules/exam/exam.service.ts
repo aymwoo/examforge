@@ -2359,11 +2359,45 @@ ${studentAnswer}
       participationRate: totalStudents > 0 ? (submittedCount / totalStudents) * 100 : 0,
     };
 
+    const studentNameById = new Map(
+      exam.examStudents.map((s: any) => [s.id, s.displayName || s.username || s.studentId || s.id])
+    );
+
+    const heatmapStudents = submissions.map((s) => ({
+      id: s.examStudentId,
+      name: studentNameById.get(s.examStudentId) || s.examStudentId,
+    }));
+
+    const heatmapQuestions = exam.examQuestions
+      .slice()
+      .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0))
+      .map((eq: any) => ({
+        id: eq.question.id,
+        order: eq.order ?? 0,
+        score: eq.score,
+      }));
+
+    const heatmapValues = submissions.map((submission) => {
+      const gradingDetails = this.safeJsonParse(submission.gradingDetails) || {};
+      const detailByQuestionId = gradingDetails.details || {};
+
+      return heatmapQuestions.map((q) => {
+        const score = detailByQuestionId?.[q.id]?.score;
+        return typeof score === 'number' ? score : 0;
+      });
+    });
+
     return {
       scoreStats,
+      scores,
       questionStats,
       knowledgePointStats,
       participationStats,
+      heatmap: {
+        students: heatmapStudents,
+        questions: heatmapQuestions,
+        values: heatmapValues,
+      },
     };
   }
 
