@@ -4,37 +4,24 @@
 FROM node:18-alpine AS deps
 WORKDIR /app
 
-# Optimize for China
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+ARG APK_MIRROR
+ARG NPM_REGISTRY=https://registry.npmjs.org
 
-# Install pnpm via corepack and configure mirror
-ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-RUN corepack enable && \
-    pnpm config set registry https://registry.npmmirror.com
+# Optional: optimize for CN mirrors
+RUN if [ -n "$APK_MIRROR" ]; then \
+      sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
+    fi
 
+# Install pnpm
+ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
+RUN npm config set registry $NPM_REGISTRY && \
+    npm install -g pnpm@10.28.0 || (corepack enable && corepack prepare pnpm@10.28.0 --activate) && \
+    pnpm config set registry $NPM_REGISTRY
+
+
+# Install dependencies
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
-
-# Install all dependencies
-RUN pnpm install --frozen-lockfile --prod=false
-
-# Stage 2: Build the application
-FROM node:18-alpine AS builder
-WORKDIR /app
-
-# Optimize for China
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
-
-# Copy pnpm store from previous stage
-COPY --from=deps /root/.pnpm-store /root/.pnpm-store
-
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-
-# Install pnpm via corepack and configure mirror
-ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-RUN corepack enable && \
-    pnpm config set registry https://registry.npmmirror.com
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -48,8 +35,12 @@ RUN pnpm --filter @examforge/web build
 # Stage 3: Production runtime with nginx
 FROM nginx:alpine AS runtime
 
-# Optimize for China
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+ARG APK_MIRROR
+
+# Optional: optimize for CN mirrors
+RUN if [ -n "$APK_MIRROR" ]; then \
+      sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
+    fi
 
 # Copy nginx configuration
 COPY docker/nginx.conf /etc/nginx/nginx.conf

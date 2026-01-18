@@ -19,6 +19,7 @@ NO_BUILD=0
 SKIP_MIRROR=0
 API_ONLY=0
 WEB_ONLY=0
+LOG_LEVEL="info"
 
 usage() {
   echo "Usage: $0 [--no-install] [--no-build] [--skip-mirror] [--api-only] [--web-only]"
@@ -51,6 +52,11 @@ require_cmd() {
 ensure_pnpm() {
   if command -v pnpm >/dev/null 2>&1; then
     return 0
+  fi
+
+  if ! command -v node >/dev/null 2>&1; then
+    echo "Missing required command: node" >&2
+    exit 1
   fi
 
   echo "pnpm not found; attempting install via npm..."

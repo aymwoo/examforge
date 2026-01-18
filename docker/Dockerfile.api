@@ -4,14 +4,19 @@
 FROM node:18-alpine AS deps
 WORKDIR /app
 
-# Optimize for China
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+ARG APK_MIRROR
+ARG NPM_REGISTRY=https://registry.npmjs.org
 
-# Install pnpm globally with mirror
-# Install pnpm via corepack and configure mirror
-ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-RUN corepack enable && \
-    pnpm config set registry https://registry.npmmirror.com
+# Optional: optimize for CN mirrors
+RUN if [ -n "$APK_MIRROR" ]; then \
+      sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
+    fi
+
+# Install pnpm globally
+ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
+RUN npm config set registry $NPM_REGISTRY && \
+    npm install -g pnpm@10.28.0 || (corepack enable && corepack prepare pnpm@10.28.0 --activate) && \
+    pnpm config set registry $NPM_REGISTRY
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
@@ -23,8 +28,13 @@ RUN pnpm install --frozen-lockfile --prod=false
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Optimize for China
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+ARG APK_MIRROR
+ARG NPM_REGISTRY=https://registry.npmjs.org
+
+# Optional: optimize for CN mirrors
+RUN if [ -n "$APK_MIRROR" ]; then \
+      sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
+    fi
 
 # Copy pnpm store from previous stage
 COPY --from=deps /root/.pnpm-store /root/.pnpm-store
@@ -32,11 +42,11 @@ COPY --from=deps /root/.pnpm-store /root/.pnpm-store
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install pnpm globally (ensure it exists and uses mirror)
-# Install pnpm via corepack and configure mirror
-ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-RUN corepack enable && \
-    pnpm config set registry https://registry.npmmirror.com
+# Install pnpm globally
+ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
+RUN npm config set registry $NPM_REGISTRY && \
+    npm install -g pnpm@10.28.0 || (corepack enable && corepack prepare pnpm@10.28.0 --activate) && \
+    pnpm config set registry $NPM_REGISTRY
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -54,14 +64,19 @@ RUN cd apps/api && pnpm prisma generate
 FROM node:18-alpine AS runtime
 WORKDIR /app
 
-# Optimize for China
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+ARG APK_MIRROR
+ARG NPM_REGISTRY=https://registry.npmjs.org
 
-# Install pnpm globally with mirror
-# Install pnpm via corepack and configure mirror
-ENV NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-RUN corepack enable && \
-    pnpm config set registry https://registry.npmmirror.com
+# Optional: optimize for CN mirrors
+RUN if [ -n "$APK_MIRROR" ]; then \
+      sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
+    fi
+
+# Install pnpm globally
+ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
+RUN npm config set registry $NPM_REGISTRY && \
+    npm install -g pnpm@10.28.0 || (corepack enable && corepack prepare pnpm@10.28.0 --activate) && \
+    pnpm config set registry $NPM_REGISTRY
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./

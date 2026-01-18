@@ -63,69 +63,8 @@ pnpm install
 pnpm --filter ./apps/api run prisma:generate
 
 # Run database migrations
-pnpm --filter ./apps/api run prisma:migrate
-
-# Start development servers (API + Web)
-pnpm dev
-```
-
-### Individual Commands
-
-```bash
-# API only
-pnpm dev:api          # Development with hot reload
-pnpm build:api        # Build for production
-
-# Web only
-pnpm dev:web          # Vite development server
-pnpm build:web        # Build for production
-
-# Database
-pnpm --filter ./apps/api run prisma:studio     # GUI database viewer
-pnpm --filter ./apps/api run prisma:deploy     # Production migrations
-
-# Code Quality
-pnpm lint             # Lint all packages
-pnpm format           # Format with Prettier
-pnpm test             # Run tests
-```
-
-## Deployment
-
-### Production Deployment
-
-#### 1. Environment Setup
-
-Create a `.env` file in the `apps/api` directory with production settings:
-
-```bash
-# Database (PostgreSQL recommended for production)
-DATABASE_URL="postgresql://username:password@host:port/database_name"
-
-# Server
-PORT=3000
-JWT_SECRET="your-production-jwt-secret"
-
-# AI Configuration
-LLM_PROVIDER="qwen"  # or "openai"
-LLM_API_KEY="your-production-api-key"
-LLM_MODEL="qwen-turbo"  # or your preferred model
-
-# OCR
-OCR_ENGINE="paddleocr"
-```
-
-#### 2. Build and Deploy
-
-```bash
-# Install dependencies
-pnpm install
-
-# Generate Prisma client
-pnpm --filter ./apps/api run prisma:generate
-
-# Run database migrations
-pnpm --filter ./apps/api run prisma:migrate
+# Use deploy in production (safe for sqlite/postgres)
+pnpm --filter ./apps/api run prisma:deploy
 
 # Build both API and Web
 pnpm build:api
@@ -140,13 +79,13 @@ pnpm start:api
 If you prefer Docker deployment, create a `docker-compose.yml`:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile  # Assumes you create Dockerfile in project root
+      dockerfile: Dockerfile # Assumes you create Dockerfile in project root
     ports:
       - "3000:3000"
     environment:
@@ -159,7 +98,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile.web  # Assumes you create Dockerfile for web in project root
+      dockerfile: Dockerfile.web # Assumes you create Dockerfile for web in project root
     ports:
       - "80:80"
     depends_on:
@@ -181,6 +120,7 @@ volumes:
 ```
 
 Then deploy with:
+
 ```bash
 docker-compose up -d
 ```
@@ -200,7 +140,8 @@ pnpm install
 pnpm --filter ./apps/api run prisma:generate
 
 # Run any new database migrations
-pnpm --filter ./apps/api run prisma:migrate
+# Use deploy to avoid sqlite resets
+pnpm --filter ./apps/api run prisma:deploy
 
 # Rebuild the application
 pnpm build:api
@@ -230,6 +171,7 @@ cp dev.db backup_$(date +%Y%m%d_%H%M%S).db
 ## Development
 
 For development workflows, see the individual package READMEs:
+
 - [API Development](apps/api/README.md)
 - [Web Development](web/README.md)
 
@@ -336,6 +278,7 @@ chmod +x start-deploy.sh
 ```
 
 This script will:
+
 - Install all dependencies
 - Build both API and web applications
 - Initialize the database with all migrations
@@ -344,11 +287,13 @@ This script will:
 - Create a production startup script
 
 After deployment, you can start the production server with:
+
 ```bash
 cd dist && ./start-production.sh
 ```
 
 The deployment includes default credentials:
+
 - Admin: `admin` / `admin123`
 - Teacher: `teacher` / `teacher123`
 
@@ -357,6 +302,7 @@ The deployment includes default credentials:
 The project includes tools to manage database migrations:
 
 1. **Consolidate Migrations**: Combine all individual migration files into a single SQL file:
+
    ```bash
    ./consolidate-migrations.sh
    ```
@@ -364,6 +310,7 @@ The project includes tools to manage database migrations:
    This creates a `consolidated-migrations.sql` file that contains all database schema changes in a single file, useful for production deployments or database resets.
 
 2. **Generate Single Migration**: Create a fresh migration based on the current schema:
+
    ```bash
    ./generate-single-migration.sh
    ```

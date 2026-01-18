@@ -5,6 +5,7 @@ This directory contains the Docker configuration for deploying the ExamForge app
 ## Services
 
 The Docker Compose setup includes:
+
 - **PostgreSQL**: Main database for the application
 - **Redis**: Caching and session storage
 - **API**: NestJS backend service
@@ -19,27 +20,38 @@ The Docker Compose setup includes:
 ## Quick Start
 
 1. **Copy the environment file:**
+
    ```bash
    cp docker/.env.example docker/.env
    ```
 
 2. **Edit the environment file with your configuration:**
+
    ```bash
    nano docker/.env
    ```
-   
+
    Make sure to set the required values, especially:
    - `LLM_API_KEY`: Your LLM provider API key
    - `JWT_SECRET`: A strong secret for JWT tokens
 
 3. **Start the services:**
+
    ```bash
-   docker-compose -f docker/docker-compose.yml up -d
+   # Default registries (npmjs/alpine)
+   docker-compose -f docker/docker-compose.default.yml up -d
+
+   # China mirrors (npm mirror + aliyun apk)
+   docker-compose -f docker/docker-compose.build.yml up -d
    ```
+
+   Notes:
+   - `docker-compose.default.yml` uses default npm/alpine registries.
+   - `docker-compose.build.yml` passes mirror build args to Dockerfiles.
 
 4. **View logs:**
    ```bash
-   docker-compose -f docker/docker-compose.yml logs -f
+   docker-compose -f docker/docker-compose.build.yml logs -f
    ```
 
 ## Available Services
@@ -51,21 +63,26 @@ The Docker Compose setup includes:
 
 ## Building Images
 
-The Docker Compose file will automatically build the required images from the Dockerfiles in the `docker/` directory. If you need to rebuild:
+The build compose file will automatically build the required images from the Dockerfiles in the `docker/` directory. If you need to rebuild:
 
 ```bash
-docker-compose -f docker/docker-compose.yml build --no-cache
+# Default registries
+docker-compose -f docker/docker-compose.default.yml build --no-cache
+
+# China mirrors
+docker-compose -f docker/docker-compose.build.yml build --no-cache
 ```
 
 ## Stopping Services
 
 ```bash
-docker-compose -f docker/docker-compose.yml down
+docker-compose -f docker/docker-compose.build.yml down
 ```
 
 To remove volumes as well (this will delete all data):
+
 ```bash
-docker-compose -f docker/docker-compose.yml down -v
+docker-compose -f docker/docker-compose.build.yml down -v
 ```
 
 ## Customization
@@ -87,14 +104,15 @@ You can customize the deployment by modifying the environment variables in the `
 
 ### Useful Commands
 
-- Check service status: `docker-compose -f docker/docker-compose.yml ps`
-- View specific service logs: `docker-compose -f docker/docker-compose.yml logs api`
-- Execute commands in containers: `docker-compose -f docker/docker-compose.yml exec api sh`
+- Check service status: `docker-compose -f docker/docker-compose.build.yml ps`
+- View specific service logs: `docker-compose -f docker/docker-compose.build.yml logs api`
+- Execute commands in containers: `docker-compose -f docker/docker-compose.build.yml exec api sh`
 - Check resource usage: `docker stats`
 
 ## Production Considerations
 
 For production deployments, ensure you:
+
 - Use strong passwords and secrets
 - Configure SSL/TLS termination
 - Set up proper backup strategies
