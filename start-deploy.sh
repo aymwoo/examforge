@@ -100,12 +100,8 @@ print_status "🔄 Applying database migrations..."
 pnpm prisma migrate deploy
 print_success "✅ Database migrations applied"
 
-# Seed the database with initial data
+# Seed the database with initial AI providers
 print_status "🌱 Seeding database with initial data..."
-
-# Run the user seed script first
-print_status "   Creating initial users..."
-npx tsx prisma/seed-users.ts
 
 # Run the AI provider seed script
 print_status "   Creating initial AI providers..."
@@ -159,7 +155,7 @@ cat > dist/api/package.json << 'EOF'
     "start": "node main.js",
     "db:generate": "node -e \"require('child_process').execSync('npx prisma generate --schema=./prisma/schema.prisma', { stdio: 'inherit' })\"",
     "db:migrate": "node -e \"require('child_process').execSync('npx prisma migrate deploy --schema=./prisma/schema.prisma', { stdio: 'inherit' })\"",
-    "db:seed": "node -e \"require('child_process').execSync('npx tsx ./prisma/seed-users.ts', { stdio: 'inherit' }); require('child_process').execSync('npx tsx ./prisma/seed-ai-providers.ts', { stdio: 'inherit' })\"",
+    "db:seed": "node -e \"require('child_process').execSync('npx tsx ./prisma/seed-ai-providers.ts', { stdio: 'inherit' })\"",
     "db:init": "npm run db:generate && npm run db:migrate && npm run db:seed"
   },
   "dependencies": {
@@ -269,9 +265,75 @@ else
     exit 1
 fi
 
-# Start web static server
+# Start web static server with API proxy
 print_status "Starting web server..."
-node -e "const http=require('http');const fs=require('fs');const path=require('path');const root=path.join(process.cwd(),'web');const port=process.env.WEB_PORT||4173;const getMime=(p)=>({'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.json':'application/json','.ico':'image/x-icon'})[path.extname(p)]||'application/octet-stream';http.createServer((req,res)=>{let file=req.url==='/'?'/index.html':req.url;let filePath=path.join(root,file);if(!filePath.startsWith(root)) return res.writeHead(403).end();fs.readFile(filePath,(err,data)=>{if(err){res.writeHead(404);return res.end('Not found');}res.writeHead(200,{ 'Content-Type': getMime(filePath)});res.end(data);});}).listen(port,()=>console.log('Web running on http://localhost:'+port));" &
+node -e "
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const root = path.join(process.cwd(), 'web');
+const port = process.env.WEB_PORT || 4173;
+const apiPort = process.env.PORT || 3000;
+
+const getMime = (p) => ({
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.json': 'application/json',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf'
+})[path.extname(p)] || 'application/octet-stream';
+
+http.createServer((req, res) => {
+  // Proxy API requests to the API server
+  if (req.url.startsWith('/api/') || req.url.startsWith('/admin/')) {
+    const options = {
+      hostname: 'localhost',
+      port: apiPort,
+      path: req.url,
+      method: req.method,
+      headers: { ...req.headers, host: 'localhost:' + apiPort }
+    };
+    const proxyReq = http.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+    proxyReq.on('error', (e) => {
+      res.writeHead(502);
+      res.end('API server unavailable');
+    });
+    req.pipe(proxyReq);
+    return;
+  }
+  
+  // Serve static files
+  let file = req.url === '/' ? '/index.html' : req.url.split('?')[0];
+  let filePath = path.join(root, file);
+  if (!filePath.startsWith(root)) return res.writeHead(403).end();
+  
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      // SPA fallback: serve index.html for non-existent paths
+      fs.readFile(path.join(root, 'index.html'), (err2, indexData) => {
+        if (err2) {
+          res.writeHead(404);
+          return res.end('Not found');
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(indexData);
+      });
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': getMime(filePath) });
+    res.end(data);
+  });
+}).listen(port, () => console.log('Web running on http://localhost:' + port));
+" &
 WEB_PID=$!
 
 # Print deployment summary
@@ -282,13 +344,8 @@ echo "🌐 API Server: http://localhost:${PORT}"
 echo "📄 API Documentation: http://localhost:${PORT}/api"
 echo "🌐 Web: http://localhost:${WEB_PORT:-4173}"
 echo ""
-echo "Admin credentials:"
-echo "  Username: admin"
-echo "  Password: admin123"
-echo ""
-echo "Teacher credentials:"
-echo "  Username: teacher"
-echo "  Password: teacher123"
+echo "Note: Please register your first user account through the web interface."
+echo "      The first registered user will automatically become an administrator."
 echo ""
 echo "Press Ctrl+C to stop the servers"
 echo ""
@@ -350,22 +407,68 @@ if ($apiProcess.HasExited) {
 
 Write-Host "[INFO] Starting web server..."
 $webScript = @'
-const http=require('http');
-const fs=require('fs');
-const path=require('path');
-const root=path.join(process.cwd(),'web');
-const port=process.env.WEB_PORT||4173;
-const getMime=(p)=>({'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.json':'application/json','.ico':'image/x-icon'})[path.extname(p)]||'application/octet-stream';
-http.createServer((req,res)=>{
-  let file=req.url==='/'?'/index.html':req.url;
-  let filePath=path.join(root,file);
-  if(!filePath.startsWith(root)) return res.writeHead(403).end();
-  fs.readFile(filePath,(err,data)=>{
-    if(err){res.writeHead(404);return res.end('Not found');}
-    res.writeHead(200,{ 'Content-Type': getMime(filePath)});
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const root = path.join(process.cwd(), 'web');
+const port = process.env.WEB_PORT || 4173;
+const apiPort = process.env.PORT || 3000;
+
+const getMime = (p) => ({
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.json': 'application/json',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf'
+})[path.extname(p)] || 'application/octet-stream';
+
+http.createServer((req, res) => {
+  if (req.url.startsWith('/api/') || req.url.startsWith('/admin/')) {
+    const options = {
+      hostname: 'localhost',
+      port: apiPort,
+      path: req.url,
+      method: req.method,
+      headers: { ...req.headers, host: 'localhost:' + apiPort }
+    };
+    const proxyReq = http.request(options, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+    proxyReq.on('error', (e) => {
+      res.writeHead(502);
+      res.end('API server unavailable');
+    });
+    req.pipe(proxyReq);
+    return;
+  }
+  
+  let file = req.url === '/' ? '/index.html' : req.url.split('?')[0];
+  let filePath = path.join(root, file);
+  if (!filePath.startsWith(root)) return res.writeHead(403).end();
+  
+  fs.readFile(filePath, (err, data) => {
+    if (err) {
+      fs.readFile(path.join(root, 'index.html'), (err2, indexData) => {
+        if (err2) {
+          res.writeHead(404);
+          return res.end('Not found');
+        }
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(indexData);
+      });
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': getMime(filePath) });
     res.end(data);
   });
-}).listen(port,()=>console.log('Web running on http://localhost:'+port));
+}).listen(port, () => console.log('Web running on http://localhost:' + port));
 '@
 $webProcess = Start-Process node -ArgumentList '-e', $webScript -PassThru
 
@@ -376,13 +479,8 @@ Write-Host "🌐 API Server: http://localhost:$($env:PORT)"
 Write-Host "📄 API Documentation: http://localhost:$($env:PORT)/api"
 Write-Host "🌐 Web: http://localhost:$($env:WEB_PORT)"
 Write-Host ""
-Write-Host "Admin credentials:"
-Write-Host "  Username: admin"
-Write-Host "  Password: admin123"
-Write-Host ""
-Write-Host "Teacher credentials:"
-Write-Host "  Username: teacher"
-Write-Host "  Password: teacher123"
+Write-Host "Note: Please register your first user account through the web interface."
+Write-Host "      The first registered user will automatically become an administrator."
 Write-Host ""
 Write-Host "Press Ctrl+C to stop the servers"
 
@@ -432,9 +530,8 @@ powershell -ExecutionPolicy Bypass -File .\start-production.ps1
 ## Notes
 
 - The API bundle includes production `node_modules` in `dist/api/node_modules`.
-- On first run, the database is initialized and seeded with default accounts:
-  - `admin / admin123`
-  - `teacher / teacher123`
+- On first run, the database is initialized with AI provider configurations.
+- Register your first user through the web interface - the first user will automatically become an administrator.
 EOF
 
 chmod +x dist/start-production.sh
@@ -450,12 +547,11 @@ echo ""
 echo "📋 Deployment Summary:"
 echo "   - Dependencies installed"
 echo "   - Applications built"
-echo "   - Database initialized and seeded"
+echo "   - Database initialized"
 echo "   - Production package created in dist/ directory"
 echo ""
-echo "🔐 Default Credentials:"
-echo "   Admin: admin / admin123"
-echo "   Teacher: teacher / teacher123"
+echo "📝 Note: Register your first user through the web interface."
+echo "   The first registered user will automatically become an administrator."
 echo ""
 
 print_status "Starting production server..."
