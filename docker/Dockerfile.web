@@ -12,10 +12,8 @@ RUN if [ -n "$APK_MIRROR" ]; then \
       sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
     fi
 
-# Install pnpm globally with mirror
-ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
-RUN npm config set registry $NPM_REGISTRY && \
-    npm install -g pnpm@10.28.0 && \
+# Install pnpm via apk (Alpine package manager)
+RUN apk update && apk add --no-cache pnpm && \
     pnpm config set registry $NPM_REGISTRY
 
 # Copy package files
@@ -48,10 +46,8 @@ COPY --from=deps /root/.pnpm-store /root/.pnpm-store
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install pnpm globally with mirror
-ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
-RUN npm config set registry $NPM_REGISTRY && \
-    npm install -g pnpm@10.28.0 && \
+# Install pnpm via apk (Alpine package manager)
+RUN apk update && apk add --no-cache pnpm && \
     pnpm config set registry $NPM_REGISTRY
 
 # Install dependencies

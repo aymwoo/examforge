@@ -74,55 +74,68 @@ pnpm build:web
 pnpm start:api
 ```
 
-#### 3. Docker Deployment (Optional)
+#### 3. Docker Deployment
 
-If you prefer Docker deployment, create a `docker-compose.yml`:
+Docker deployment is recommended for production. The project includes multiple docker-compose configurations for different environments:
 
-```yaml
-version: "3.8"
+**Available Configurations:**
 
-services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile # Assumes you create Dockerfile in project root
-    ports:
-      - "3000:3000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/examforge
-      - JWT_SECRET=your-jwt-secret
-      - LLM_API_KEY=${LLM_API_KEY}
-    depends_on:
-      - db
+- `docker-compose.default.yml`: Standard deployment with official npm registry (recommended for most users)
+- `docker-compose.build.yml`: China-optimized with npmmirror.com registry and Aliyun APK mirrors
+- `docker-compose.images.yml`: Alternative build configuration
 
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile.web # Assumes you create Dockerfile for web in project root
-    ports:
-      - "80:80"
-    depends_on:
-      - api
-
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: examforge
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-
-volumes:
-  postgres_data:
-```
-
-Then deploy with:
+**Quick Start with Docker:**
 
 ```bash
-docker-compose up -d
+# For standard deployment
+docker compose -f docker/docker-compose.default.yml up -d
+
+# For China-optimized deployment
+docker compose -f docker/docker-compose.build.yml up -d
+
+# Build images first (recommended)
+docker compose -f docker/docker-compose.default.yml build
+docker compose -f docker/docker-compose.default.yml up -d
+```
+
+**Environment Variables:**
+
+Create a `.env` file in the project root or set environment variables:
+
+```bash
+# Database (PostgreSQL in Docker, SQLite for local dev)
+DATABASE_URL=postgresql://examforge:examforge@postgres:5432/examforge
+
+# Security
+JWT_SECRET=your-secure-jwt-secret-here
+
+# AI Configuration (optional)
+LLM_PROVIDER=qwen
+LLM_API_KEY=your-llm-api-key
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+
+# Redis (optional, for caching)
+REDIS_HOST=redis
+REDIS_PORT=6379
+```
+
+**Docker Services:**
+
+- **API**: NestJS backend on port 3000
+- **Web**: React frontend on port 80
+- **PostgreSQL**: Database on port 5432
+- **Redis**: Cache server on port 6379
+
+**Database Initialization:**
+
+The API service automatically runs Prisma migrations on startup. For initial setup:
+
+```bash
+# Access the API container
+docker compose -f docker/docker-compose.default.yml exec api sh
+
+# Run migrations manually if needed
+cd apps/api && pnpm prisma:deploy
 ```
 
 ### Updating the Application
