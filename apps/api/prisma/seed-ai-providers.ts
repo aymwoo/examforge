@@ -9,7 +9,7 @@ async function main() {
     update: {},
     create: {
       id: 'global-qwen',
-      name: '通义千问 (全局)',
+      name: 'qwen3-omni-flash-2025-12-01',
       apiKey: 'sk-b190ba2a13324d968814cfe95f19ca5a',
       baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
       model: 'qwen3-omni-flash-2025-12-01',
