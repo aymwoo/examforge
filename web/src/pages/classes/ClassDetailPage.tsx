@@ -384,7 +384,9 @@ export default function ClassDetailPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <button
-                        onClick={() => navigate(`/student/${student.id}`)}
+                        onClick={() =>
+                          navigate(`/student/${student.studentId}`)
+                        }
                         className="text-indigo-600 hover:text-indigo-900 hover:underline"
                       >
                         {student.studentId}

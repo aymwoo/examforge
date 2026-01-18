@@ -610,6 +610,15 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
         studentId: true,
         accountType: true,
         createdAt: true,
+        student: {
+          select: {
+            class: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
         _count: {
           select: { submissions: true },
         },

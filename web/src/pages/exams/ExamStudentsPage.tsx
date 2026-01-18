@@ -29,6 +29,7 @@ interface ExamStudent {
   studentId?: string;
   createdAt: string;
   accountType?: string; // 添加账号类型字段
+  className?: string;
 }
 
 export default function ExamStudentsPage() {
@@ -81,7 +82,12 @@ export default function ExamStudentsPage() {
         ]);
       setExam(examData);
       setSubmissions(submissionsResponse.data);
-      setExamStudents(studentsResponse.data);
+      setExamStudents(
+        studentsResponse.data.map((student: any) => ({
+          ...student,
+          className: student.student?.class?.name,
+        })),
+      );
     } catch (err) {
       console.error("加载数据失败:", err);
     } finally {
@@ -367,10 +373,12 @@ export default function ExamStudentsPage() {
                                 )}
                               </div>
                               <div className="text-sm text-gray-600">
-                                注册时间:{" "}
-                                {new Date(student.createdAt).toLocaleString(
-                                  "zh-CN",
-                                )}
+                                {mode === "PERMANENT" ? "班级:" : "注册时间:"}{" "}
+                                {mode === "PERMANENT"
+                                  ? student.className || "-"
+                                  : new Date(student.createdAt).toLocaleString(
+                                      "zh-CN",
+                                    )}
                               </div>
                               {submission && (
                                 <div className="text-sm text-gray-600">
