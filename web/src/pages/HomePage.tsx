@@ -348,7 +348,34 @@ export default function HomePage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  多种题型自动识别
+                  图片OCR识别
+                </li>
+              </ul>
+            </div>
+
+            {/* 高级PDF处理 */}
+            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-6">
+                <FileText className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-ink-900 mb-4">
+                高级PDF处理
+              </h3>
+              <p className="text-ink-600 mb-4">
+                支持PDF页眉页脚裁剪和多页拼接，提升OCR识别精度。
+              </p>
+              <ul className="space-y-2 text-sm text-ink-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  自动裁剪页眉页脚
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  多页内容拼接
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  高精度OCR识别
                 </li>
               </ul>
             </div>
@@ -380,27 +407,56 @@ export default function HomePage() {
               </ul>
             </div>
 
-            {/* 易于使用 */}
+            {/* 导入历史管理 */}
             <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
-              <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-2xl flex items-center justify-center mb-6">
-                <Users className="h-8 w-8 text-white" />
+              <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-amber-600 rounded-2xl flex items-center justify-center mb-6">
+                <RefreshCw className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold text-ink-900 mb-4">易于使用</h3>
+              <h3 className="text-xl font-bold text-ink-900 mb-4">
+                导入历史管理
+              </h3>
               <p className="text-ink-600 mb-4">
-                直观的用户界面，简单的操作流程，无需复杂培训即可快速上手使用。
+                完整记录每次导入任务的状态和结果，支持基于历史记录重新创建考试。
               </p>
               <ul className="space-y-2 text-sm text-ink-600">
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  现代化界面设计
+                  任务状态跟踪
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  一键式操作
+                  基于历史创建考试
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                  完整使用文档
+                  详细处理日志
+                </li>
+              </ul>
+            </div>
+
+            {/* 考试数据导出 */}
+            <div className="bg-white rounded-3xl p-8 shadow-soft border border-border hover:shadow-lg transition-shadow">
+              <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-6">
+                <FileText className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-ink-900 mb-4">
+                考试数据导出
+              </h3>
+              <p className="text-ink-600 mb-4">
+                支持将考试数据导出为多种格式（PDF、Excel、JSON），便于备份和打印。
+              </p>
+              <ul className="space-y-2 text-sm text-ink-600">
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  多格式导出选项
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  包含AI分析报告
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  实时进度反馈
                 </li>
               </ul>
             </div>
