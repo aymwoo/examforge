@@ -91,7 +91,7 @@ export class SettingsService {
 
   async getSettings(): Promise<SystemSettings> {
     const settings = await this.prisma.systemSetting.findMany();
-    const settingsMap = new Map(settings.map((s) => [s.key, s.value]));
+    const settingsMap = new Map<string, string>(settings.map((s) => [s.key, s.value as string]));
 
     const provider = (settingsMap.get(SettingKey.AI_PROVIDER) || AIProvider.OPENAI) as AIProvider;
 
@@ -161,7 +161,9 @@ export class SettingsService {
       this.prisma.userSetting.findMany({ where: { userId } }),
     ]);
 
-    const userSettingsMap = new Map(userSettings.map((s) => [s.key, s.value]));
+    const userSettingsMap = new Map<string, string>(
+      userSettings.map((s) => [s.key, s.value as string])
+    );
 
     // Check if user has a custom AI provider setting
     const userProvider = userSettingsMap.get('AI_PROVIDER');
@@ -260,7 +262,7 @@ export class SettingsService {
 
     if (!setting) {
       // 返回适当的默认值而不是抛出异常
-      switch(key) {
+      switch (key) {
         case SettingKey.AI_PROVIDER:
           return AIProvider.OPENAI;
         case SettingKey.PROMPT_TEMPLATE:
@@ -298,11 +300,13 @@ export class SettingsService {
   }
 
   async deleteUserSetting(userId: string, key: string): Promise<void> {
-    await this.prisma.userSetting.delete({
-      where: { userId_key: { userId, key } },
-    }).catch(() => {
-      // 如果记录不存在，忽略错误
-    });
+    await this.prisma.userSetting
+      .delete({
+        where: { userId_key: { userId, key } },
+      })
+      .catch(() => {
+        // 如果记录不存在，忽略错误
+      });
   }
 
   async getDefaultProviderId(): Promise<string> {
@@ -328,7 +332,12 @@ export class SettingsService {
     const userProvider = userSetting?.value;
 
     // First priority: If user has a specific custom provider ID, use that
-    if (userProvider && userProvider !== AIProvider.OPENAI && userProvider !== AIProvider.QWEN && userProvider !== AIProvider.CUSTOM) {
+    if (
+      userProvider &&
+      userProvider !== AIProvider.OPENAI &&
+      userProvider !== AIProvider.QWEN &&
+      userProvider !== AIProvider.CUSTOM
+    ) {
       const customProvider = await this.prisma.aIProvider.findUnique({
         where: { id: userProvider, isActive: true },
       });
@@ -447,7 +456,7 @@ export class SettingsService {
   }
 
   async getDefaultPromptTemplateByType(templateType: string): Promise<string> {
-    switch(templateType) {
+    switch (templateType) {
       case 'PROMPT_TEMPLATE':
         return this.getDefaultPromptTemplate();
       case 'GRADING_PROMPT_TEMPLATE':

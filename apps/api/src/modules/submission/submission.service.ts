@@ -74,7 +74,7 @@ export class SubmissionService {
     dto.answers.forEach((a) => answersMap.set(a.questionId, a.answer));
 
     const submittedQuestionIds = new Set(dto.answers.map((a) => a.questionId));
-    const examQuestionIds = new Set(exam.examQuestions.map((eq) => eq.questionId));
+    const examQuestionIds = new Set<string>(exam.examQuestions.map((eq) => eq.questionId));
 
     const missingQuestions = [...examQuestionIds].filter((id) => !submittedQuestionIds.has(id));
     if (missingQuestions.length > 0) {
