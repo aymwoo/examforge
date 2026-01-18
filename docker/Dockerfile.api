@@ -32,7 +32,7 @@ COPY . .
 RUN pnpm --filter @examforge/api build
 
 # Generate Prisma client
-RUN pnpm --filter ./apps/api run prisma:generate
+RUN npx prisma generate --schema=./apps/api/prisma/schema.prisma
 
 # Stage 3: Production runtime
 FROM node:18-alpine AS runtime
