@@ -12,14 +12,18 @@ RUN if [ -n "$APK_MIRROR" ]; then \
       sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
     fi
 
-# Use npm instead of pnpm due to network issues
-ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
+# Install pnpm via apk (Alpine package manager)
+RUN apk update && apk add --no-cache pnpm && \
+    pnpm config set registry $NPM_REGISTRY
 
 # Copy package files
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 
 # Install all dependencies
-RUN npm ci --only=production=false
+RUN pnpm install --frozen-lockfile --prod=false
+
+# Export pnpm store path for next stage
+RUN pnpm store path --silent > /tmp/pnpm-store-path
 
 
 # Stage 2: Build the application
@@ -34,19 +38,21 @@ RUN if [ -n "$APK_MIRROR" ]; then \
       sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
     fi
 
-# Skip pnpm store copy due to network issues
+# Copy pnpm store from previous stage
+COPY --from=deps /tmp/pnpm-store-path /tmp/pnpm-store-path
+RUN PNPM_STORE_PATH=$(cat /tmp/pnpm-store-path) && \
+    mkdir -p "$PNPM_STORE_PATH"
+COPY --from=deps /root/.pnpm-store /root/.pnpm-store
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install pnpm using corepack
-ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
-RUN corepack enable && \
-    corepack prepare pnpm@10.28.0 --activate && \
+# Install pnpm via apk (Alpine package manager)
+RUN apk update && apk add --no-cache pnpm && \
     pnpm config set registry $NPM_REGISTRY
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prod=false
 
 # Copy source code
 COPY . .
@@ -69,10 +75,8 @@ RUN if [ -n "$APK_MIRROR" ]; then \
       sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
     fi
 
-# Install pnpm using corepack
-ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
-RUN corepack enable && \
-    corepack prepare pnpm@10.28.0 --activate && \
+# Install pnpm via apk (Alpine package manager)
+RUN apk update && apk add --no-cache pnpm && \
     pnpm config set registry $NPM_REGISTRY
 
 # Copy package files

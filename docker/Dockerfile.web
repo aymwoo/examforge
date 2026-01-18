@@ -12,25 +12,20 @@ RUN if [ -n "$APK_MIRROR" ]; then \
       sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
     fi
 
-# Install pnpm using corepack
+# Install pnpm globally with mirror
 ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
-RUN corepack enable && \
-    corepack prepare pnpm@10.28.0 --activate && \
+RUN npm config set registry $NPM_REGISTRY && \
+    npm install -g pnpm@10.28.0 && \
     pnpm config set registry $NPM_REGISTRY
 
-
-# Install dependencies
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
 # Install dependencies (to create pnpm store)
 RUN pnpm install --frozen-lockfile --prod=false
 
-# Copy source code
-COPY . .
-
-# Build the web application
-RUN pnpm --filter @examforge/web build
+# Export pnpm store path for next stage
+RUN pnpm store path --silent > /tmp/pnpm-store-path
 
 # Stage 2: Build the application
 FROM node:18-alpine AS builder
@@ -44,18 +39,23 @@ RUN if [ -n "$APK_MIRROR" ]; then \
       sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
     fi
 
-# Install pnpm using corepack
-ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
-RUN corepack enable && \
-    corepack prepare pnpm@10.28.0 --activate && \
-    pnpm config set registry $NPM_REGISTRY
+# Copy pnpm store from previous stage
+COPY --from=deps /tmp/pnpm-store-path /tmp/pnpm-store-path
+RUN PNPM_STORE_PATH=$(cat /tmp/pnpm-store-path) && \
+    mkdir -p "$PNPM_STORE_PATH"
+COPY --from=deps /root/.pnpm-store /root/.pnpm-store
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
+# Install pnpm globally with mirror
+ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
+RUN npm config set registry $NPM_REGISTRY && \
+    npm install -g pnpm@10.28.0 && \
+    pnpm config set registry $NPM_REGISTRY
+
 # Install dependencies
 RUN pnpm install --frozen-lockfile
-
 
 # Copy source code
 COPY . .
