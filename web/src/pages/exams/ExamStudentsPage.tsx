@@ -418,17 +418,20 @@ export default function ExamStudentsPage() {
                                         未评分
                                       </span>
                                     )}
-                                    {mode === "PERMANENT" && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          navigate(`/student/${student.id}`)
-                                        }
-                                        className="text-xs font-medium text-indigo-600 hover:text-indigo-900"
-                                      >
-                                        学习情况
-                                      </button>
-                                    )}
+                                    {mode === "PERMANENT" &&
+                                      student.studentId && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            navigate(
+                                              `/student/${student.studentId}`,
+                                            )
+                                          }
+                                          className="text-xs font-medium text-indigo-600 hover:text-indigo-900"
+                                        >
+                                          学习情况
+                                        </button>
+                                      )}
                                   </div>
                                 </>
                               ) : (

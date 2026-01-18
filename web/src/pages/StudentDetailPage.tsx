@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Clock, Users, FileText, Award, ArrowLeft } from "lucide-react";
 import {
-  Clock,
-  Users,
-  FileText,
-  BookOpen,
-  Award,
-  ArrowLeft,
-} from "lucide-react";
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
 import { isAuthenticated } from "@/utils/auth";
@@ -130,6 +131,20 @@ export default function StudentDetailPage() {
     return new Date(dateString).toLocaleString("zh-CN");
   };
 
+  const getScoreTrendData = () => {
+    return exams
+      .filter((exam) => exam.submission && exam.totalScore > 0)
+      .map((exam) => ({
+        title: exam.title,
+        date:
+          exam.submission?.submittedAt || exam.startTime || exam.endTime || "",
+        ratio: exam.submission
+          ? Math.round((exam.submission.score / exam.totalScore) * 100)
+          : 0,
+      }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
+
   const normalizeTrueFalseLabel = (value: unknown) => {
     if (
       value === true ||
@@ -162,11 +177,21 @@ export default function StudentDetailPage() {
 
     if (!question.options) return answer ? String(answer) : "";
 
+    const options = Array.isArray(question.options)
+      ? question.options
+      : (() => {
+          try {
+            return JSON.parse(question.options);
+          } catch {
+            return [];
+          }
+        })();
+
     if (Array.isArray(answer)) {
       // 多选题：将答案文本数组转换为选项标识数组
       return answer
         .map((answerText) => {
-          const index = question.options.findIndex((opt: any) => {
+          const index = options.findIndex((opt: any) => {
             const optionText =
               typeof opt === "string"
                 ? opt
@@ -179,7 +204,7 @@ export default function StudentDetailPage() {
     }
 
     // 单选题：将答案文本转换为选项标识
-    const index = question.options.findIndex((opt: any) => {
+    const index = options.findIndex((opt: any) => {
       const optionText =
         typeof opt === "string"
           ? opt
@@ -282,16 +307,46 @@ export default function StudentDetailPage() {
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-6 border-b">
             <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <BookOpen className="h-6 w-6 text-green-600 mr-3" />
-                <h2 className="text-xl font-semibold text-gray-900">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
                   考试记录
                 </h2>
+                <p className="text-sm text-gray-500">学生参与的所有考试</p>
               </div>
               <div className="text-sm text-gray-500">
                 共 {exams.length} 场考试
               </div>
             </div>
+            {getScoreTrendData().length > 0 && (
+              <div className="mt-6">
+                <div className="text-sm text-gray-500 mb-2">得分趋势</div>
+                <div className="h-40 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={getScoreTrendData()}>
+                      <XAxis dataKey="title" hide />
+                      <YAxis domain={[0, 100]} hide />
+                      <Tooltip
+                        formatter={(value) => `${value ?? 0}%`}
+                        labelFormatter={(_, payload) =>
+                          payload?.[0]?.payload?.title || ""
+                        }
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="ratio"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-2 flex justify-between text-xs text-gray-500">
+                  <span>早</span>
+                  <span>近期</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="p-6">

@@ -69,6 +69,8 @@ export const examAccountModes = [
   "PERMANENT",
   "TEMPORARY_IMPORT",
   "TEMPORARY_REGISTER",
+  "CLASS_IMPORT",
+  "GENERATE_ACCOUNTS",
 ] as const;
 export type ExamAccountMode = (typeof examAccountModes)[number];
 

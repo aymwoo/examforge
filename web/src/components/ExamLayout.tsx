@@ -168,8 +168,20 @@ export default function ExamLayout({
     });
   };
 
-  const normalizeAccountModes = (modes: string[]): ExamAccountMode[] => {
-    return (modes || []).filter((m): m is ExamAccountMode =>
+  const normalizeAccountModes = (modes: unknown): ExamAccountMode[] => {
+    const rawModes = Array.isArray(modes)
+      ? modes
+      : typeof modes === "string"
+        ? (() => {
+            try {
+              return JSON.parse(modes);
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+
+    return (rawModes || []).filter((m: string): m is ExamAccountMode =>
       (examAccountModes as readonly string[]).includes(m),
     );
   };
@@ -200,12 +212,50 @@ export default function ExamLayout({
         message: "学生登录模式已更新！",
       });
     } catch (err: any) {
-      setModal({
-        isOpen: true,
-        type: "error",
-        title: "修改失败",
-        message: err.response?.data?.message || "修改失败，请重试",
-      });
+      if (err?.response?.status === 400) {
+        try {
+          const refreshedExam = await getExamById(id);
+          const refreshedModes = normalizeAccountModes(
+            (refreshedExam as any).accountModes,
+          );
+          if (
+            refreshedModes.length > 0 &&
+            refreshedModes.sort().join(",") === normalizedModes.sort().join(",")
+          ) {
+            setExam({
+              ...refreshedExam,
+              accountModes: refreshedModes,
+            });
+            setModal({
+              isOpen: true,
+              type: "success",
+              title: "修改成功",
+              message: "学生登录模式已更新！",
+            });
+          } else {
+            setModal({
+              isOpen: true,
+              type: "error",
+              title: "修改失败",
+              message: err.response?.data?.message || "修改失败，请重试",
+            });
+          }
+        } catch (refreshError: any) {
+          setModal({
+            isOpen: true,
+            type: "error",
+            title: "修改失败",
+            message: err.response?.data?.message || "修改失败，请重试",
+          });
+        }
+      } else {
+        setModal({
+          isOpen: true,
+          type: "error",
+          title: "修改失败",
+          message: err.response?.data?.message || "修改失败，请重试",
+        });
+      }
     } finally {
       setUpdating(false);
     }
