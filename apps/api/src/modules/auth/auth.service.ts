@@ -139,6 +139,11 @@ export class AuthService {
     }
   }
 
+  async checkFirstUser(): Promise<{ isFirstUser: boolean }> {
+    const userCount = await this.userService.count();
+    return { isFirstUser: userCount === 0 };
+  }
+
   async validateUser(payload: any) {
     // 如果是学生用户，查找学生表
     if (payload.isStudent) {

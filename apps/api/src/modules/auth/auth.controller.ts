@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Get, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto/login.dto';
@@ -22,5 +22,12 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Username already exists' })
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);
+  }
+
+  @Get('check-first-user')
+  @ApiOperation({ summary: 'Check if this would be the first user registration' })
+  @ApiResponse({ status: 200, description: 'Returns whether this is the first user' })
+  checkFirstUser() {
+    return this.authService.checkFirstUser();
   }
 }

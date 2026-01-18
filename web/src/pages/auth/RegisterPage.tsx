@@ -11,11 +11,29 @@ export default function RegisterPage() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isFirstUser, setIsFirstUser] = useState<boolean | null>(null);
+  const [checkingFirstUser, setCheckingFirstUser] = useState(true);
 
-  // 当显示注册成功消息时，3秒后自动跳转到首页
+  // 检查是否是第一个用户
+  useEffect(() => {
+    const checkFirst = async () => {
+      try {
+        const result = await authService.checkFirstUser();
+        setIsFirstUser(result.isFirstUser);
+      } catch (err) {
+        console.error("Failed to check first user:", err);
+        setIsFirstUser(false);
+      } finally {
+        setCheckingFirstUser(false);
+      }
+    };
+    checkFirst();
+  }, []);
+
+  // 当显示注册成功消息时，3秒后自动跳转到首页（仅针对非第一用户）
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    if (error.includes("注册成功")) {
+    if (error.includes("注册成功") && !error.includes("管理员")) {
       timer = setTimeout(() => {
         navigate("/");
       }, 3000);
@@ -25,7 +43,7 @@ export default function RegisterPage() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [error]);
+  }, [error, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +59,18 @@ export default function RegisterPage() {
 
     try {
       const response = await authService.register(formData);
-      // 不再自动登录，而是显示成功消息
+
+      // 如果返回了 access_token，说明是第一个用户（管理员），直接登录
+      if (response.access_token) {
+        localStorage.setItem("token", response.access_token);
+        localStorage.setItem("user", JSON.stringify(response.user));
+        window.dispatchEvent(new Event("authChanged"));
+        // 直接跳转到首页
+        navigate("/");
+        return;
+      }
+
+      // 普通用户注册成功，显示等待审核消息
       setError(response.message || "注册成功！");
       setFormData({ username: "", password: "", name: "" }); // 清空表单
     } catch (err: any) {
@@ -77,6 +106,32 @@ export default function RegisterPage() {
             </button>
           </p>
         </div>
+
+        {/* 第一个用户提示 */}
+        {!checkingFirstUser && isFirstUser && !error && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md">
+            <div className="flex items-start">
+              <svg
+                className="h-5 w-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div>
+                <p className="font-medium">系统初始化</p>
+                <p className="text-sm mt-1">
+                  您将成为系统的第一个用户，注册后将自动获得管理员权限，无需等待审核。
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div
@@ -149,14 +204,18 @@ export default function RegisterPage() {
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || checkingFirstUser}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading
-                ? "注册中..."
-                : error.includes("注册成功")
-                  ? "返回首页 (3s)"
-                  : "注册"}
+              {checkingFirstUser
+                ? "加载中..."
+                : loading
+                  ? "注册中..."
+                  : error.includes("注册成功")
+                    ? "返回首页 (3s)"
+                    : isFirstUser
+                      ? "注册并成为管理员"
+                      : "注册"}
             </button>
           </div>
         </form>

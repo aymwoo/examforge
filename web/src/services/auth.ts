@@ -36,6 +36,10 @@ export interface RegisterResponse {
   };
 }
 
+export interface CheckFirstUserResponse {
+  isFirstUser: boolean;
+}
+
 export const authService = {
   async login(data: LoginRequest): Promise<AuthResponse> {
     const response = await api.post("/api/auth/login", data);
@@ -44,6 +48,11 @@ export const authService = {
 
   async register(data: RegisterRequest): Promise<RegisterResponse> {
     const response = await api.post("/api/auth/register", data);
+    return response.data;
+  },
+
+  async checkFirstUser(): Promise<CheckFirstUserResponse> {
+    const response = await api.get("/api/auth/check-first-user");
     return response.data;
   },
 };
