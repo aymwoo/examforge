@@ -6,7 +6,7 @@ This directory contains the Docker configuration for deploying the ExamForge app
 
 The Docker Compose setup includes:
 
-- **PostgreSQL**: Main database for the application
+- **SQLite**: File-based database mounted into the API container
 - **Redis**: Caching and session storage
 - **API**: NestJS backend service
 - **Web**: React frontend served via nginx
@@ -58,7 +58,7 @@ The Docker Compose setup includes:
 
 - **Frontend**: http://localhost (port 80 mapped to host)
 - **API**: http://localhost:3000 (internal port 3000)
-- **PostgreSQL**: localhost:5432 (internal port 5432)
+- **SQLite**: Stored in `docker/sqlite/prod.db` (mounted into the API)
 - **Redis**: localhost:6379 (internal port 6379)
 
 ## Building Images
@@ -89,7 +89,7 @@ docker-compose -f docker/docker-compose.build.yml down -v
 
 You can customize the deployment by modifying the environment variables in the `.env` file:
 
-- `DB_NAME`, `DB_USER`, `DB_PASSWORD`: PostgreSQL credentials
+- `DATABASE_URL`: SQLite database path (default: `file:./prisma/prod.db`)
 - `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`: AI service configuration
 - `JWT_SECRET`: Secret for JSON Web Tokens
 - `NODE_ENV`: Environment mode (production/development)
@@ -98,9 +98,10 @@ You can customize the deployment by modifying the environment variables in the `
 
 ### Common Issues
 
-1. **Port conflicts**: Make sure ports 80, 3000, 5432, and 6379 are available
+1. **Port conflicts**: Make sure ports 80, 3000, and 6379 are available
 2. **Insufficient memory**: Increase Docker's memory allocation if builds fail
 3. **Permission errors**: Ensure Docker daemon is running with appropriate permissions
+4. **SQLite file permissions**: Ensure `docker/sqlite` is writable by Docker
 
 ### Useful Commands
 

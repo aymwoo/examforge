@@ -33,8 +33,16 @@ print_error() {
 
 # Check if pnpm is installed
 if ! command -v pnpm &> /dev/null; then
-    print_error "pnpm is not installed. Please install pnpm first."
-    exit 1
+    print_warning "pnpm is not installed. Installing via npm..."
+    if ! command -v npm &> /dev/null; then
+        print_error "npm is not installed. Please install Node.js (with npm) first."
+        exit 1
+    fi
+    npm install -g pnpm
+    if ! command -v pnpm &> /dev/null; then
+        print_error "Failed to install pnpm. Please run: npm install -g pnpm"
+        exit 1
+    fi
 fi
 
 # Check if Node.js is installed
@@ -127,8 +135,60 @@ mkdir -p dist/api dist/web
 # Copy API build
 cp -r apps/api/dist/* dist/api/ 2>/dev/null || print_warning "No API build found, skipping API packaging"
 
+# Copy prisma schema + baseline migration
+mkdir -p dist/api/prisma/migrations
+cp apps/api/prisma/schema.prisma dist/api/prisma/schema.prisma
+cp -r apps/api/prisma/migrations/* dist/api/prisma/migrations/
+
+# Copy assets/uploads (best effort)
+mkdir -p dist/api/assets dist/api/uploads
+cp -r apps/api/assets/* dist/api/assets/ 2>/dev/null || true
+
 # Copy web build
 cp -r web/dist/* dist/web/ 2>/dev/null || print_warning "No web build found, skipping web packaging"
+
+# Generate minimal API package.json for dist runtime
+cat > dist/api/package.json << 'EOF'
+{
+  "name": "examforge-api-dist",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node main.js",
+    "db:generate": "node -e \"require('child_process').execSync('npx prisma generate --schema=./prisma/schema.prisma', { stdio: 'inherit' })\"",
+    "db:migrate": "node -e \"require('child_process').execSync('npx prisma migrate deploy --schema=./prisma/schema.prisma', { stdio: 'inherit' })\"",
+    "db:seed": "node -e \"require('child_process').execSync('npx tsx ./prisma/seed-users.ts', { stdio: 'inherit' }); require('child_process').execSync('npx tsx ./prisma/seed-ai-providers.ts', { stdio: 'inherit' })\"",
+    "db:init": "npm run db:generate && npm run db:migrate && npm run db:seed"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.11",
+    "@nestjs/config": "^4.0.2",
+    "@nestjs/core": "^11.1.11",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/swagger": "^11.2.3",
+    "@prisma/client": "^5.22.0",
+    "@prisma/migrate": "^5.22.0",
+    "archiver": "^7.0.1",
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.3",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pdfkit": "^0.17.2",
+    "pdfreader": "^3.0.8",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "sharp": "^0.34.5",
+    "tsx": "^4.20.6",
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
+  }
+}
+EOF
+
+print_status "📦 Installing production dependencies into dist/api..."
+(cd dist/api && npm install --omit=dev)
 
 print_success "✅ Applications packaged to dist/ directory"
 
@@ -157,8 +217,35 @@ print_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
 # Navigate to the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Ensure Node.js exists
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}[ERROR]${NC} Node.js is not installed."
+    exit 1
+fi
+
+# Ensure dependencies exist
+if [ ! -d "$SCRIPT_DIR/api/node_modules" ]; then
+    echo -e "${RED}[ERROR]${NC} Missing dist/api/node_modules. Please re-run start-deploy.sh."
+    exit 1
+fi
+
+# Default DB (SQLite) location
+export DATABASE_URL="${DATABASE_URL:-file:./prisma/prod.db}"
+export NODE_ENV="${NODE_ENV:-production}"
+export PORT="${PORT:-3000}"
+
+# Initialize database if missing
+if [ ! -f "$SCRIPT_DIR/api/prisma/prod.db" ]; then
+    print_status "Initializing database..."
+    (cd "$SCRIPT_DIR/api" && npm run db:init)
+fi
 
 # Start the API server in background
 print_status "Starting API server..."
@@ -176,12 +263,18 @@ else
     exit 1
 fi
 
+# Start web static server
+print_status "Starting web server..."
+node -e "const http=require('http');const fs=require('fs');const path=require('path');const root=path.join(process.cwd(),'web');const port=process.env.WEB_PORT||4173;const getMime=(p)=>({'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.json':'application/json','.ico':'image/x-icon'})[path.extname(p)]||'application/octet-stream';http.createServer((req,res)=>{let file=req.url==='/'?'/index.html':req.url;let filePath=path.join(root,file);if(!filePath.startsWith(root)) return res.writeHead(403).end();fs.readFile(filePath,(err,data)=>{if(err){res.writeHead(404);return res.end('Not found');}res.writeHead(200,{ 'Content-Type': getMime(filePath)});res.end(data);});}).listen(port,()=>console.log('Web running on http://localhost:'+port));" &
+WEB_PID=$!
+
 # Print deployment summary
 echo ""
 echo "🎉 ExamForge deployed successfully!"
 echo ""
-echo "🌐 API Server: http://localhost:3000"
-echo "📄 API Documentation: http://localhost:3000/api"
+echo "🌐 API Server: http://localhost:${PORT}"
+echo "📄 API Documentation: http://localhost:${PORT}/api"
+echo "🌐 Web: http://localhost:${WEB_PORT:-4173}"
 echo ""
 echo "Admin credentials:"
 echo "  Username: admin"
@@ -195,7 +288,7 @@ echo "Press Ctrl+C to stop the servers"
 echo ""
 
 # Wait for termination signal
-trap "echo -e '\n🛑 Shutting down ExamForge...'; kill $API_PID; exit" SIGINT SIGTERM
+trap "echo -e '\n🛑 Shutting down ExamForge...'; kill $API_PID $WEB_PID; exit" SIGINT SIGTERM
 
 # Wait indefinitely
 while true; do
@@ -203,9 +296,146 @@ while true; do
 done
 EOF
 
+cat > dist/start-production.ps1 << 'EOF'
+<#
+Production startup script for ExamForge (Windows)
+#>
+
+$ErrorActionPreference = 'Stop'
+Write-Host "🚀 Starting ExamForge in production mode..."
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+  Write-Error "Node.js is not installed."
+  exit 1
+}
+
+if (-not (Test-Path (Join-Path $ScriptDir 'api/node_modules'))) {
+  Write-Error "Missing dist/api/node_modules. Please re-run start-deploy.sh."
+  exit 1
+}
+
+$env:DATABASE_URL = $env:DATABASE_URL ?? 'file:./prisma/prod.db'
+$env:NODE_ENV = $env:NODE_ENV ?? 'production'
+$env:PORT = $env:PORT ?? '3000'
+$env:WEB_PORT = $env:WEB_PORT ?? '4173'
+
+if (-not (Test-Path (Join-Path $ScriptDir 'api/prisma/prod.db'))) {
+  Write-Host "[INFO] Initializing database..."
+  Push-Location (Join-Path $ScriptDir 'api')
+  try {
+    npm run db:init
+  } finally {
+    Pop-Location
+  }
+}
+
+Write-Host "[INFO] Starting API server..."
+Push-Location (Join-Path $ScriptDir 'api')
+$apiProcess = Start-Process node -ArgumentList 'main.js' -PassThru
+Pop-Location
+Start-Sleep -Seconds 3
+
+if ($apiProcess.HasExited) {
+  Write-Error "Failed to start API server."
+  exit 1
+}
+
+Write-Host "[INFO] Starting web server..."
+$webScript = @'
+const http=require('http');
+const fs=require('fs');
+const path=require('path');
+const root=path.join(process.cwd(),'web');
+const port=process.env.WEB_PORT||4173;
+const getMime=(p)=>({'.html':'text/html','.js':'text/javascript','.css':'text/css','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.json':'application/json','.ico':'image/x-icon'})[path.extname(p)]||'application/octet-stream';
+http.createServer((req,res)=>{
+  let file=req.url==='/'?'/index.html':req.url;
+  let filePath=path.join(root,file);
+  if(!filePath.startsWith(root)) return res.writeHead(403).end();
+  fs.readFile(filePath,(err,data)=>{
+    if(err){res.writeHead(404);return res.end('Not found');}
+    res.writeHead(200,{ 'Content-Type': getMime(filePath)});
+    res.end(data);
+  });
+}).listen(port,()=>console.log('Web running on http://localhost:'+port));
+'@
+$webProcess = Start-Process node -ArgumentList '-e', $webScript -PassThru
+
+Write-Host ""
+Write-Host "🎉 ExamForge deployed successfully!"
+Write-Host ""
+Write-Host "🌐 API Server: http://localhost:$($env:PORT)"
+Write-Host "📄 API Documentation: http://localhost:$($env:PORT)/api"
+Write-Host "🌐 Web: http://localhost:$($env:WEB_PORT)"
+Write-Host ""
+Write-Host "Admin credentials:"
+Write-Host "  Username: admin"
+Write-Host "  Password: admin123"
+Write-Host ""
+Write-Host "Teacher credentials:"
+Write-Host "  Username: teacher"
+Write-Host "  Password: teacher123"
+Write-Host ""
+Write-Host "Press Ctrl+C to stop the servers"
+
+try {
+  while ($true) { Start-Sleep -Seconds 1 }
+} finally {
+  if (-not $apiProcess.HasExited) { $apiProcess.Kill() }
+  if (-not $webProcess.HasExited) { $webProcess.Kill() }
+}
+EOF
+
+cat > dist/README.md << 'EOF'
+# ExamForge dist Package
+
+This folder is a standalone production bundle generated by `start-deploy.sh`.
+
+## Quick start
+
+```bash
+./start-production.sh
+```
+
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-production.ps1
+```
+
+## Endpoints
+
+- API: http://localhost:3000
+- Web: http://localhost:4173
+- API docs: http://localhost:3000/api
+
+## Database
+
+- Default SQLite file: `dist/api/prisma/prod.db`
+- Override with `DATABASE_URL` (example: `file:./prisma/custom.db`)
+
+## Environment variables
+
+- `PORT` (default: 3000)
+- `WEB_PORT` (default: 4173)
+- `DATABASE_URL` (default: `file:./prisma/prod.db`)
+- `JWT_SECRET` / `LLM_API_KEY` (required for production usage)
+
+## Notes
+
+- The API bundle includes production `node_modules` in `dist/api/node_modules`.
+- On first run, the database is initialized and seeded with default accounts:
+  - `admin / admin123`
+  - `teacher / teacher123`
+EOF
+
 chmod +x dist/start-production.sh
 
 print_success "✅ Production startup script created: dist/start-production.sh"
+print_success "✅ Production startup script created: dist/start-production.ps1"
+print_success "✅ dist/README.md created"
 
 # Print deployment summary
 print_success "🎉 ExamForge deployment completed successfully!"

@@ -1,24 +1,4 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    restart: always
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_DB: ${DB_NAME:-examforge}
-      POSTGRES_USER: ${DB_USER:-examforge}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-examforge}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-examforge}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - examforge-network
-
   redis:
     image: redis:7-alpine
     restart: always
@@ -36,18 +16,13 @@ services:
       - examforge-network
 
   api:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.api
-      args:
-        APK_MIRROR: mirrors.aliyun.com
-        NPM_REGISTRY: https://registry.npmmirror.com
+    image: examforge-api:latest
     restart: always
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
-      - DATABASE_URL=postgresql://${DB_USER:-examforge}:${DB_PASSWORD:-examforge}@postgres:5432/${DB_NAME:-examforge}
+      - DATABASE_URL=${DATABASE_URL:-file:./prisma/prod.db}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - JWT_SECRET=${JWT_SECRET:-default_secret_for_dev}
@@ -58,13 +33,12 @@ services:
       - OCR_ENGINE=${OCR_ENGINE:-paddleocr}
       - PORT=3000
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
       - ./uploads:/app/apps/api/uploads
       - ./assets:/app/apps/api/assets
+      - ./sqlite:/app/apps/api/prisma
     healthcheck:
       test:
         [
@@ -78,6 +52,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+
     networks:
       - examforge-network
 
@@ -105,7 +80,6 @@ services:
       - examforge-network
 
 volumes:
-  postgres_data:
   redis_data:
 
 networks:
