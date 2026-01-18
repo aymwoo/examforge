@@ -47,7 +47,7 @@ examforge/
 ### Prerequisites
 
 - Node.js >= 18
-- pnpm >= 8
+- npm >= 8
 
 ### Installation
 
@@ -57,21 +57,21 @@ git clone <repo-url>
 cd examforge
 
 # Install dependencies
-pnpm install
+npm install
 
 # Generate Prisma client
-pnpm --filter ./apps/api run prisma:generate
+npm run prisma:generate -w apps/api
 
 # Run database migrations
 # Use deploy in production (safe for sqlite/postgres)
-pnpm --filter ./apps/api run prisma:deploy
+npx prisma migrate deploy -w apps/api
 
 # Build both API and Web
-pnpm build:api
-pnpm build:web
+npm run build:api
+npm run build:web
 
 # Start production servers
-pnpm start:api
+npm run start -w apps/api
 ```
 
 #### 3. Docker Deployment
@@ -135,7 +135,7 @@ The API service automatically runs Prisma migrations on startup. For initial set
 docker compose -f docker/docker-compose.default.yml exec api sh
 
 # Run migrations manually if needed
-cd apps/api && pnpm prisma:deploy
+cd apps/api && npx prisma migrate deploy
 ```
 
 ### Updating the Application
@@ -147,18 +147,18 @@ cd apps/api && pnpm prisma:deploy
 git pull origin main
 
 # Install any new dependencies
-pnpm install
+npm install
 
 # Generate Prisma client (if schema changed)
-pnpm --filter ./apps/api run prisma:generate
+npm run prisma:generate -w apps/api
 
 # Run any new database migrations
 # Use deploy to avoid sqlite resets
-pnpm --filter ./apps/api run prisma:deploy
+npx prisma migrate deploy -w apps/api
 
 # Rebuild the application
-pnpm build:api
-pnpm build:web
+npm run build:api
+npm run build:web
 ```
 
 #### 2. Restart Services

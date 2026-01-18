@@ -17,54 +17,54 @@
 ## Environment
 
 - Node: `>=18`
-- pnpm: `>=8` (repo uses `pnpm@10.x` via `packageManager`)
-- Install: `pnpm install`
+- npm: `>=8` (uses npm workspaces)
+- Install: `npm install`
 - API env: `apps/api/.env` (never commit)
 
 ## Commands
 
 ### Workspace-level (root)
 
-| Command                             | Description                           |
-| ----------------------------------- | ------------------------------------- |
-| `pnpm dev`                          | Run API + Web dev servers in parallel |
-| `pnpm build`                        | Build all packages                    |
-| `pnpm lint` / `pnpm lint:fix`       | Lint all packages                     |
-| `pnpm format` / `pnpm format:check` | Prettier write/check                  |
-| `pnpm test`                         | Run workspace tests                   |
-| `pnpm test:e2e`                     | Run API e2e tests                     |
+| Command                                   | Description                           |
+| ----------------------------------------- | ------------------------------------- |
+| `npm run dev`                             | Run API + Web dev servers in parallel |
+| `npm run build`                           | Build all packages                    |
+| `npm run lint` / `npm run lint:fix`       | Lint all packages                     |
+| `npm run format` / `npm run format:check` | Prettier write/check                  |
+| `npm run test`                            | Run workspace tests                   |
+| `npm run test:e2e`                        | Run API e2e tests                     |
 
 ### Package-specific
 
-| Package      | Commands                                                             |
-| ------------ | -------------------------------------------------------------------- | -------- | -------- | ---------- |
-| API          | `pnpm dev:api`, `pnpm build:api`, `pnpm --filter ./apps/api run lint | test     | test:e2e | prisma:\*` |
-| Web          | `pnpm dev:web`, `pnpm build:web`, `pnpm --filter ./web run lint      | lint:fix | format`  |
-| Shared types | `pnpm --filter @examforge/shared-types run build                     | watch    | clean`   |
+| Package      | Commands                                                                                           |
+| ------------ | -------------------------------------------------------------------------------------------------- |
+| API          | `npm run dev:api`, `npm run build:api`, `npm run test -w apps/api`, `npm run test:e2e -w apps/api` |
+| Web          | `npm run dev:web`, `npm run build:web`, `npm run lint -w web`                                      |
+| Shared types | `npm run build -w packages/shared-types`, `npm run watch -w packages/shared-types`                 |
 
 ### Single test (API - Jest)
 
 ```bash
-pnpm --filter ./apps/api run test -- src/modules/question/question.service.spec.ts
-pnpm --filter ./apps/api run test -- -t "should create question"
-pnpm --filter ./apps/api run test:watch
-cd apps/api && pnpm test -- <path> -t <pattern>
+npm run test -w apps/api -- src/modules/question/question.service.spec.ts
+npm run test -w apps/api -- -t "should create question"
+npm run test:watch -w apps/api
+cd apps/api && npm test -- <path> -t <pattern>
 ```
 
 ### Single e2e test (API - Jest)
 
 ```bash
-pnpm --filter ./apps/api run test:e2e -- test/app.e2e-spec.ts
-pnpm --filter ./apps/api run test:e2e -- -t "health"
+npm run test:e2e -w apps/api -- test/app.e2e-spec.ts
+npm run test:e2e -w apps/api -- -t "health"
 ```
 
 ### Prisma (API)
 
 ```bash
-pnpm --filter ./apps/api run prisma:generate   # Regenerate client after schema changes
-pnpm --filter ./apps/api run prisma:migrate    # Development migrations (may reset sqlite data)
-pnpm --filter ./apps/api run prisma:studio     # GUI database viewer
-pnpm --filter ./apps/api run prisma:deploy     # Production migrations (safe for sqlite data)
+npm run prisma:generate -w apps/api   # Regenerate client after schema changes
+npm run prisma:migrate -w apps/api    # Development migrations (may reset sqlite data)
+npm run prisma:studio -w apps/api     # GUI database viewer
+npx prisma migrate deploy -w apps/api # Production migrations (safe for sqlite data)
 ```
 
 ## Cursor / Copilot Rules
@@ -90,7 +90,7 @@ pnpm --filter ./apps/api run prisma:deploy     # Production migrations (safe for
 ### Formatting (Prettier)
 
 `printWidth: 100`, `tabWidth: 2`, `singleQuote: true`, `semi: true`, `trailingComma: "es5"`, `endOfLine: "lf"`.
-Run `pnpm format` to format code; avoid manual formatting.
+Run `npm run format` to format code; avoid manual formatting.
 
 ### Linting
 
@@ -133,7 +133,7 @@ Run `pnpm format` to format code; avoid manual formatting.
 
 - Controllers MUST NOT touch Prisma directly
 - Use transactions for multi-step writes: `prisma.$transaction([...])`
-- After schema changes: `pnpm --filter ./apps/api run prisma:generate`
+- After schema changes: `npm run prisma:generate -w apps/api`
 
 ### Frontend UI
 

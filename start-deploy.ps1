@@ -15,18 +15,10 @@ function Print-Success($msg) { Write-Host "[SUCCESS] $msg" -ForegroundColor Gree
 function Print-Warning($msg) { Write-Host "[WARNING] $msg" -ForegroundColor Yellow }
 function Print-Error($msg) { Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
-# Check if pnpm is installed
-if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-    Print-Warning "pnpm is not installed. Installing via npm..."
-    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
-        Print-Error "npm is not installed. Please install Node.js (with npm) first."
-        exit 1
-    }
-    npm install -g pnpm
-    if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
-        Print-Error "Failed to install pnpm. Please run: npm install -g pnpm"
-        exit 1
-    }
+# Check if npm is installed
+if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+    Print-Error "npm is not installed. Please install Node.js (with npm) first."
+    exit 1
 }
 
 # Check if Node.js is installed
@@ -55,12 +47,12 @@ Print-Status "Working in project directory: $ProjectRoot"
 
 # Install dependencies
 Print-Status "Installing dependencies..."
-pnpm install
+npm install
 Print-Success "Dependencies installed"
 
 # Build the applications
 Print-Status "Building applications..."
-pnpm build
+npm run build
 Print-Success "Applications built"
 
 # Setup database
@@ -77,12 +69,12 @@ Push-Location "apps/api"
 
 # Generate Prisma client
 Print-Status "Generating Prisma client..."
-pnpm run prisma:generate
+npm run prisma:generate
 Print-Success "Prisma client generated"
 
 # Apply all migrations to create the database schema
 Print-Status "Applying database migrations..."
-pnpm run prisma migrate deploy
+npx prisma migrate deploy
 Print-Success "Database migrations applied"
 
 # Seed the database with initial AI providers
@@ -96,9 +88,7 @@ Pop-Location
 
 # Build the web application
 Print-Status "Building web application..."
-Push-Location "web"
-pnpm build
-Pop-Location
+npm run build:web
 Print-Success "Web application built"
 
 # Create production build directory if it doesn't exist

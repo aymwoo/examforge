@@ -31,18 +31,10 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Check if pnpm is installed
-if ! command -v pnpm &> /dev/null; then
-    print_warning "pnpm is not installed. Installing via npm..."
-    if ! command -v npm &> /dev/null; then
-        print_error "npm is not installed. Please install Node.js (with npm) first."
-        exit 1
-    fi
-    npm install -g pnpm
-    if ! command -v pnpm &> /dev/null; then
-        print_error "Failed to install pnpm. Please run: npm install -g pnpm"
-        exit 1
-    fi
+# Check if npm is installed
+if ! command -v npm &> /dev/null; then
+    print_error "npm is not installed. Please install Node.js (with npm) first."
+    exit 1
 fi
 
 # Check if Node.js is installed
@@ -70,12 +62,12 @@ print_status "📁 Working in project directory: $PROJECT_ROOT"
 
 # Install dependencies
 print_status "📦 Installing dependencies..."
-pnpm install
+npm install
 print_success "✅ Dependencies installed"
 
 # Build the applications
 print_status "🔨 Building applications..."
-pnpm build
+npm run build
 print_success "✅ Applications built"
 
 # Setup database
@@ -92,12 +84,12 @@ cd apps/api
 
 # Generate Prisma client
 print_status "⚙️ Generating Prisma client..."
-pnpm prisma:generate
+npm run prisma:generate
 print_success "✅ Prisma client generated"
 
 # Apply all migrations to create the database schema
 print_status "🔄 Applying database migrations..."
-pnpm prisma migrate deploy
+npx prisma migrate deploy
 print_success "✅ Database migrations applied"
 
 # Seed the database with initial AI providers
@@ -114,12 +106,8 @@ cd ../..
 
 # Build the web application
 print_status "🌐 Building web application..."
-cd web
-pnpm build
+npm run build:web
 print_success "✅ Web application built"
-
-# Return to project root
-cd ..
 
 # Create production build directory if it doesn't exist
 mkdir -p dist

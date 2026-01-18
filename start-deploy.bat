@@ -22,20 +22,11 @@ if %ERRORLEVEL% EQU 0 (
 echo [WARNING] PowerShell not found. Running basic batch deployment...
 echo.
 
-REM Check if pnpm is installed
-where pnpm >nul 2>nul
+REM Check if npm is installed
+where npm >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
-    echo [WARNING] pnpm is not installed. Installing via npm...
-    where npm >nul 2>nul
-    if %ERRORLEVEL% NEQ 0 (
-        echo [ERROR] npm is not installed. Please install Node.js first.
-        exit /b 1
-    )
-    call npm install -g pnpm
-    if %ERRORLEVEL% NEQ 0 (
-        echo [ERROR] Failed to install pnpm.
-        exit /b 1
-    )
+    echo [ERROR] npm is not installed. Please install Node.js first.
+    exit /b 1
 )
 
 REM Check if Node.js is installed
@@ -53,7 +44,7 @@ echo [INFO] Working in project directory: %CD%
 
 REM Install dependencies
 echo [INFO] Installing dependencies...
-call pnpm install
+call npm install
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to install dependencies.
     exit /b 1
@@ -62,7 +53,7 @@ echo [SUCCESS] Dependencies installed
 
 REM Build the applications
 echo [INFO] Building applications...
-call pnpm build
+call npm run build
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to build applications.
     exit /b 1
@@ -83,7 +74,7 @@ cd apps\api
 
 REM Generate Prisma client
 echo [INFO] Generating Prisma client...
-call pnpm run prisma:generate
+call npm run prisma:generate
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to generate Prisma client.
     exit /b 1
@@ -92,7 +83,7 @@ echo [SUCCESS] Prisma client generated
 
 REM Apply all migrations
 echo [INFO] Applying database migrations...
-call pnpm prisma migrate deploy
+call npx prisma migrate deploy
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to apply migrations.
     exit /b 1
@@ -112,13 +103,11 @@ cd ..\..
 
 REM Build the web application
 echo [INFO] Building web application...
-cd web
-call pnpm build
+call npm run build:web
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Failed to build web application.
     exit /b 1
 )
-cd ..
 echo [SUCCESS] Web application built
 
 REM Create production build directory
