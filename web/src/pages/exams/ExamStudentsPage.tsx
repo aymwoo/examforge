@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Upload, FileText, Users } from "lucide-react";
 import ExamLayout from "@/components/ExamLayout";
 import Button from "@/components/ui/Button";
@@ -32,6 +32,7 @@ interface ExamStudent {
 }
 
 export default function ExamStudentsPage() {
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [exam, setExam] = useState<Exam | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -395,7 +396,7 @@ export default function ExamStudentsPage() {
                                       {submission.gradingDetails.maxTotalScore}
                                     </div>
                                   )}
-                                  <div className="flex gap-2">
+                                  <div className="flex flex-col items-end gap-2">
                                     {submission.isReviewed ? (
                                       <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
                                         已复核
@@ -408,6 +409,17 @@ export default function ExamStudentsPage() {
                                       <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">
                                         未评分
                                       </span>
+                                    )}
+                                    {mode === "PERMANENT" && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          navigate(`/student/${student.id}`)
+                                        }
+                                        className="text-xs font-medium text-indigo-600 hover:text-indigo-900"
+                                      >
+                                        学习情况
+                                      </button>
                                     )}
                                   </div>
                                 </>

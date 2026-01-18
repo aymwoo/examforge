@@ -715,18 +715,6 @@ export default function ExamTakePage() {
       )}
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-        {!isSubmitted && (
-          <div className="fixed bottom-6 right-6 z-40">
-            <Button
-              onClick={() => setShowSubmitConfirm(true)}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 shadow-lg"
-            >
-              <Send className="h-4 w-4" />
-              {isSubmitting ? "提交中..." : "提交考试"}
-            </Button>
-          </div>
-        )}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* 题目导航 */}
           <div className="lg:col-span-1">
@@ -763,6 +751,19 @@ export default function ExamTakePage() {
                   <span>未答题</span>
                 </div>
               </div>
+
+              {!isSubmitted && (
+                <div className="mt-6">
+                  <Button
+                    onClick={() => setShowSubmitConfirm(true)}
+                    disabled={isSubmitting}
+                    className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700"
+                  >
+                    <Send className="h-4 w-4" />
+                    {isSubmitting ? "提交中..." : "提交考试"}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -999,27 +1000,15 @@ export default function ExamTakePage() {
                     {autoSaving ? "保存中..." : "保存答案"}
                   </Button>
 
-                  {currentQuestionIndex ===
-                  (exam.questions?.length || 0) - 1 ? (
-                    <Button
-                      onClick={() => setShowSubmitConfirm(true)}
-                      disabled={isSubmitting}
-                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                    >
-                      <Send className="h-4 w-4" />
-                      {isSubmitting ? "提交中..." : "提交考试"}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() =>
-                        setCurrentQuestionIndex((prev) =>
-                          Math.min((exam.questions?.length || 0) - 1, prev + 1),
-                        )
-                      }
-                    >
-                      下一题
-                    </Button>
-                  )}
+                  <Button
+                    onClick={() =>
+                      setCurrentQuestionIndex((prev) =>
+                        Math.min((exam.questions?.length || 0) - 1, prev + 1),
+                      )
+                    }
+                  >
+                    下一题
+                  </Button>
                 </div>
               </div>
             </div>

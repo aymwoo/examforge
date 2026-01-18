@@ -28,6 +28,7 @@ interface Student {
   id: string;
   username: string;
   displayName?: string;
+  accountType?: string;
 }
 
 interface Submission {
@@ -546,6 +547,32 @@ export default function ExamGradingPage() {
     }
   };
 
+  const getStudentSourceLabel = (accountType?: string) => {
+    switch (accountType) {
+      case "PERMANENT":
+        return "固定学生";
+      case "TEMPORARY_IMPORT":
+        return "临时导入";
+      case "TEMPORARY_REGISTER":
+        return "临时注册";
+      default:
+        return "";
+    }
+  };
+
+  const getStudentSourceBadgeClass = (accountType?: string) => {
+    switch (accountType) {
+      case "PERMANENT":
+        return "bg-indigo-100 text-indigo-700";
+      case "TEMPORARY_IMPORT":
+        return "bg-amber-100 text-amber-700";
+      case "TEMPORARY_REGISTER":
+        return "bg-emerald-100 text-emerald-700";
+      default:
+        return "bg-gray-100 text-gray-600";
+    }
+  };
+
   const getQuestionTypeLabel = (type: string) => {
     switch (type) {
       case "SINGLE_CHOICE":
@@ -853,6 +880,17 @@ export default function ExamGradingPage() {
                                   {submission.student.displayName ||
                                     submission.student.username}
                                 </span>
+                                {submission.student.accountType && (
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${getStudentSourceBadgeClass(
+                                      submission.student.accountType,
+                                    )}`}
+                                  >
+                                    {getStudentSourceLabel(
+                                      submission.student.accountType,
+                                    )}
+                                  </span>
+                                )}
                               </div>
                               <div className="flex items-center gap-2">
                                 {submission.score !== null ? (

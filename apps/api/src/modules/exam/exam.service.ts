@@ -205,6 +205,8 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
       where.deletedAt = { not: null };
     } else if (!includeDeleted) {
       where.deletedAt = null;
+    } else {
+      delete where.deletedAt;
     }
 
     const [data, total] = await Promise.all([
@@ -1651,6 +1653,7 @@ ${studentAnswer}
           id: submission.examStudent?.id,
           username: submission.examStudent?.username,
           displayName: submission.examStudent?.displayName,
+          accountType: submission.examStudent?.accountType,
         },
         answers,
         answersArray,

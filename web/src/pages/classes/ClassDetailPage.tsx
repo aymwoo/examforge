@@ -384,20 +384,22 @@ export default function ClassDetailPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       <button
-                        onClick={() => handleEditStudent(student)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        onClick={() => navigate(`/student/${student.id}`)}
+                        className="text-indigo-600 hover:text-indigo-900 hover:underline"
                       >
                         {student.studentId}
                       </button>
                     </td>
+
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <button
-                        onClick={() => handleEditStudent(student)}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        onClick={() => navigate(`/student/${student.id}`)}
+                        className="text-indigo-600 hover:text-indigo-900 hover:underline"
                       >
                         {student.name}
                       </button>
                     </td>
+
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {student.gender || "-"}
                     </td>
@@ -406,6 +408,13 @@ export default function ClassDetailPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
+                        <button
+                          onClick={() => navigate(`/student/${student.id}`)}
+                          className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                          title="查看学习情况"
+                        >
+                          学习情况
+                        </button>
                         <button
                           onClick={() => handleEditStudent(student)}
                           className="text-blue-600 hover:text-blue-900"

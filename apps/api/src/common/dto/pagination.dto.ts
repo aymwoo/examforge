@@ -1,5 +1,5 @@
 import { IsOptional, IsInt, Min, Max, IsString, IsEnum, IsBoolean } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { QuestionType } from '../enums/question.enum';
 
@@ -51,13 +51,13 @@ export class PaginationDto {
 
   @ApiPropertyOptional({ description: 'Include deleted records' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   includeDeleted?: boolean;
 
   @ApiPropertyOptional({ description: 'Only deleted records' })
   @IsOptional()
-  @Type(() => Boolean)
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   onlyDeleted?: boolean;
 }
