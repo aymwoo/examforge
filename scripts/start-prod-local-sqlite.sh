@@ -53,8 +53,12 @@ ensure_pnpm() {
     return 0
   fi
 
-  echo "pnpm not found; installing via npm..."
-  require_cmd npm
+  echo "pnpm not found; attempting install via npm..."
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "Missing required command: npm" >&2
+    exit 1
+  fi
+
   npm install -g pnpm
 
   if ! command -v pnpm >/dev/null 2>&1; then

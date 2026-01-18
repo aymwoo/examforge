@@ -287,9 +287,9 @@ export default function ExamAnalyticsPage() {
     const getColor = (value: number) => {
       const clamped = Math.max(0, Math.min(100, value));
       const intensity = clamped / 100;
-      const hue = 220 - 140 * intensity;
+      const hue = 10 - 10 * intensity;
       const lightness = 95 - 45 * intensity;
-      return `hsl(${hue}, 70%, ${lightness}%)`;
+      return `hsl(${hue}, 80%, ${lightness}%)`;
     };
 
     return (

@@ -1,4 +1,4 @@
-import { IsOptional, IsInt, Min, Max, IsString, IsEnum } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsString, IsEnum, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { QuestionType } from '../enums/question.enum';
@@ -36,7 +36,10 @@ export class PaginationDto {
   @IsOptional()
   tags?: string | string[];
 
-  @ApiPropertyOptional({ enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'], description: 'Filter by status' })
+  @ApiPropertyOptional({
+    enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'],
+    description: 'Filter by status',
+  })
   @IsOptional()
   @IsEnum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -45,4 +48,16 @@ export class PaginationDto {
   @IsOptional()
   @IsString()
   ids?: string;
+
+  @ApiPropertyOptional({ description: 'Include deleted records' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  includeDeleted?: boolean;
+
+  @ApiPropertyOptional({ description: 'Only deleted records' })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  onlyDeleted?: boolean;
 }

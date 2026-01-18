@@ -13,6 +13,7 @@ export interface Exam {
   endTime?: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
 
   createdBy?: string;
   creator?: {
@@ -88,7 +89,12 @@ export interface AddQuestionDto {
 }
 
 export const listExams = async (
-  params: { page?: number; limit?: number } = {},
+  params: {
+    page?: number;
+    limit?: number;
+    includeDeleted?: boolean;
+    onlyDeleted?: boolean;
+  } = {},
 ): Promise<ExamListResponse> => {
   const response = await api.get<ExamListResponse>("/api/exams", { params });
   return response.data;
@@ -114,6 +120,17 @@ export const updateExam = async (
 
 export const deleteExam = async (id: string): Promise<void> => {
   await api.delete(`/api/exams/${id}`);
+};
+
+export const restoreExam = async (id: string): Promise<void> => {
+  await api.post(`/api/exams/${id}/restore`);
+};
+
+export const hardDeleteExam = async (
+  id: string,
+  name: string,
+): Promise<void> => {
+  await api.delete(`/api/exams/${id}/hard`, { data: { name } });
 };
 
 export const copyExam = async (id: string): Promise<Exam> => {

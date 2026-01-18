@@ -3,7 +3,13 @@ import { Plus, Copy, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import { listExams, deleteExam, copyExam } from "@/services/exams";
+import {
+  listExams,
+  deleteExam,
+  copyExam,
+  restoreExam,
+  hardDeleteExam,
+} from "@/services/exams";
 import type { Exam } from "@/services/exams";
 import { getCurrentUser } from "@/utils/auth";
 
@@ -14,8 +20,11 @@ export default function ExamsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showHardDeleteModal, setShowHardDeleteModal] = useState(false);
   const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
+  const [hardDeleteName, setHardDeleteName] = useState("");
   const [page, setPage] = useState(1);
+  const [showRecycleBin, setShowRecycleBin] = useState(false);
   const [meta, setMeta] = useState({
     total: 0,
     page: 1,
@@ -27,7 +36,11 @@ export default function ExamsPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await listExams({ page: pageNum, limit: 20 });
+      const response = await listExams({
+        page: pageNum,
+        limit: 20,
+        onlyDeleted: showRecycleBin,
+      });
       setExams(response.data);
       setMeta(response.meta);
       setPage(pageNum);
@@ -46,7 +59,7 @@ export default function ExamsPage() {
 
   useEffect(() => {
     loadExams(1);
-  }, []);
+  }, [showRecycleBin]);
 
   const handleCreateExam = () => {
     navigate("/exams/new");
@@ -61,6 +74,28 @@ export default function ExamsPage() {
       loadExams(page);
     } catch (err: any) {
       alert(err.response?.data?.message || "删除失败");
+    }
+  };
+
+  const handleRestoreExam = async (exam: Exam) => {
+    try {
+      await restoreExam(exam.id);
+      loadExams(page);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "恢复失败");
+    }
+  };
+
+  const handleHardDeleteExam = async () => {
+    if (!selectedExam) return;
+    try {
+      await hardDeleteExam(selectedExam.id, hardDeleteName.trim());
+      setShowHardDeleteModal(false);
+      setSelectedExam(null);
+      setHardDeleteName("");
+      loadExams(page);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "彻底删除失败");
     }
   };
 
@@ -81,16 +116,10 @@ export default function ExamsPage() {
     );
   };
 
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 1 && newPage <= meta.totalPages) {
-      loadExams(newPage);
-    }
-  };
-
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen pt-28">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-ink-900">
               考试管理
@@ -99,10 +128,18 @@ export default function ExamsPage() {
               共 {meta.total} 个考试，第 {page} / {meta.totalPages} 页
             </p>
           </div>
-          <Button onClick={handleCreateExam}>
-            <Plus className="h-4 w-4 mr-2" />
-            新增考试
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowRecycleBin((prev) => !prev)}
+            >
+              {showRecycleBin ? "返回列表" : "回收站"}
+            </Button>
+            <Button onClick={handleCreateExam}>
+              <Plus className="h-4 w-4 mr-2" />
+              新增考试
+            </Button>
+          </div>
         </div>
 
         {loading && (
@@ -120,7 +157,11 @@ export default function ExamsPage() {
 
         {!loading && !error && exams.length === 0 && (
           <div className="rounded-2xl border border-border bg-white p-12 text-center">
-            <p className="text-ink-700">暂无考试，点击"新增考试"开始创建</p>
+            <p className="text-ink-700">
+              {showRecycleBin
+                ? "回收站为空"
+                : '暂无考试，点击"新增考试"开始创建'}
+            </p>
           </div>
         )}
 
@@ -130,8 +171,14 @@ export default function ExamsPage() {
               {exams.map((exam) => (
                 <div
                   key={exam.id}
-                  onClick={() => navigate(`/exams/${exam.id}`)}
-                  className="cursor-pointer rounded-2xl border border-border bg-white p-5 shadow-sm transition-colors hover:border-accent-600"
+                  onClick={() =>
+                    showRecycleBin ? undefined : navigate(`/exams/${exam.id}`)
+                  }
+                  className={`rounded-2xl border border-border bg-white p-5 shadow-sm transition-colors ${
+                    showRecycleBin
+                      ? "cursor-default"
+                      : "cursor-pointer hover:border-accent-600"
+                  }`}
                 >
                   <div className="mb-3 flex items-start justify-between gap-4">
                     <div className="flex-1">
@@ -145,18 +192,20 @@ export default function ExamsPage() {
                       )}
                     </div>
                     <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleCopyExam(exam);
-                        }}
-                        className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 flex items-center gap-1"
-                        title="复制考试"
-                      >
-                        <Copy className="h-3 w-3" />
-                        复制
-                      </button>
-                      {canDeleteExam(exam) && (
+                      {!showRecycleBin && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyExam(exam);
+                          }}
+                          className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-100 flex items-center gap-1"
+                          title="复制考试"
+                        >
+                          <Copy className="h-3 w-3" />
+                          复制
+                        </button>
+                      )}
+                      {canDeleteExam(exam) && !showRecycleBin && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -164,15 +213,52 @@ export default function ExamsPage() {
                             setShowDeleteModal(true);
                           }}
                           className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 flex items-center gap-1"
-                          title="删除考试"
+                          title="移入回收站"
                         >
                           <Trash2 className="h-3 w-3" />
-                          删除
+                          回收站
                         </button>
+                      )}
+                      {showRecycleBin && canDeleteExam(exam) && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRestoreExam(exam);
+                            }}
+                            className="rounded-lg border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 transition-colors hover:bg-green-100 flex items-center gap-1"
+                            title="恢复考试"
+                          >
+                            恢复
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedExam(exam);
+                              setHardDeleteName("");
+                              setShowHardDeleteModal(true);
+                            }}
+                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 flex items-center gap-1"
+                            title="彻底删除"
+                          >
+                            彻底删除
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-ink-700">
+                    {showRecycleBin && exam.deletedAt && (
+                      <span className="flex items-center gap-1">
+                        <span className="font-semibold text-ink-900">
+                          删除时间:
+                        </span>
+                        <span>
+                          {new Date(exam.deletedAt).toLocaleDateString("zh-CN")}
+                        </span>
+                      </span>
+                    )}
+
                     <span className="flex items-center gap-1">
                       <span className="font-semibold text-ink-900">时长:</span>
                       <span>{exam.duration} 分钟</span>
@@ -228,30 +314,40 @@ export default function ExamsPage() {
                 </div>
               ))}
             </div>
-
-            {meta.totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-center gap-4">
-                <Button
-                  onClick={() => handlePageChange(page - 1)}
-                  disabled={page === 1}
-                  variant="outline"
-                >
-                  上一页
-                </Button>
-                <span className="text-sm text-ink-700">
-                  第 {page} / {meta.totalPages} 页
-                </span>
-                <Button
-                  onClick={() => handlePageChange(page + 1)}
-                  disabled={page === meta.totalPages}
-                  variant="outline"
-                >
-                  下一页
-                </Button>
-              </div>
-            )}
           </>
         )}
+
+        <Modal
+          isOpen={showHardDeleteModal}
+          onClose={() => {
+            setShowHardDeleteModal(false);
+            setHardDeleteName("");
+          }}
+          title="彻底删除考试"
+          onConfirm={handleHardDeleteExam}
+          confirmText="彻底删除"
+          confirmVariant="danger"
+          confirmDisabled={
+            !selectedExam ||
+            hardDeleteName.trim() !== (selectedExam?.title || "")
+          }
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              此操作不可恢复。请输入考试名称确认删除。
+            </p>
+            <div className="rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-700">
+              考试名称：{selectedExam?.title}
+            </div>
+            <input
+              type="text"
+              value={hardDeleteName}
+              onChange={(e) => setHardDeleteName(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-red-200"
+              placeholder="输入考试名称"
+            />
+          </div>
+        </Modal>
 
         {/* 删除确认模态框 */}
         <Modal
@@ -260,14 +356,14 @@ export default function ExamsPage() {
             setShowDeleteModal(false);
             setSelectedExam(null);
           }}
-          title="删除考试"
+          title="移入回收站"
           onConfirm={handleDeleteExam}
-          confirmText="删除"
+          confirmText="移入回收站"
           confirmVariant="danger"
         >
-          <p>确定要删除考试 "{selectedExam?.title}" 吗？</p>
+          <p>确定要将考试 "{selectedExam?.title}" 移入回收站吗？</p>
           <p className="text-red-600 text-sm mt-2">
-            此操作将删除考试及其所有相关数据，且不可撤销。
+            可在回收站中恢复或彻底删除。
           </p>
         </Modal>
       </div>

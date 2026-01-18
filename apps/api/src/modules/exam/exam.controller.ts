@@ -101,11 +101,34 @@ export class ExamController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete an exam' })
+  @ApiOperation({ summary: 'Move exam to recycle bin' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
-  @ApiResponse({ status: 204, description: 'Exam deleted successfully' })
+  @ApiResponse({ status: 204, description: 'Exam moved to recycle bin' })
   delete(@Param('id') id: string) {
     return this.examService.delete(id);
+  }
+
+  @Post(':id/restore')
+  @ApiOperation({ summary: 'Restore exam from recycle bin' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  restore(@Param('id') id: string) {
+    return this.examService.restore(id);
+  }
+
+  @Delete(':id/hard')
+  @ApiOperation({ summary: 'Permanently delete an exam' })
+  @ApiParam({ name: 'id', description: 'Exam ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Exam title to confirm' },
+      },
+      required: ['name'],
+    },
+  })
+  hardDelete(@Param('id') id: string, @Body('name') name: string) {
+    return this.examService.hardDelete(id, name);
   }
 
   @Post(':id/copy')

@@ -60,6 +60,7 @@ export default function ExamTakePage() {
     total: 0,
     message: "",
   });
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<any>(null);
   const [showDetailedResults, setShowDetailedResults] = useState(false);
   const [detailedResultsLoading, setDetailedResultsLoading] = useState(false);
@@ -233,10 +234,6 @@ export default function ExamTakePage() {
       "exam questions:",
       exam?.questions?.map((q) => ({ id: q.id, type: q.type })),
     );
-
-    if (!confirm("确定要提交考试吗？提交后将无法修改答案。")) {
-      return;
-    }
 
     setIsSubmitting(true);
     setShowProgressModal(true);
@@ -718,6 +715,18 @@ export default function ExamTakePage() {
       )}
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+        {!isSubmitted && (
+          <div className="fixed bottom-6 right-6 z-40">
+            <Button
+              onClick={() => setShowSubmitConfirm(true)}
+              disabled={isSubmitting}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 shadow-lg"
+            >
+              <Send className="h-4 w-4" />
+              {isSubmitting ? "提交中..." : "提交考试"}
+            </Button>
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* 题目导航 */}
           <div className="lg:col-span-1">
@@ -993,7 +1002,7 @@ export default function ExamTakePage() {
                   {currentQuestionIndex ===
                   (exam.questions?.length || 0) - 1 ? (
                     <Button
-                      onClick={handleSubmitExam}
+                      onClick={() => setShowSubmitConfirm(true)}
                       disabled={isSubmitting}
                       className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
                     >
@@ -1094,33 +1103,58 @@ export default function ExamTakePage() {
         </div>
       )}
 
+      {showSubmitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">
+              确认提交
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              提交后将无法修改答案，是否确认提交？
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowSubmitConfirm(false)}
+                disabled={isSubmitting}
+              >
+                取消
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowSubmitConfirm(false);
+                  handleSubmitExam();
+                }}
+                disabled={isSubmitting}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                确认提交
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 提交进度Modal */}
       {showProgressModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
-            <div className="text-center">
-              <div className="mb-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent-600 mx-auto"></div>
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">提交中</h3>
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600">{progress.message}</div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{
+                    width:
+                      progress.total > 0
+                        ? `${(progress.current / progress.total) * 100}%`
+                        : "0%",
+                  }}
+                ></div>
               </div>
-              <h3 className="text-lg font-semibold mb-4">正在评分中...</h3>
-              <div className="mb-4">
-                <div className="bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-accent-600 h-2 rounded-full transition-all duration-300"
-                    style={{
-                      width:
-                        progress.total > 0
-                          ? `${(progress.current / progress.total) * 100}%`
-                          : "0%",
-                    }}
-                  ></div>
-                </div>
-                <p className="text-sm text-gray-600 mt-2">
-                  {progress.total > 0
-                    ? `${progress.current}/${progress.total}`
-                    : "0/0"}{" "}
-                  - {progress.message}
-                </p>
+              <div className="text-sm text-gray-500 text-center">
+                {progress.current}/{progress.total}
               </div>
             </div>
           </div>

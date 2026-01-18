@@ -88,6 +88,7 @@ model Exam {
   aiAnalysisStatus     String?        @map("ai_analysis_status")
   aiAnalysisUpdatedAt  DateTime?      @map("ai_analysis_updated_at")
   feedbackVisibility   String         @default("FINAL_SCORE") @map("feedback_visibility")
+  deletedAt            DateTime?      @map("deleted_at")
   examQuestions        ExamQuestion[]
   examStudents         ExamStudent[]
   creator              User?          @relation("CreatedBy", fields: [createdBy], references: [id])

@@ -107,6 +107,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
     // Base query conditions - show all published exams, not just ongoing
     const baseWhere: any = {
       status: 'PUBLISHED',
+      deletedAt: null,
     };
 
     // If authenticated and not admin, only show user's exams
@@ -192,12 +193,18 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
   }
 
   async findAll(paginationDto: PaginationDto) {
-    const { page = 1, limit = 20, status } = paginationDto;
+    const { page = 1, limit = 20, status, includeDeleted, onlyDeleted } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where: any = {};
     if (status) {
       where.status = status;
+    }
+
+    if (onlyDeleted) {
+      where.deletedAt = { not: null };
+    } else if (!includeDeleted) {
+      where.deletedAt = null;
     }
 
     const [data, total] = await Promise.all([
@@ -305,6 +312,36 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
 
   async delete(id: string) {
     await this.findById(id);
+
+    await this.prisma.exam.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+      } as any,
+    });
+  }
+
+  async restore(id: string) {
+    await this.prisma.exam.update({
+      where: { id },
+      data: { deletedAt: null } as any,
+    });
+  }
+
+  async hardDelete(id: string, name: string) {
+    const exam = await this.prisma.exam.findUnique({ where: { id } });
+    if (!exam) {
+      throw new NotFoundException('Exam not found');
+    }
+
+    if (!(exam as any).deletedAt) {
+      throw new BadRequestException('Exam must be in recycle bin before hard delete');
+    }
+
+    if (exam.title !== name) {
+      throw new BadRequestException('Exam name does not match');
+    }
+
     await this.prisma.exam.delete({ where: { id } });
   }
 
