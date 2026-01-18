@@ -95,10 +95,11 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
         duration: dto.duration,
         totalScore: dto.totalScore || 100,
         accountModes: JSON.stringify(dto.accountModes || ['TEMPORARY_IMPORT']),
+        feedbackVisibility: dto.feedbackVisibility || 'FINAL_SCORE',
         startTime: dto.startTime ? new Date(dto.startTime) : null,
         endTime: dto.endTime ? new Date(dto.endTime) : null,
         status: 'DRAFT',
-      },
+      } as any,
     });
   }
 
@@ -281,6 +282,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
 
     const updateData: any = {};
     if (dto.title !== undefined) updateData.title = dto.title;
+
     if (dto.description !== undefined) updateData.description = dto.description;
     if (dto.duration !== undefined) updateData.duration = dto.duration;
     if (dto.totalScore !== undefined) updateData.totalScore = dto.totalScore;
@@ -289,10 +291,13 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
       updateData.startTime = dto.startTime ? new Date(dto.startTime) : null;
     if (dto.endTime !== undefined) updateData.endTime = dto.endTime ? new Date(dto.endTime) : null;
     if (dto.status !== undefined) updateData.status = dto.status;
+    if (dto.feedbackVisibility !== undefined) {
+      updateData.feedbackVisibility = dto.feedbackVisibility;
+    }
 
     const updated = await this.prisma.exam.update({
       where: { id },
-      data: updateData,
+      data: updateData as any,
     });
 
     return updated;
@@ -652,6 +657,10 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
       description: exam.description,
       duration: exam.duration,
       totalScore: exam.totalScore,
+      feedbackVisibility: (exam as any).feedbackVisibility as
+        | 'FINAL_SCORE'
+        | 'ANSWERS'
+        | 'FULL_DETAILS',
       questions: exam.examQuestions.map((eq) => {
         console.log('Processing question:', eq.question.id, 'images field:', eq.question.images);
         return {
@@ -1858,12 +1867,28 @@ ${studentAnswer}
     };
   }
 
+  private normalizeTrueFalseAnswer(answer: unknown): string {
+    if (answer === true || answer === 'true' || answer === '正确' || answer === '对') {
+      return '正确';
+    }
+    if (answer === false || answer === 'false' || answer === '错误' || answer === '错') {
+      return '错误';
+    }
+    return answer ? String(answer) : '';
+  }
+
   private convertAnswerToText(
     answer: string | null,
     options: string | null,
     questionType: string
   ): string | string[] {
-    if (!answer || !options) return answer || '';
+    if (!answer) return '';
+
+    if (questionType === 'TRUE_FALSE') {
+      return this.normalizeTrueFalseAnswer(answer);
+    }
+
+    if (!options) return answer || '';
 
     try {
       const optionsArray = JSON.parse(options);
@@ -1909,6 +1934,11 @@ ${studentAnswer}
         correctText = correctAnswer.content;
       }
       return studentAnswer === correctText;
+    } else if (questionType === 'TRUE_FALSE') {
+      return (
+        this.normalizeTrueFalseAnswer(studentAnswer) ===
+        this.normalizeTrueFalseAnswer(correctAnswer)
+      );
     } else if (questionType === 'MULTIPLE_CHOICE') {
       try {
         let correct = Array.isArray(correctAnswer) ? correctAnswer : [correctAnswer];
@@ -2387,6 +2417,31 @@ ${studentAnswer}
       });
     });
 
+    const heatmapMastery = heatmapQuestions.map((q, questionIndex) => {
+      if (submissions.length === 0) {
+        return {
+          questionId: q.id,
+          order: q.order,
+          averageScore: 0,
+          maxScore: q.score,
+          masteryRate: 0,
+        };
+      }
+
+      const totalScore = heatmapValues.reduce((sum, row) => sum + (row?.[questionIndex] ?? 0), 0);
+      const averageScore = totalScore / submissions.length;
+      const maxScore = q.score || 0;
+      const masteryRate = maxScore > 0 ? (averageScore / maxScore) * 100 : 0;
+
+      return {
+        questionId: q.id,
+        order: q.order,
+        averageScore,
+        maxScore,
+        masteryRate,
+      };
+    });
+
     return {
       scoreStats,
       scores,
@@ -2397,6 +2452,7 @@ ${studentAnswer}
         students: heatmapStudents,
         questions: heatmapQuestions,
         values: heatmapValues,
+        mastery: heatmapMastery,
       },
     };
   }

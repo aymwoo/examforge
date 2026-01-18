@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Mail, Phone, Calendar, Save, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Phone, Save, Lock, Eye, EyeOff } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { getCurrentUser } from "@/utils/auth";
@@ -10,21 +10,21 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const user = getCurrentUser();
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    bio: user?.bio || '',
-    avatar: user?.avatar || ''
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    bio: user?.bio || "",
+    avatar: user?.avatar || "",
   });
   const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
   });
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
-    confirm: false
+    confirm: false,
   });
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -32,56 +32,58 @@ export default function ProfilePage() {
 
   const getRoleName = (role: string) => {
     const roleMap: Record<string, string> = {
-      'ADMIN': '系统管理员',
-      'TEACHER': '教师',
-      'STUDENT': '学生'
+      ADMIN: "系统管理员",
+      TEACHER: "教师",
+      STUDENT: "学生",
     };
     return roleMap[role] || role;
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setPasswordData(prev => ({
+    setPasswordData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
-  const togglePasswordVisibility = (field: 'current' | 'new' | 'confirm') => {
-    setShowPasswords(prev => ({
+  const togglePasswordVisibility = (field: "current" | "new" | "confirm") => {
+    setShowPasswords((prev) => ({
       ...prev,
-      [field]: !prev[field]
+      [field]: !prev[field],
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       // 只发送允许的字段
       const updateData = {
         name: formData.name,
-        email: formData.email
+        email: formData.email,
       };
-      
-      const response = await api.put('/api/users/profile', updateData);
-      
+
+      const response = await api.put("/api/users/profile", updateData);
+
       // 更新本地存储的用户信息
-      localStorage.setItem('user', JSON.stringify(response.data));
-      
-      setModalMessage('个人资料已保存');
+      localStorage.setItem("user", JSON.stringify(response.data));
+
+      setModalMessage("个人资料已保存");
       setShowModal(true);
     } catch (error: any) {
-      setModalMessage(error.response?.data?.message || '保存失败，请重试');
+      setModalMessage(error.response?.data?.message || "保存失败，请重试");
       setShowModal(true);
     } finally {
       setLoading(false);
@@ -90,36 +92,36 @@ export default function ProfilePage() {
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setModalMessage('新密码和确认密码不匹配');
+      setModalMessage("新密码和确认密码不匹配");
       setShowModal(true);
       return;
     }
-    
+
     if (passwordData.newPassword.length < 6) {
-      setModalMessage('新密码长度至少6位');
+      setModalMessage("新密码长度至少6位");
       setShowModal(true);
       return;
     }
-    
+
     setLoading(true);
-    
+
     try {
-      await api.put('/api/users/change-password', {
+      await api.put("/api/users/change-password", {
         currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword
+        newPassword: passwordData.newPassword,
       });
 
-      setModalMessage('密码修改成功');
+      setModalMessage("密码修改成功");
       setShowModal(true);
       setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
       });
     } catch (error: any) {
-      setModalMessage(error.response?.data?.message || '密码修改失败，请重试');
+      setModalMessage(error.response?.data?.message || "密码修改失败，请重试");
       setShowModal(true);
     } finally {
       setLoading(false);
@@ -131,7 +133,7 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-4">请先登录</p>
-          <Button onClick={() => navigate('/')}>前往首页</Button>
+          <Button onClick={() => navigate("/")}>前往首页</Button>
         </div>
       </div>
     );
@@ -152,14 +154,19 @@ export default function ProfilePage() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               <div className="text-center">
                 <div className="w-24 h-24 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
-                  {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                  {user.name?.charAt(0)?.toUpperCase() || "U"}
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-1">{user.name}</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-1">
+                  {user.name}
+                </h2>
                 <div className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium mb-2">
                   {getRoleName(user.role)}
                 </div>
                 <p className="text-gray-600 text-sm">
-                  注册时间: {new Date(user.createdAt || Date.now()).toLocaleDateString('zh-CN')}
+                  注册时间:{" "}
+                  {new Date(user.createdAt || Date.now()).toLocaleDateString(
+                    "zh-CN",
+                  )}
                 </p>
               </div>
             </div>
@@ -169,8 +176,10 @@ export default function ProfilePage() {
           <div className="lg:col-span-2 space-y-8">
             {/* 基本信息 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">基本信息</h3>
-              
+              <h3 className="text-xl font-semibold text-gray-900 mb-6">
+                基本信息
+              </h3>
+
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid gap-6 sm:grid-cols-2">
                   <div>
@@ -240,7 +249,7 @@ export default function ProfilePage() {
                     className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3"
                   >
                     <Save className="h-4 w-4" />
-                    {loading ? '保存中...' : '保存更改'}
+                    {loading ? "保存中..." : "保存更改"}
                   </Button>
                 </div>
               </form>
@@ -252,7 +261,7 @@ export default function ProfilePage() {
                 <Lock className="h-5 w-5 inline mr-2" />
                 修改密码
               </h3>
-              
+
               <form onSubmit={handlePasswordSubmit} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -270,10 +279,14 @@ export default function ProfilePage() {
                     />
                     <button
                       type="button"
-                      onClick={() => togglePasswordVisibility('current')}
+                      onClick={() => togglePasswordVisibility("current")}
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     >
-                      {showPasswords.current ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      {showPasswords.current ? (
+                        <EyeOff className="h-5 w-5" />
+                      ) : (
+                        <Eye className="h-5 w-5" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -296,10 +309,14 @@ export default function ProfilePage() {
                       />
                       <button
                         type="button"
-                        onClick={() => togglePasswordVisibility('new')}
+                        onClick={() => togglePasswordVisibility("new")}
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
-                        {showPasswords.new ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showPasswords.new ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -321,10 +338,14 @@ export default function ProfilePage() {
                       />
                       <button
                         type="button"
-                        onClick={() => togglePasswordVisibility('confirm')}
+                        onClick={() => togglePasswordVisibility("confirm")}
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
-                        {showPasswords.confirm ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showPasswords.confirm ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -332,7 +353,8 @@ export default function ProfilePage() {
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <p className="text-sm text-yellow-800">
-                    <strong>密码要求：</strong>至少6位字符，建议包含字母、数字和特殊字符以提高安全性。
+                    <strong>密码要求：</strong>
+                    至少6位字符，建议包含字母、数字和特殊字符以提高安全性。
                   </p>
                 </div>
 
@@ -343,7 +365,7 @@ export default function ProfilePage() {
                     className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3"
                   >
                     <Lock className="h-4 w-4" />
-                    {loading ? '修改中...' : '修改密码'}
+                    {loading ? "修改中..." : "修改密码"}
                   </Button>
                 </div>
               </form>

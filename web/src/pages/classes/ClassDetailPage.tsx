@@ -1,21 +1,31 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Upload, Download, Edit, Trash2, Users, FileSpreadsheet, Key, CheckSquare, Square } from "lucide-react";
+import {
+  ArrowLeft,
+  Plus,
+  Upload,
+  Download,
+  Edit,
+  Trash2,
+  Users,
+  Key,
+  CheckSquare,
+  Square,
+} from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import { 
-  getClassById, 
-  updateClass, 
-  addStudentToClass, 
-  removeStudentFromClass, 
+import {
+  getClassById,
+  addStudentToClass,
+  removeStudentFromClass,
   importStudentsToClass,
   resetStudentPasswords,
   updateStudent,
-  type Class, 
-  type Student, 
-  type CreateStudentDto 
+  type Class,
+  type Student,
+  type CreateStudentDto,
 } from "@/services/classes";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
 export default function ClassDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,19 +42,19 @@ export default function ClassDetailPage() {
   const [importData, setImportData] = useState<CreateStudentDto[]>([]);
   const [importResult, setImportResult] = useState<any>(null);
   const [resetPasswordResult, setResetPasswordResult] = useState<any>(null);
-  const [newPassword, setNewPassword] = useState('123456');
+  const [newPassword, setNewPassword] = useState("123456");
   const [editForm, setEditForm] = useState<CreateStudentDto>({
-    studentId: '',
-    name: '',
-    password: '',
-    gender: ''
+    studentId: "",
+    name: "",
+    password: "",
+    gender: "",
   });
-  
+
   const [studentForm, setStudentForm] = useState<CreateStudentDto>({
-    studentId: '',
-    name: '',
-    password: '',
-    gender: ''
+    studentId: "",
+    name: "",
+    password: "",
+    gender: "",
   });
 
   useEffect(() => {
@@ -60,7 +70,7 @@ export default function ClassDetailPage() {
       const data = await getClassById(id);
       setClassData(data);
     } catch (err) {
-      console.error('加载班级信息失败:', err);
+      console.error("加载班级信息失败:", err);
     } finally {
       setLoading(false);
     }
@@ -71,10 +81,10 @@ export default function ClassDetailPage() {
     try {
       await addStudentToClass(id, studentForm);
       setShowAddModal(false);
-      setStudentForm({ studentId: '', name: '', password: '', gender: '' });
+      setStudentForm({ studentId: "", name: "", password: "", gender: "" });
       loadClass();
     } catch (err: any) {
-      alert(err.response?.data?.message || '添加学生失败');
+      alert(err.response?.data?.message || "添加学生失败");
     }
   };
 
@@ -86,7 +96,7 @@ export default function ClassDetailPage() {
       setSelectedStudent(null);
       loadClass();
     } catch (err: any) {
-      alert(err.response?.data?.message || '删除学生失败');
+      alert(err.response?.data?.message || "删除学生失败");
     }
   };
 
@@ -98,22 +108,24 @@ export default function ClassDetailPage() {
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: "array" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        const students: CreateStudentDto[] = jsonData.map((row: any) => ({
-          studentId: String(row['学号'] || row['studentId'] || ''),
-          name: String(row['姓名'] || row['name'] || ''),
-          password: String(row['密码'] || row['password'] || '123456'),
-          gender: String(row['性别'] || row['gender'] || '')
-        })).filter(student => student.studentId && student.name);
+        const students: CreateStudentDto[] = jsonData
+          .map((row: any) => ({
+            studentId: String(row["学号"] || row["studentId"] || ""),
+            name: String(row["姓名"] || row["name"] || ""),
+            password: String(row["密码"] || row["password"] || "123456"),
+            gender: String(row["性别"] || row["gender"] || ""),
+          }))
+          .filter((student) => student.studentId && student.name);
 
         setImportData(students);
         setShowImportModal(true);
       } catch (error) {
-        alert('文件解析失败，请检查文件格式');
+        alert("文件解析失败，请检查文件格式");
       }
     };
     reader.readAsArrayBuffer(file);
@@ -126,15 +138,15 @@ export default function ClassDetailPage() {
       setImportResult(result);
       loadClass();
     } catch (err: any) {
-      alert(err.response?.data?.message || '导入失败');
+      alert(err.response?.data?.message || "导入失败");
     }
   };
 
   const handleSelectStudent = (studentId: string) => {
-    setSelectedStudents(prev => 
-      prev.includes(studentId) 
-        ? prev.filter(id => id !== studentId)
-        : [...prev, studentId]
+    setSelectedStudents((prev) =>
+      prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId],
     );
   };
 
@@ -143,17 +155,21 @@ export default function ClassDetailPage() {
     if (selectedStudents.length === classData.students.length) {
       setSelectedStudents([]);
     } else {
-      setSelectedStudents(classData.students.map(s => s.studentId));
+      setSelectedStudents(classData.students.map((s) => s.studentId));
     }
   };
 
   const handleResetPasswords = async () => {
     if (!id || selectedStudents.length === 0) return;
     try {
-      const result = await resetStudentPasswords(id, selectedStudents, newPassword);
+      const result = await resetStudentPasswords(
+        id,
+        selectedStudents,
+        newPassword,
+      );
       setResetPasswordResult(result);
     } catch (err: any) {
-      alert(err.response?.data?.message || '重置密码失败');
+      alert(err.response?.data?.message || "重置密码失败");
     }
   };
 
@@ -162,8 +178,8 @@ export default function ClassDetailPage() {
     setEditForm({
       studentId: student.studentId,
       name: student.name,
-      password: '', // 不显示原密码
-      gender: student.gender || ''
+      password: "", // 不显示原密码
+      gender: student.gender || "",
     });
     setShowEditModal(true);
   };
@@ -174,9 +190,9 @@ export default function ClassDetailPage() {
       const updateData: Partial<CreateStudentDto> = {
         studentId: editForm.studentId,
         name: editForm.name,
-        gender: editForm.gender
+        gender: editForm.gender,
       };
-      
+
       // 只有输入了新密码才更新密码
       if (editForm.password) {
         updateData.password = editForm.password;
@@ -185,22 +201,22 @@ export default function ClassDetailPage() {
       await updateStudent(id, selectedStudent.studentId, updateData);
       setShowEditModal(false);
       setSelectedStudent(null);
-      setEditForm({ studentId: '', name: '', password: '', gender: '' });
+      setEditForm({ studentId: "", name: "", password: "", gender: "" });
       loadClass();
     } catch (err: any) {
-      alert(err.response?.data?.message || '更新学生信息失败');
+      alert(err.response?.data?.message || "更新学生信息失败");
     }
   };
 
   const downloadTemplate = () => {
     const template = [
-      { '学号': '2024001', '姓名': '张三', '性别': '男', '密码': '123456' },
-      { '学号': '2024002', '姓名': '李四', '性别': '女', '密码': '123456' }
+      { 学号: "2024001", 姓名: "张三", 性别: "男", 密码: "123456" },
+      { 学号: "2024002", 姓名: "李四", 性别: "女", 密码: "123456" },
     ];
     const ws = XLSX.utils.json_to_sheet(template);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '学生信息');
-    XLSX.writeFile(wb, '学生导入模板.xlsx');
+    XLSX.utils.book_append_sheet(wb, ws, "学生信息");
+    XLSX.writeFile(wb, "学生导入模板.xlsx");
   };
 
   if (loading) {
@@ -221,7 +237,7 @@ export default function ClassDetailPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <p className="text-red-600">班级不存在</p>
-            <Button onClick={() => navigate('/classes')} className="mt-4">
+            <Button onClick={() => navigate("/classes")} className="mt-4">
               返回班级列表
             </Button>
           </div>
@@ -237,14 +253,16 @@ export default function ClassDetailPage() {
         <div className="flex items-center gap-4 mb-8">
           <Button
             variant="outline"
-            onClick={() => navigate('/classes')}
+            onClick={() => navigate("/classes")}
             className="flex items-center gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
             返回
           </Button>
           <div>
-            <h1 className="text-3xl font-bold text-ink-900">{classData.name}</h1>
+            <h1 className="text-3xl font-bold text-ink-900">
+              {classData.name}
+            </h1>
             <p className="text-ink-600">班级代码: {classData.code}</p>
             {classData.description && (
               <p className="text-ink-600">{classData.description}</p>
@@ -263,7 +281,7 @@ export default function ClassDetailPage() {
           </Button>
           <Button
             variant="outline"
-            onClick={() => document.getElementById('file-upload')?.click()}
+            onClick={() => document.getElementById("file-upload")?.click()}
             className="flex items-center gap-2"
           >
             <Upload className="h-4 w-4" />
@@ -302,7 +320,9 @@ export default function ClassDetailPage() {
             <Users className="h-8 w-8 text-blue-600" />
             <div>
               <h3 className="text-xl font-bold text-ink-900">学生统计</h3>
-              <p className="text-ink-600">共 {classData.students?.length || 0} 名学生</p>
+              <p className="text-ink-600">
+                共 {classData.students?.length || 0} 名学生
+              </p>
             </div>
           </div>
         </div>
@@ -321,7 +341,8 @@ export default function ClassDetailPage() {
                       onClick={handleSelectAll}
                       className="flex items-center gap-2 text-xs font-medium text-gray-500 uppercase tracking-wider hover:text-gray-700"
                     >
-                      {selectedStudents.length === classData.students?.length && classData.students?.length > 0 ? (
+                      {selectedStudents.length === classData.students?.length &&
+                      classData.students?.length > 0 ? (
                         <CheckSquare className="h-4 w-4" />
                       ) : (
                         <Square className="h-4 w-4" />
@@ -378,10 +399,10 @@ export default function ClassDetailPage() {
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {student.gender || '-'}
+                      {student.gender || "-"}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(student.createdAt).toLocaleDateString('zh-CN')}
+                      {new Date(student.createdAt).toLocaleDateString("zh-CN")}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
@@ -422,7 +443,12 @@ export default function ClassDetailPage() {
           isOpen={showAddModal}
           onClose={() => {
             setShowAddModal(false);
-            setStudentForm({ studentId: '', name: '', password: '', gender: '' });
+            setStudentForm({
+              studentId: "",
+              name: "",
+              password: "",
+              gender: "",
+            });
           }}
           title="添加学生"
           onConfirm={handleAddStudent}
@@ -436,7 +462,9 @@ export default function ClassDetailPage() {
               <input
                 type="text"
                 value={studentForm.studentId}
-                onChange={(e) => setStudentForm({ ...studentForm, studentId: e.target.value })}
+                onChange={(e) =>
+                  setStudentForm({ ...studentForm, studentId: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="请输入学号"
               />
@@ -448,7 +476,9 @@ export default function ClassDetailPage() {
               <input
                 type="text"
                 value={studentForm.name}
-                onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })}
+                onChange={(e) =>
+                  setStudentForm({ ...studentForm, name: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="请输入姓名"
               />
@@ -459,7 +489,9 @@ export default function ClassDetailPage() {
               </label>
               <select
                 value={studentForm.gender}
-                onChange={(e) => setStudentForm({ ...studentForm, gender: e.target.value })}
+                onChange={(e) =>
+                  setStudentForm({ ...studentForm, gender: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">请选择性别</option>
@@ -474,7 +506,9 @@ export default function ClassDetailPage() {
               <input
                 type="password"
                 value={studentForm.password}
-                onChange={(e) => setStudentForm({ ...studentForm, password: e.target.value })}
+                onChange={(e) =>
+                  setStudentForm({ ...studentForm, password: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="请输入初始密码"
               />
@@ -511,7 +545,7 @@ export default function ClassDetailPage() {
                       <tr key={index} className="border-t">
                         <td className="px-2 py-1">{student.studentId}</td>
                         <td className="px-2 py-1">{student.name}</td>
-                        <td className="px-2 py-1">{student.gender || '-'}</td>
+                        <td className="px-2 py-1">{student.gender || "-"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -527,11 +561,13 @@ export default function ClassDetailPage() {
               {importResult.failed > 0 && (
                 <div className="mt-4 max-h-40 overflow-y-auto">
                   <h5 className="font-medium mb-2">失败详情:</h5>
-                  {importResult.results.filter((r: any) => !r.success).map((result: any, index: number) => (
-                    <p key={index} className="text-sm text-red-600">
-                      {result.studentId} {result.name}: {result.error}
-                    </p>
-                  ))}
+                  {importResult.results
+                    .filter((r: any) => !r.success)
+                    .map((result: any, index: number) => (
+                      <p key={index} className="text-sm text-red-600">
+                        {result.studentId} {result.name}: {result.error}
+                      </p>
+                    ))}
                 </div>
               )}
             </div>
@@ -560,7 +596,7 @@ export default function ClassDetailPage() {
           onClose={() => {
             setShowResetPasswordModal(false);
             setResetPasswordResult(null);
-            setNewPassword('123456');
+            setNewPassword("123456");
           }}
           title="重置学生密码"
           onConfirm={resetPasswordResult ? undefined : handleResetPasswords}
@@ -570,8 +606,10 @@ export default function ClassDetailPage() {
             <div className="space-y-4">
               <p>将为 {selectedStudents.length} 名学生重置密码：</p>
               <div className="max-h-32 overflow-y-auto bg-gray-50 p-3 rounded">
-                {selectedStudents.map(studentId => {
-                  const student = classData?.students?.find(s => s.studentId === studentId);
+                {selectedStudents.map((studentId) => {
+                  const student = classData?.students?.find(
+                    (s) => s.studentId === studentId,
+                  );
                   return (
                     <div key={studentId} className="text-sm">
                       {studentId} - {student?.name}
@@ -596,16 +634,20 @@ export default function ClassDetailPage() {
             <div>
               <h4 className="font-semibold mb-2">重置结果</h4>
               <p>总计: {resetPasswordResult.total}</p>
-              <p className="text-green-600">成功: {resetPasswordResult.success}</p>
+              <p className="text-green-600">
+                成功: {resetPasswordResult.success}
+              </p>
               <p className="text-red-600">失败: {resetPasswordResult.failed}</p>
               {resetPasswordResult.failed > 0 && (
                 <div className="mt-4 max-h-40 overflow-y-auto">
                   <h5 className="font-medium mb-2">失败详情:</h5>
-                  {resetPasswordResult.results.filter((r: any) => !r.success).map((result: any, index: number) => (
-                    <p key={index} className="text-sm text-red-600">
-                      {result.studentId}: {result.error}
-                    </p>
-                  ))}
+                  {resetPasswordResult.results
+                    .filter((r: any) => !r.success)
+                    .map((result: any, index: number) => (
+                      <p key={index} className="text-sm text-red-600">
+                        {result.studentId}: {result.error}
+                      </p>
+                    ))}
                 </div>
               )}
               <div className="mt-4">
@@ -614,7 +656,7 @@ export default function ClassDetailPage() {
                     setShowResetPasswordModal(false);
                     setResetPasswordResult(null);
                     setSelectedStudents([]);
-                    setNewPassword('123456');
+                    setNewPassword("123456");
                   }}
                   className="w-full"
                 >
@@ -631,7 +673,7 @@ export default function ClassDetailPage() {
           onClose={() => {
             setShowEditModal(false);
             setSelectedStudent(null);
-            setEditForm({ studentId: '', name: '', password: '', gender: '' });
+            setEditForm({ studentId: "", name: "", password: "", gender: "" });
           }}
           title="编辑学生信息"
           onConfirm={handleUpdateStudent}
@@ -645,7 +687,9 @@ export default function ClassDetailPage() {
               <input
                 type="text"
                 value={editForm.studentId}
-                onChange={(e) => setEditForm({ ...editForm, studentId: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, studentId: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="请输入学号"
               />
@@ -657,7 +701,9 @@ export default function ClassDetailPage() {
               <input
                 type="text"
                 value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="请输入姓名"
               />
@@ -668,7 +714,9 @@ export default function ClassDetailPage() {
               </label>
               <select
                 value={editForm.gender}
-                onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, gender: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">请选择性别</option>
@@ -683,7 +731,9 @@ export default function ClassDetailPage() {
               <input
                 type="password"
                 value={editForm.password}
-                onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, password: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="留空则不修改密码"
               />

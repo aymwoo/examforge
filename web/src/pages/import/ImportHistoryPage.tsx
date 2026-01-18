@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useToast } from "@/components/ui/Toast";
 
 interface ImportRecord {
   id: string;
@@ -15,12 +17,16 @@ interface ImportRecord {
 }
 
 export default function ImportHistoryPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { success: showSuccess, error: showError } = useToast();
   const [records, setRecords] = useState<ImportRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [createExamDialog, setCreateExamDialog] = useState<string | null>(null);
   const [examTitle, setExamTitle] = useState("");
   const [examDuration, setExamDuration] = useState(60);
   const [creating, setCreating] = useState(false);
+  const [createProgress, setCreateProgress] = useState(0);
 
   // 详情模态框状态
   const [detailDialog, setDetailDialog] = useState<string | null>(null);
@@ -29,9 +35,19 @@ export default function ImportHistoryPage() {
   const [detailPage, setDetailPage] = useState(1);
   const [detailPageSize] = useState(10); // 每页显示10个题目
 
+  const targetJobId = new URLSearchParams(location.search).get("jobId");
+  const [autoOpened, setAutoOpened] = useState(false);
+
   useEffect(() => {
     fetchImportHistory();
   }, []);
+
+  useEffect(() => {
+    if (!loading && targetJobId && records.length > 0 && !autoOpened) {
+      viewImportDetails(targetJobId);
+      setAutoOpened(true);
+    }
+  }, [autoOpened, loading, records.length, targetJobId]);
 
   const fetchImportHistory = async () => {
     try {
@@ -45,10 +61,10 @@ export default function ImportHistoryPage() {
         const data = await response.json();
         setRecords(data);
       } else {
-        alert("获取导入历史失败");
+        showError("获取导入历史失败");
       }
     } catch (error) {
-      alert("获取导入历史失败");
+      showError("获取导入历史失败");
     } finally {
       setLoading(false);
     }
@@ -56,11 +72,12 @@ export default function ImportHistoryPage() {
 
   const createExamFromRecord = async (jobId: string) => {
     if (!examTitle.trim()) {
-      alert("请输入考试标题");
+      showError("请输入考试标题");
       return;
     }
 
     setCreating(true);
+    setCreateProgress(20);
     try {
       const response = await fetch(`/api/import/history/${jobId}/create-exam`, {
         method: "POST",
@@ -74,20 +91,25 @@ export default function ImportHistoryPage() {
         }),
       });
 
+      setCreateProgress(70);
+
       if (response.ok) {
         const result = await response.json();
-        alert(`考试创建成功！包含 ${result.questionCount} 道题目`);
+        setCreateProgress(100);
+        showSuccess(`考试创建成功！包含 ${result.questionCount} 道题目`);
         setCreateExamDialog(null);
         setExamTitle("");
         setExamDuration(60);
+        navigate(`/exams/${result.examId}`);
       } else {
         const error = await response.json();
-        alert(error.message || "创建考试失败");
+        showError(error.message || "创建考试失败");
       }
     } catch (error) {
-      alert("创建考试失败");
+      showError("创建考试失败");
     } finally {
       setCreating(false);
+      setCreateProgress(0);
     }
   };
 
@@ -126,16 +148,20 @@ export default function ImportHistoryPage() {
             setDetailQuestions(questionsData.data || []);
           } else {
             setDetailQuestions([]);
+            showError("获取题目详情失败");
           }
         } else {
           setDetailQuestions([]);
+          showError("该导入记录没有题目");
         }
       } else {
         setDetailQuestions([]);
+        showError("获取导入记录失败");
       }
     } catch (error) {
       console.error("获取题目详情失败:", error);
       setDetailQuestions([]);
+      showError("获取题目详情失败");
     } finally {
       setDetailLoading(false);
     }
@@ -263,6 +289,18 @@ export default function ImportHistoryPage() {
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-lg font-semibold mb-4">基于导入记录创建考试</h2>
 
+            {creating && (
+              <div className="mb-4">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-300"
+                    style={{ width: `${createProgress}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-500">正在创建考试...</p>
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">文件名</label>
@@ -321,7 +359,8 @@ export default function ImportHistoryPage() {
               <div className="flex gap-2 justify-end">
                 <button
                   onClick={() => setCreateExamDialog(null)}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+                  disabled={creating}
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
                 >
                   取消
                 </button>

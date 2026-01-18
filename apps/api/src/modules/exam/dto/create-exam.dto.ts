@@ -1,10 +1,19 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, Min, IsDateString, IsArray } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsInt,
+  Min,
+  IsDateString,
+  IsArray,
+  IsIn,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export enum ExamAccountMode {
   PERMANENT = 'PERMANENT',
   TEMPORARY_IMPORT = 'TEMPORARY_IMPORT',
-  TEMPORARY_REGISTER = 'TEMPORARY_REGISTER'
+  TEMPORARY_REGISTER = 'TEMPORARY_REGISTER',
 }
 
 export class CreateExamDto {
@@ -29,12 +38,12 @@ export class CreateExamDto {
   @IsOptional()
   totalScore?: number;
 
-  @ApiProperty({ 
-    required: false, 
+  @ApiProperty({
+    required: false,
     description: 'Account modes for exam (array)',
     type: [String],
     enum: ExamAccountMode,
-    default: [ExamAccountMode.TEMPORARY_IMPORT]
+    default: [ExamAccountMode.TEMPORARY_IMPORT],
   })
   @IsArray()
   @IsOptional()
@@ -49,4 +58,14 @@ export class CreateExamDto {
   @IsDateString()
   @IsOptional()
   endTime?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Student feedback visibility (FINAL_SCORE/ANSWERS/FULL_DETAILS)',
+    default: 'FINAL_SCORE',
+  })
+  @IsString()
+  @IsOptional()
+  @IsIn(['FINAL_SCORE', 'ANSWERS', 'FULL_DETAILS'])
+  feedbackVisibility?: 'FINAL_SCORE' | 'ANSWERS' | 'FULL_DETAILS';
 }

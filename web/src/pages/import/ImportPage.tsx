@@ -39,6 +39,7 @@ export default function ImportPage() {
     failed: number;
     errors: { row: number; message: string }[];
     questionIds?: string[];
+    jobId?: string;
   } | null>(null);
 
   const [pdfJobId, setPdfJobId] = useState<string | null>(null);
@@ -195,7 +196,8 @@ export default function ImportPage() {
     try {
       const response = await axios.post("/api/import/excel", formData);
 
-      setUploadResult(response.data);
+      const result = response.data;
+      setUploadResult(result);
       setSelectedFile(null);
     } catch (error: unknown) {
       console.error("Upload failed:", error);
@@ -1546,11 +1548,10 @@ export default function ImportPage() {
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
                       <button
                         onClick={() => {
-                          const questionIds = latestPdfEvent?.meta?.questionIds;
-                          if (questionIds && questionIds.length > 0) {
-                            navigate(`/questions?ids=${questionIds.join(",")}`);
+                          if (pdfJobId) {
+                            navigate(`/import/history?jobId=${pdfJobId}`);
                           } else {
-                            navigate("/questions");
+                            navigate("/import/history");
                           }
                         }}
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50"
@@ -1688,15 +1689,10 @@ export default function ImportPage() {
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <button
                   onClick={() => {
-                    if (
-                      uploadResult.questionIds &&
-                      uploadResult.questionIds.length > 0
-                    ) {
-                      navigate(
-                        `/questions?ids=${uploadResult.questionIds.join(",")}`,
-                      );
+                    if (uploadResult.jobId) {
+                      navigate(`/import/history?jobId=${uploadResult.jobId}`);
                     } else {
-                      navigate("/questions");
+                      navigate("/import/history");
                     }
                   }}
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition-colors hover:bg-slate-50"

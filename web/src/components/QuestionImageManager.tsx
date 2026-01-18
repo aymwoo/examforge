@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { Upload, Clipboard, X, Image as ImageIcon } from "lucide-react";
 import Button from "@/components/ui/Button";
-import { uploadQuestionImage, addClipboardImage, deleteQuestionImage } from "@/services/questions";
+import {
+  uploadQuestionImage,
+  addClipboardImage,
+  deleteQuestionImage,
+} from "@/services/questions";
 
 interface QuestionImageManagerProps {
   questionId?: string;
@@ -14,7 +18,6 @@ export default function QuestionImageManager({
   questionId,
   images,
   onImagesChange,
-  isEditing = false,
 }: QuestionImageManagerProps) {
   const [uploading, setUploading] = useState(false);
 
@@ -37,7 +40,7 @@ export default function QuestionImageManager({
       const updatedImages = [...images, result.imagePath];
       onImagesChange(updatedImages);
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error("Upload failed:", error);
     } finally {
       setUploading(false);
     }
@@ -47,10 +50,10 @@ export default function QuestionImageManager({
     try {
       const clipboardItems = await navigator.clipboard.read();
       for (const item of clipboardItems) {
-        const imageType = item.types.find(type => type.startsWith('image/'));
+        const imageType = item.types.find((type) => type.startsWith("image/"));
         if (imageType) {
           const blob = await item.getType(imageType);
-          
+
           if (!questionId) {
             // 新建模式
             const reader = new FileReader();
@@ -65,11 +68,14 @@ export default function QuestionImageManager({
             reader.onload = async (event) => {
               const result = event.target?.result as string;
               try {
-                const uploadResult = await addClipboardImage(questionId, result);
+                const uploadResult = await addClipboardImage(
+                  questionId,
+                  result,
+                );
                 const updatedImages = [...images, uploadResult.imagePath];
                 onImagesChange(updatedImages);
               } catch (error) {
-                console.error('Clipboard upload failed:', error);
+                console.error("Clipboard upload failed:", error);
               }
             };
             reader.readAsDataURL(blob);
@@ -78,7 +84,7 @@ export default function QuestionImageManager({
         }
       }
     } catch (err) {
-      console.error('Failed to read clipboard:', err);
+      console.error("Failed to read clipboard:", err);
     }
   };
 
@@ -96,12 +102,12 @@ export default function QuestionImageManager({
       const updatedImages = images.filter((_, i) => i !== index);
       onImagesChange(updatedImages);
     } catch (error) {
-      console.error('Delete failed:', error);
+      console.error("Delete failed:", error);
     }
   };
 
   const getImageSrc = (imagePath: string) => {
-    if (imagePath.startsWith('data:')) {
+    if (imagePath.startsWith("data:")) {
       return imagePath; // base64
     }
     return `http://localhost:3000/${imagePath}`; // 服务器路径
@@ -131,7 +137,7 @@ export default function QuestionImageManager({
             {uploading ? "上传中..." : "上传图片"}
           </label>
         </div>
-        
+
         <Button
           variant="outline"
           size="sm"
@@ -167,7 +173,9 @@ export default function QuestionImageManager({
         <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
           <ImageIcon className="h-8 w-8 mx-auto text-ink-400 mb-2" />
           <p className="text-sm text-ink-600">暂无示例图</p>
-          <p className="text-xs text-ink-400 mt-1">点击上传或从剪贴板粘贴图片</p>
+          <p className="text-xs text-ink-400 mt-1">
+            点击上传或从剪贴板粘贴图片
+          </p>
         </div>
       )}
     </div>

@@ -17,6 +17,7 @@ export interface ImportResult {
   failed: number;
   errors: { row: number; message: string }[];
   questionIds?: string[]; // 导入成功的题目ID列表
+  jobId?: string;
 }
 
 export interface PdfImportResponse {
@@ -72,6 +73,7 @@ export class ImportService {
       failed: 0,
       errors: [],
       questionIds: [],
+      jobId,
     };
 
     for (let i = 0; i < data.length; i++) {

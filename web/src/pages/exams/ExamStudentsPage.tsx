@@ -6,7 +6,7 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { getExamById, type Exam } from "@/services/exams";
 import api from "@/services/api";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
 interface Submission {
   id: string;
@@ -40,12 +40,16 @@ export default function ExamStudentsPage() {
   const [importText, setImportText] = useState("");
   const [importing, setImporting] = useState(false);
   const [customPassword, setCustomPassword] = useState("");
-  const [importMode, setImportMode] = useState<'text' | 'file'>('text');
+  const [importMode, setImportMode] = useState<"text" | "file">("text");
   const [showClassModal, setShowClassModal] = useState(false);
   const [classes, setClasses] = useState<any[]>([]);
-  const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
+  const [selectedClasses, setSelectedClasses] = useState<Set<string>>(
+    new Set(),
+  );
   const [classStudents, setClassStudents] = useState<any[]>([]);
-  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
+  const [selectedStudents, setSelectedStudents] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     if (id) {
@@ -67,16 +71,17 @@ export default function ExamStudentsPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [examData, submissionsResponse, studentsResponse] = await Promise.all([
-        getExamById(id),
-        api.get(`/api/exams/${id}/submissions`),
-        api.get(`/api/exams/${id}/students`)
-      ]);
+      const [examData, submissionsResponse, studentsResponse] =
+        await Promise.all([
+          getExamById(id),
+          api.get(`/api/exams/${id}/submissions`),
+          api.get(`/api/exams/${id}/students`),
+        ]);
       setExam(examData);
       setSubmissions(submissionsResponse.data);
       setExamStudents(studentsResponse.data);
     } catch (err) {
-      console.error('加载数据失败:', err);
+      console.error("加载数据失败:", err);
     } finally {
       setLoading(false);
     }
@@ -84,18 +89,20 @@ export default function ExamStudentsPage() {
 
   const handleImportStudents = async () => {
     if (!importText.trim()) return;
-    
+
     setImporting(true);
     try {
-      const lines = importText.trim().split('\n');
-      const studentsData = lines.map(line => {
-        const name = line.trim();
-        return { name };
-      }).filter(student => student.name);
+      const lines = importText.trim().split("\n");
+      const studentsData = lines
+        .map((line) => {
+          const name = line.trim();
+          return { name };
+        })
+        .filter((student) => student.name);
 
       await api.post(`/api/exams/${id}/students/import-temporary`, {
         students: studentsData,
-        customPassword: customPassword.trim() || undefined
+        customPassword: customPassword.trim() || undefined,
       });
 
       setShowImportModal(false);
@@ -103,7 +110,7 @@ export default function ExamStudentsPage() {
       setCustomPassword("");
       loadData();
     } catch (err: any) {
-      alert(err.response?.data?.message || '导入失败');
+      alert(err.response?.data?.message || "导入失败");
     } finally {
       setImporting(false);
     }
@@ -119,28 +126,32 @@ export default function ExamStudentsPage() {
         const data = e.target?.result;
         let studentsData: string[] = [];
 
-        if (file.name.endsWith('.csv')) {
+        if (file.name.endsWith(".csv")) {
           // 处理CSV文件
           const text = data as string;
-          const lines = text.split('\n');
-          studentsData = lines.map(line => line.trim()).filter(line => line);
-        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+          const lines = text.split("\n");
+          studentsData = lines
+            .map((line) => line.trim())
+            .filter((line) => line);
+        } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
           // 处理Excel文件
-          const workbook = XLSX.read(data, { type: 'binary' });
+          const workbook = XLSX.read(data, { type: "binary" });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-          studentsData = jsonData.map((row: any) => String(row[0] || '').trim()).filter(name => name);
+          studentsData = jsonData
+            .map((row: any) => String(row[0] || "").trim())
+            .filter((name) => name);
         }
 
-        setImportText(studentsData.join('\n'));
-        setImportMode('text');
+        setImportText(studentsData.join("\n"));
+        setImportMode("text");
       } catch (error) {
-        alert('文件解析失败，请检查文件格式');
+        alert("文件解析失败，请检查文件格式");
       }
     };
 
-    if (file.name.endsWith('.csv')) {
+    if (file.name.endsWith(".csv")) {
       reader.readAsText(file);
     } else {
       reader.readAsBinaryString(file);
@@ -149,10 +160,10 @@ export default function ExamStudentsPage() {
 
   const loadClasses = async () => {
     try {
-      const response = await api.get('/api/classes');
+      const response = await api.get("/api/classes");
       setClasses(response.data.data || response.data || []);
     } catch (err) {
-      console.error('加载班级失败:', err);
+      console.error("加载班级失败:", err);
     }
   };
 
@@ -164,42 +175,42 @@ export default function ExamStudentsPage() {
 
     try {
       const classIds = Array.from(selectedClasses);
-      const promises = classIds.map(classId => 
-        api.get(`/api/classes/${classId}/students`)
+      const promises = classIds.map((classId) =>
+        api.get(`/api/classes/${classId}/students`),
       );
       const responses = await Promise.all(promises);
-      
+
       // 合并所有班级的学生，去重
-      const allStudents = responses.flatMap(response => response.data || []);
-      const uniqueStudents = allStudents.filter((student, index, self) => 
-        index === self.findIndex(s => s.id === student.id)
+      const allStudents = responses.flatMap((response) => response.data || []);
+      const uniqueStudents = allStudents.filter(
+        (student, index, self) =>
+          index === self.findIndex((s) => s.id === student.id),
       );
-      
+
       setClassStudents(uniqueStudents);
     } catch (err) {
-      console.error('加载班级学生失败:', err);
+      console.error("加载班级学生失败:", err);
     }
   };
 
   const handleClassImport = async () => {
     if (selectedStudents.size === 0) return;
-    
+
     setImporting(true);
     try {
-      const studentIds = Array.from(selectedStudents);
       const classIds = Array.from(selectedClasses);
-      
+
       // 为每个班级分别导入选中的学生
       for (const classId of classIds) {
         const classStudentIds = classStudents
-          .filter(s => selectedStudents.has(s.id))
-          .filter(s => s.classId === classId)
-          .map(s => s.id);
-          
+          .filter((s) => selectedStudents.has(s.id))
+          .filter((s) => s.classId === classId)
+          .map((s) => s.id);
+
         if (classStudentIds.length > 0) {
           await api.post(`/api/exams/${id}/students/import-from-class`, {
             classId,
-            studentIds: classStudentIds
+            studentIds: classStudentIds,
           });
         }
       }
@@ -210,7 +221,7 @@ export default function ExamStudentsPage() {
       setSelectedStudents(new Set());
       loadData();
     } catch (err: any) {
-      alert(err.response?.data?.message || '导入失败');
+      alert(err.response?.data?.message || "导入失败");
     } finally {
       setImporting(false);
     }
@@ -218,20 +229,31 @@ export default function ExamStudentsPage() {
 
   // 按登录模式分组学生
   const getStudentsByMode = () => {
-    console.log('All students:', examStudents.map(s => ({ name: s.displayName, accountType: s.accountType })));
-    
+    console.log(
+      "All students:",
+      examStudents.map((s) => ({
+        name: s.displayName,
+        accountType: s.accountType,
+      })),
+    );
+
     const groups = {
-      PERMANENT: examStudents.filter(s => s.accountType === 'PERMANENT'),
-      TEMPORARY_IMPORT: examStudents.filter(s => s.accountType === 'TEMPORARY_IMPORT' || s.accountType === 'TEMPORARY'),
-      TEMPORARY_REGISTER: examStudents.filter(s => s.accountType === 'TEMPORARY_REGISTER'),
+      PERMANENT: examStudents.filter((s) => s.accountType === "PERMANENT"),
+      TEMPORARY_IMPORT: examStudents.filter(
+        (s) =>
+          s.accountType === "TEMPORARY_IMPORT" || s.accountType === "TEMPORARY",
+      ),
+      TEMPORARY_REGISTER: examStudents.filter(
+        (s) => s.accountType === "TEMPORARY_REGISTER",
+      ),
     };
-    
-    console.log('Grouped students:', {
+
+    console.log("Grouped students:", {
       PERMANENT: groups.PERMANENT.length,
       TEMPORARY_IMPORT: groups.TEMPORARY_IMPORT.length,
-      TEMPORARY_REGISTER: groups.TEMPORARY_REGISTER.length
+      TEMPORARY_REGISTER: groups.TEMPORARY_REGISTER.length,
     });
-    
+
     return groups;
   };
 
@@ -239,9 +261,9 @@ export default function ExamStudentsPage() {
 
   const getModeLabel = (mode: string) => {
     const labels = {
-      PERMANENT: '固定学生',
-      TEMPORARY_IMPORT: '临时导入',
-      TEMPORARY_REGISTER: '临时注册'
+      PERMANENT: "固定学生",
+      TEMPORARY_IMPORT: "临时导入",
+      TEMPORARY_REGISTER: "临时注册",
     };
     return labels[mode as keyof typeof labels] || mode;
   };
@@ -282,102 +304,121 @@ export default function ExamStudentsPage() {
               </Button>
             </div>
           </div>
-          
+
           {/* 统计信息 */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             <div className="bg-white rounded-xl p-4 border border-blue-200">
-              <div className="text-2xl font-bold text-blue-600">{studentGroups.PERMANENT.length}</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {studentGroups.PERMANENT.length}
+              </div>
               <div className="text-sm text-blue-700">固定学生</div>
             </div>
             <div className="bg-white rounded-xl p-4 border border-green-200">
-              <div className="text-2xl font-bold text-green-600">{studentGroups.TEMPORARY_IMPORT.length}</div>
+              <div className="text-2xl font-bold text-green-600">
+                {studentGroups.TEMPORARY_IMPORT.length}
+              </div>
               <div className="text-sm text-green-700">临时导入</div>
             </div>
             <div className="bg-white rounded-xl p-4 border border-orange-200">
-              <div className="text-2xl font-bold text-orange-600">{studentGroups.TEMPORARY_REGISTER.length}</div>
+              <div className="text-2xl font-bold text-orange-600">
+                {studentGroups.TEMPORARY_REGISTER.length}
+              </div>
               <div className="text-sm text-orange-700">临时注册</div>
             </div>
             <div className="bg-white rounded-xl p-4 border border-indigo-200">
-              <div className="text-2xl font-bold text-indigo-600">{submissions.length}</div>
+              <div className="text-2xl font-bold text-indigo-600">
+                {submissions.length}
+              </div>
               <div className="text-sm text-indigo-700">已提交</div>
             </div>
           </div>
 
           {/* 学生列表 */}
           <div className="space-y-6">
-            {Object.entries(studentGroups).map(([mode, students]) => (
-              students.length > 0 && (
-                <div key={mode} className="space-y-4">
-                  <h3 className="text-lg font-semibold text-indigo-900 flex items-center gap-2">
-                    {getModeLabel(mode)}
-                    <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-sm">
-                      {students.length}人
-                    </span>
-                  </h3>
-                  {students.map((student) => {
-                    const submission = submissions.find(s => s.student.username === student.username);
-                    return (
-                      <div 
-                        key={student.id}
-                        className="bg-white rounded-xl p-6 border border-indigo-200 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-semibold text-indigo-900">
-                              {student.displayName || student.username}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              注册时间: {new Date(student.createdAt).toLocaleString('zh-CN')}
-                            </div>
-                            {submission && (
-                              <div className="text-sm text-gray-600">
-                                提交时间: {new Date(submission.submittedAt).toLocaleString('zh-CN')}
+            {Object.entries(studentGroups).map(
+              ([mode, students]) =>
+                students.length > 0 && (
+                  <div key={mode} className="space-y-4">
+                    <h3 className="text-lg font-semibold text-indigo-900 flex items-center gap-2">
+                      {getModeLabel(mode)}
+                      <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded text-sm">
+                        {students.length}人
+                      </span>
+                    </h3>
+                    {students.map((student) => {
+                      const submission = submissions.find(
+                        (s) => s.student.username === student.username,
+                      );
+                      return (
+                        <div
+                          key={student.id}
+                          className="bg-white rounded-xl p-6 border border-indigo-200 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-semibold text-indigo-900">
+                                {student.displayName || student.username}
                               </div>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            {submission ? (
-                              <>
-                                {submission.score !== null && (
-                                  <div className="text-lg font-bold text-green-600 mb-1">
-                                    {submission.score}/{exam?.totalScore}
-                                  </div>
+                              <div className="text-sm text-gray-600">
+                                注册时间:{" "}
+                                {new Date(student.createdAt).toLocaleString(
+                                  "zh-CN",
                                 )}
-                                {submission.gradingDetails && (
-                                  <div className="text-sm text-blue-600 mb-2">
-                                    AI预评分: {submission.gradingDetails.totalScore}/{submission.gradingDetails.maxTotalScore}
-                                  </div>
-                                )}
-                                <div className="flex gap-2">
-                                  {submission.isReviewed ? (
-                                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                                      已复核
-                                    </span>
-                                  ) : submission.isAutoGraded ? (
-                                    <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">
-                                      待复核
-                                    </span>
-                                  ) : (
-                                    <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">
-                                      未评分
-                                    </span>
-                                  )}
+                              </div>
+                              {submission && (
+                                <div className="text-sm text-gray-600">
+                                  提交时间:{" "}
+                                  {new Date(
+                                    submission.submittedAt,
+                                  ).toLocaleString("zh-CN")}
                                 </div>
-                              </>
-                            ) : (
-                              <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
-                                未提交
-                              </span>
-                            )}
+                              )}
+                            </div>
+                            <div className="text-right">
+                              {submission ? (
+                                <>
+                                  {submission.score !== null && (
+                                    <div className="text-lg font-bold text-green-600 mb-1">
+                                      {submission.score}/{exam?.totalScore}
+                                    </div>
+                                  )}
+                                  {submission.gradingDetails && (
+                                    <div className="text-sm text-blue-600 mb-2">
+                                      AI预评分:{" "}
+                                      {submission.gradingDetails.totalScore}/
+                                      {submission.gradingDetails.maxTotalScore}
+                                    </div>
+                                  )}
+                                  <div className="flex gap-2">
+                                    {submission.isReviewed ? (
+                                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                                        已复核
+                                      </span>
+                                    ) : submission.isAutoGraded ? (
+                                      <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">
+                                        待复核
+                                      </span>
+                                    ) : (
+                                      <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs">
+                                        未评分
+                                      </span>
+                                    )}
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="bg-red-100 text-red-800 px-2 py-1 rounded text-xs">
+                                  未提交
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )
-            ))}
-            
+                      );
+                    })}
+                  </div>
+                ),
+            )}
+
             {examStudents.length === 0 && (
               <div className="text-center py-12">
                 <p className="text-indigo-700">暂无注册学生</p>
@@ -393,7 +434,7 @@ export default function ExamStudentsPage() {
             setShowImportModal(false);
             setImportText("");
             setCustomPassword("");
-            setImportMode('text');
+            setImportMode("text");
           }}
           title="临时导入学生名册"
           onConfirm={handleImportStudents}
@@ -403,28 +444,29 @@ export default function ExamStudentsPage() {
           <div className="space-y-4">
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <p className="text-sm text-yellow-800">
-                <strong>注意：</strong>此功能仅为当前考试临时导入学生，不会添加到系统数据库中。
+                <strong>注意：</strong>
+                此功能仅为当前考试临时导入学生，不会添加到系统数据库中。
               </p>
             </div>
-            
+
             {/* 导入方式选择 */}
             <div className="flex gap-4 mb-4">
               <button
-                onClick={() => setImportMode('text')}
+                onClick={() => setImportMode("text")}
                 className={`px-4 py-2 rounded-lg border ${
-                  importMode === 'text' 
-                    ? 'bg-indigo-500 text-white border-indigo-500' 
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  importMode === "text"
+                    ? "bg-indigo-500 text-white border-indigo-500"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 手动输入
               </button>
               <button
-                onClick={() => setImportMode('file')}
+                onClick={() => setImportMode("file")}
                 className={`px-4 py-2 rounded-lg border ${
-                  importMode === 'file' 
-                    ? 'bg-indigo-500 text-white border-indigo-500' 
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  importMode === "file"
+                    ? "bg-indigo-500 text-white border-indigo-500"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 文件导入
@@ -448,7 +490,7 @@ export default function ExamStudentsPage() {
               </p>
             </div>
 
-            {importMode === 'text' ? (
+            {importMode === "text" ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   学生姓名列表（每行一个姓名）
@@ -522,10 +564,11 @@ export default function ExamStudentsPage() {
           <div className="space-y-4">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                <strong>说明：</strong>从您创建的班级中导入固定学生账号到考试中。
+                <strong>说明：</strong>
+                从您创建的班级中导入固定学生账号到考试中。
               </p>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 选择班级 ({selectedClasses.size}个已选择)
@@ -546,12 +589,14 @@ export default function ExamStudentsPage() {
                     }}
                     className={`p-3 rounded-lg border text-left transition-colors ${
                       selectedClasses.has(cls.id)
-                        ? 'bg-indigo-500 text-white border-indigo-500'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        ? "bg-indigo-500 text-white border-indigo-500"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                     }`}
                   >
                     <div className="font-medium">{cls.name}</div>
-                    <div className="text-sm opacity-75">{cls._count?.students || 0}人</div>
+                    <div className="text-sm opacity-75">
+                      {cls._count?.students || 0}人
+                    </div>
                   </button>
                 ))}
               </div>
@@ -568,7 +613,11 @@ export default function ExamStudentsPage() {
                   </label>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setSelectedStudents(new Set(classStudents.map(s => s.id)))}
+                      onClick={() =>
+                        setSelectedStudents(
+                          new Set(classStudents.map((s) => s.id)),
+                        )
+                      }
                       className="text-sm text-indigo-600 hover:text-indigo-800"
                     >
                       全选
@@ -602,8 +651,12 @@ export default function ExamStudentsPage() {
                         className="mr-3 rounded border-gray-300"
                       />
                       <div>
-                        <div className="font-medium text-gray-900">{student.name}</div>
-                        <div className="text-sm text-gray-500">学号: {student.studentId}</div>
+                        <div className="font-medium text-gray-900">
+                          {student.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          学号: {student.studentId}
+                        </div>
                       </div>
                     </label>
                   ))}

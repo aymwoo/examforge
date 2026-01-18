@@ -14,6 +14,8 @@ interface ModalProps {
   cancelText?: string;
   confirmVariant?: "primary" | "danger";
   size?: Size;
+  confirmDisabled?: boolean;
+  maxWidthClassName?: string;
 }
 
 function getSizeClassName(size: Size = "medium"): string {
@@ -41,10 +43,12 @@ export default function Modal({
   cancelText = "取消",
   confirmVariant = "primary",
   size = "medium",
+  confirmDisabled = false,
+  maxWidthClassName,
 }: ModalProps) {
   if (!isOpen) return null;
 
-  const sizeClassName = getSizeClassName(size);
+  const sizeClassName = maxWidthClassName || getSizeClassName(size);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -69,6 +73,7 @@ export default function Modal({
             </Button>
             <Button
               onClick={onConfirm}
+              disabled={confirmDisabled}
               className={
                 confirmVariant === "danger"
                   ? "bg-red-500 hover:bg-red-600 text-white"

@@ -3,8 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
 import Button from "@/components/ui/Button";
 import QuestionImageManager from "@/components/QuestionImageManager";
-import { createQuestion, getQuestionById, updateQuestion, type Question } from "@/services/questions";
-
+import {
+  createQuestion,
+  getQuestionById,
+  updateQuestion,
+  type Question,
+} from "@/services/questions";
 
 export default function NewQuestionPage() {
   const navigate = useNavigate();
@@ -51,10 +55,10 @@ export default function NewQuestionPage() {
           { label: "B", content: "" },
           { label: "C", content: "" },
           { label: "D", content: "" },
-        ]
+        ],
       });
     } catch (err: any) {
-      setError(err.response?.data?.message || '加载题目失败');
+      setError(err.response?.data?.message || "加载题目失败");
     } finally {
       setLoading(false);
     }
@@ -62,14 +66,6 @@ export default function NewQuestionPage() {
 
   const handleInputChange = (field: string, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleTagsChange = (value: string) => {
-    const tags = value
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean);
-    setForm((prev) => ({ ...prev, tags }));
   };
 
   const handleOptionsChange = (value: string) => {
@@ -118,7 +114,9 @@ export default function NewQuestionPage() {
         message?: string;
       };
       setError(
-        axiosError.response?.data?.message || axiosError.message || (isEditMode ? "更新失败" : "创建失败"),
+        axiosError.response?.data?.message ||
+          axiosError.message ||
+          (isEditMode ? "更新失败" : "创建失败"),
       );
     } finally {
       setSaving(false);
@@ -157,7 +155,13 @@ export default function NewQuestionPage() {
           </div>
           <Button onClick={handleSubmit} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
-            {saving ? (isEditMode ? "更新中..." : "保存中...") : (isEditMode ? "更新" : "保存")}
+            {saving
+              ? isEditMode
+                ? "更新中..."
+                : "保存中..."
+              : isEditMode
+                ? "更新"
+                : "保存"}
           </Button>
         </div>
 
@@ -263,7 +267,9 @@ export default function NewQuestionPage() {
                 </label>
                 <QuestionImageManager
                   images={form.images || []}
-                  onImagesChange={(images) => handleInputChange("images", images)}
+                  onImagesChange={(images) =>
+                    handleInputChange("images", images)
+                  }
                 />
               </div>
 
@@ -300,10 +306,18 @@ export default function NewQuestionPage() {
                       type="button"
                       onClick={async () => {
                         try {
-                          const clipboardItems = await navigator.clipboard.read();
+                          const clipboardItems =
+                            await navigator.clipboard.read();
                           for (const item of clipboardItems) {
-                            if (item.types.includes('image/png') || item.types.includes('image/jpeg')) {
-                              const blob = await item.getType(item.types.find(type => type.startsWith('image/')) || '');
+                            if (
+                              item.types.includes("image/png") ||
+                              item.types.includes("image/jpeg")
+                            ) {
+                              const blob = await item.getType(
+                                item.types.find((type) =>
+                                  type.startsWith("image/"),
+                                ) || "",
+                              );
                               const reader = new FileReader();
                               reader.onload = (event) => {
                                 const result = event.target?.result as string;
@@ -314,7 +328,7 @@ export default function NewQuestionPage() {
                             }
                           }
                         } catch (err) {
-                          console.error('Failed to read clipboard:', err);
+                          console.error("Failed to read clipboard:", err);
                         }
                       }}
                       className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-accent-600 bg-accent-50 border border-accent-200 rounded-lg hover:bg-accent-100"
@@ -352,27 +366,38 @@ export default function NewQuestionPage() {
                 <div className="mt-2">
                   {/* 显示已存在的标签按钮 */}
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {form.tags && form.tags.map((tag: string, index: number) => (
-                      <div
-                        key={index}
-                        className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-800 border border-blue-200"
-                      >
-                        <span>{tag}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newTags = [...form.tags];
-                            newTags.splice(index, 1);
-                            handleInputChange("tags", newTags);
-                          }}
-                          className="ml-1 text-blue-500 hover:text-blue-700"
+                    {form.tags &&
+                      form.tags.map((tag: string, index: number) => (
+                        <div
+                          key={index}
+                          className="inline-flex items-center gap-1 rounded-lg bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-800 border border-blue-200"
                         >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
+                          <span>{tag}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newTags = [...(form.tags || [])];
+                              newTags.splice(index, 1);
+                              handleInputChange("tags", newTags);
+                            }}
+                            className="ml-1 text-blue-500 hover:text-blue-700"
+                          >
+                            <svg
+                              className="h-3.5 w-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
                   </div>
 
                   {/* 标签输入框 */}
@@ -380,12 +405,15 @@ export default function NewQuestionPage() {
                     type="text"
                     className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === "Enter") {
                         e.preventDefault();
                         const input = e.currentTarget.value.trim();
                         if (input && !form.tags?.includes(input)) {
-                          handleInputChange("tags", [...(form.tags || []), input]);
-                          e.currentTarget.value = '';
+                          handleInputChange("tags", [
+                            ...(form.tags || []),
+                            input,
+                          ]);
+                          e.currentTarget.value = "";
                         }
                       }
                     }}
@@ -442,7 +470,9 @@ export default function NewQuestionPage() {
                       onChange={() => handleInputChange("isPublic", true)}
                       className="mr-2"
                     />
-                    <span className="text-sm text-ink-900">公开 - 所有用户可见</span>
+                    <span className="text-sm text-ink-900">
+                      公开 - 所有用户可见
+                    </span>
                   </label>
                   <label className="flex items-center">
                     <input
@@ -453,7 +483,9 @@ export default function NewQuestionPage() {
                       onChange={() => handleInputChange("isPublic", false)}
                       className="mr-2"
                     />
-                    <span className="text-sm text-ink-900">私有 - 仅自己和管理员可见</span>
+                    <span className="text-sm text-ink-900">
+                      私有 - 仅自己和管理员可见
+                    </span>
                   </label>
                 </div>
               </div>

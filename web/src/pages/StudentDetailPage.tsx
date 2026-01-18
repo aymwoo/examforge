@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Clock, Users, FileText, BookOpen, Award, ArrowLeft } from "lucide-react";
+import {
+  Clock,
+  Users,
+  FileText,
+  BookOpen,
+  Award,
+  ArrowLeft,
+} from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
 import { isAuthenticated } from "@/utils/auth";
@@ -40,17 +47,17 @@ export default function StudentDetailPage() {
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
   const [exams, setExams] = useState<StudentExam[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      setError('请先登录后再查看学生信息');
+      setError("请先登录后再查看学生信息");
       setLoading(false);
       return;
     }
-    
+
     if (id) {
       loadStudentData(id);
     }
@@ -59,26 +66,26 @@ export default function StudentDetailPage() {
   const loadStudentData = async (studentId: string) => {
     try {
       setLoading(true);
-      setError('');
+      setError("");
 
-      console.log('Token:', localStorage.getItem('token')); // Debug log
+      console.log("Token:", localStorage.getItem("token")); // Debug log
 
       // 获取学生信息和考试记录
       const [studentResponse, examsResponse] = await Promise.all([
         api.get(`/api/students/detail/${studentId}`),
-        api.get(`/api/students/detail/${studentId}/exams`)
+        api.get(`/api/students/detail/${studentId}/exams`),
       ]);
 
       setStudentInfo(studentResponse.data);
       setExams(examsResponse.data);
     } catch (err: any) {
-      console.error('加载学生数据失败:', err);
+      console.error("加载学生数据失败:", err);
       if (err.response?.status === 401) {
-        setError('登录已过期，请重新登录');
+        setError("登录已过期，请重新登录");
       } else if (err.response?.status === 403) {
-        setError('您没有权限查看该学生信息');
+        setError("您没有权限查看该学生信息");
       } else {
-        setError(err.response?.data?.message || '加载学生信息失败');
+        setError(err.response?.data?.message || "加载学生信息失败");
       }
     } finally {
       setLoading(false);
@@ -87,60 +94,99 @@ export default function StudentDetailPage() {
 
   const getExamStatus = (exam: StudentExam) => {
     if (exam.submission) {
-      return { text: '已完成', color: 'text-green-600 bg-green-50' };
+      return { text: "已完成", color: "text-green-600 bg-green-50" };
     }
-    
-    if (exam.status !== 'PUBLISHED') {
-      return { text: '未发布', color: 'text-gray-600 bg-gray-50' };
+
+    if (exam.status !== "PUBLISHED") {
+      return { text: "未发布", color: "text-gray-600 bg-gray-50" };
     }
 
     const now = new Date();
     if (exam.endTime && now > new Date(exam.endTime)) {
-      return { text: '已结束', color: 'text-red-600 bg-red-50' };
+      return { text: "已结束", color: "text-red-600 bg-red-50" };
     }
 
     if (exam.startTime && now < new Date(exam.startTime)) {
-      return { text: '未开始', color: 'text-blue-600 bg-blue-50' };
+      return { text: "未开始", color: "text-blue-600 bg-blue-50" };
     }
 
-    return { text: '进行中', color: 'text-orange-600 bg-orange-50' };
+    return { text: "进行中", color: "text-orange-600 bg-orange-50" };
   };
 
   const handleViewSubmission = async (examId: string, submissionId: string) => {
     try {
-      const response = await api.get(`/api/exams/${examId}/submissions/${submissionId}`);
+      const response = await api.get(
+        `/api/exams/${examId}/submissions/${submissionId}`,
+      );
       setSelectedSubmission(response.data);
       setShowSubmissionModal(true);
     } catch (err: any) {
-      console.error('获取提交详情失败:', err);
-      setError('获取提交详情失败');
+      console.error("获取提交详情失败:", err);
+      setError("获取提交详情失败");
     }
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('zh-CN');
+    return new Date(dateString).toLocaleString("zh-CN");
   };
 
-  const formatAnswerDisplay = (answer: string | string[], question: any) => {
-    if (!question || !question.options) return answer;
-    
+  const normalizeTrueFalseLabel = (value: unknown) => {
+    if (
+      value === true ||
+      value === "true" ||
+      value === "正确" ||
+      value === "对"
+    ) {
+      return "正确";
+    }
+    if (
+      value === false ||
+      value === "false" ||
+      value === "错误" ||
+      value === "错"
+    ) {
+      return "错误";
+    }
+    return value ? String(value) : "";
+  };
+
+  const formatAnswerDisplay = (
+    answer: string | string[] | boolean | null,
+    question: any,
+  ) => {
+    if (!question) return answer ? String(answer) : "";
+
+    if (question.type === "TRUE_FALSE") {
+      return normalizeTrueFalseLabel(answer);
+    }
+
+    if (!question.options) return answer ? String(answer) : "";
+
     if (Array.isArray(answer)) {
       // 多选题：将答案文本数组转换为选项标识数组
-      return answer.map(answerText => {
-        const index = question.options.findIndex((opt: any) => {
-          const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
-          return optionText === answerText;
-        });
-        return index >= 0 ? String.fromCharCode(65 + index) : answerText;
-      }).join(', ');
-    } else {
-      // 单选题：将答案文本转换为选项标识
-      const index = question.options.findIndex((opt: any) => {
-        const optionText = typeof opt === 'string' ? opt : opt?.content || opt?.label || String(opt);
-        return optionText === answer;
-      });
-      return index >= 0 ? String.fromCharCode(65 + index) : answer;
+      return answer
+        .map((answerText) => {
+          const index = question.options.findIndex((opt: any) => {
+            const optionText =
+              typeof opt === "string"
+                ? opt
+                : opt?.content || opt?.label || String(opt);
+            return optionText === answerText;
+          });
+          return index >= 0 ? String.fromCharCode(65 + index) : answerText;
+        })
+        .join(", ");
     }
+
+    // 单选题：将答案文本转换为选项标识
+    const index = question.options.findIndex((opt: any) => {
+      const optionText =
+        typeof opt === "string"
+          ? opt
+          : opt?.content || opt?.label || String(opt);
+      return optionText === answer;
+    });
+    return index >= 0 ? String.fromCharCode(65 + index) : String(answer);
   };
 
   if (loading) {
@@ -159,9 +205,11 @@ export default function StudentDetailPage() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-lg mb-4">{error}</div>
-          {error.includes('登录') || error.includes('过期') ? (
-            <Button 
-              onClick={() => window.dispatchEvent(new CustomEvent('show401Login'))}
+          {error.includes("登录") || error.includes("过期") ? (
+            <Button
+              onClick={() =>
+                window.dispatchEvent(new CustomEvent("show401Login"))
+              }
               className="bg-blue-600 hover:bg-blue-700"
             >
               立即登录
@@ -193,7 +241,6 @@ export default function StudentDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* 学生基本信息 */}
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
@@ -208,18 +255,24 @@ export default function StudentDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">学号</p>
-              <p className="font-medium text-gray-900">{studentInfo.studentId}</p>
+              <p className="font-medium text-gray-900">
+                {studentInfo.studentId}
+              </p>
             </div>
             {studentInfo.gender && (
               <div>
                 <p className="text-sm text-gray-500">性别</p>
-                <p className="font-medium text-gray-900">{studentInfo.gender}</p>
+                <p className="font-medium text-gray-900">
+                  {studentInfo.gender}
+                </p>
               </div>
             )}
             {studentInfo.class && (
               <div>
                 <p className="text-sm text-gray-500">班级</p>
-                <p className="font-medium text-gray-900">{studentInfo.class.name}</p>
+                <p className="font-medium text-gray-900">
+                  {studentInfo.class.name}
+                </p>
               </div>
             )}
           </div>
@@ -231,7 +284,9 @@ export default function StudentDetailPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <BookOpen className="h-6 w-6 text-green-600 mr-3" />
-                <h2 className="text-xl font-semibold text-gray-900">考试记录</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  考试记录
+                </h2>
               </div>
               <div className="text-sm text-gray-500">
                 共 {exams.length} 场考试
@@ -243,7 +298,9 @@ export default function StudentDetailPage() {
             {exams.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">暂无考试记录</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  暂无考试记录
+                </h3>
                 <p className="text-gray-500">暂无相关考试</p>
               </div>
             ) : (
@@ -251,11 +308,18 @@ export default function StudentDetailPage() {
                 {exams.map((exam) => {
                   const status = getExamStatus(exam);
                   return (
-                    <div key={exam.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div
+                      key={exam.id}
+                      className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center">
-                          <h3 className="text-lg font-medium text-gray-900 mr-3">{exam.title}</h3>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                          <h3 className="text-lg font-medium text-gray-900 mr-3">
+                            {exam.title}
+                          </h3>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}
+                          >
                             {status.text}
                           </span>
                         </div>
@@ -277,13 +341,17 @@ export default function StudentDetailPage() {
                         {exam.startTime && (
                           <div>
                             <p className="text-gray-500">开始时间</p>
-                            <p className="font-medium">{formatDate(exam.startTime)}</p>
+                            <p className="font-medium">
+                              {formatDate(exam.startTime)}
+                            </p>
                           </div>
                         )}
                         {exam.endTime && (
                           <div>
                             <p className="text-gray-500">结束时间</p>
-                            <p className="font-medium">{formatDate(exam.endTime)}</p>
+                            <p className="font-medium">
+                              {formatDate(exam.endTime)}
+                            </p>
                           </div>
                         )}
                         {exam.submission && (
@@ -303,10 +371,16 @@ export default function StudentDetailPage() {
                         <div className="mt-3 pt-3 border-t">
                           <div className="flex items-center justify-between">
                             <p className="text-sm text-gray-500">
-                              提交时间: {formatDate(exam.submission.submittedAt)}
+                              提交时间:{" "}
+                              {formatDate(exam.submission.submittedAt)}
                             </p>
                             <Button
-                              onClick={() => handleViewSubmission(exam.id, exam.submission!.id)}
+                              onClick={() =>
+                                handleViewSubmission(
+                                  exam.id,
+                                  exam.submission!.id,
+                                )
+                              }
                               variant="outline"
                               className="text-sm"
                             >
@@ -316,7 +390,7 @@ export default function StudentDetailPage() {
                         </div>
                       )}
 
-                      {!exam.submission && status.text === '进行中' && (
+                      {!exam.submission && status.text === "进行中" && (
                         <div className="mt-3 pt-3 border-t">
                           <div className="flex justify-end">
                             <Button
@@ -361,17 +435,22 @@ export default function StudentDetailPage() {
                   <div>
                     <p className="text-gray-500">总得分</p>
                     <p className="font-medium text-lg text-green-600">
-                      {selectedSubmission.score} / {selectedSubmission.exam?.totalScore || 0}
+                      {selectedSubmission.score} /{" "}
+                      {selectedSubmission.exam?.totalScore || 0}
                     </p>
                   </div>
                   <div>
                     <p className="text-gray-500">提交时间</p>
-                    <p className="font-medium">{formatDate(selectedSubmission.submittedAt)}</p>
+                    <p className="font-medium">
+                      {formatDate(selectedSubmission.submittedAt)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-gray-500">评分状态</p>
                     <p className="font-medium">
-                      {selectedSubmission.isAutoGraded ? 'AI自动评分' : '待人工评分'}
+                      {selectedSubmission.isAutoGraded
+                        ? "AI自动评分"
+                        : "待人工评分"}
                     </p>
                   </div>
                 </div>
@@ -386,13 +465,16 @@ export default function StudentDetailPage() {
                       <div>
                         <p className="text-gray-500">AI评分总分</p>
                         <p className="font-medium text-blue-600">
-                          {selectedSubmission.gradingDetails.totalScore} / {selectedSubmission.gradingDetails.maxTotalScore}
+                          {selectedSubmission.gradingDetails.totalScore} /{" "}
+                          {selectedSubmission.gradingDetails.maxTotalScore}
                         </p>
                       </div>
                       <div>
                         <p className="text-gray-500">评分完整性</p>
                         <p className="font-medium">
-                          {selectedSubmission.gradingDetails.isFullyAutoGraded ? '完全自动评分' : '部分需人工确认'}
+                          {selectedSubmission.gradingDetails.isFullyAutoGraded
+                            ? "完全自动评分"
+                            : "部分需人工确认"}
                         </p>
                       </div>
                     </div>
@@ -405,7 +487,9 @@ export default function StudentDetailPage() {
                 <div>
                   <h3 className="text-lg font-semibold mb-3">题目评分详情</h3>
                   <div className="space-y-4">
-                    {Object.entries(selectedSubmission.gradingDetails.details).map(([questionId, detail]: [string, any], index) => (
+                    {Object.entries(
+                      selectedSubmission.gradingDetails.details,
+                    ).map(([questionId, detail]: [string, any], index) => (
                       <div key={questionId} className="border rounded-lg p-4">
                         <div className="flex items-center justify-between mb-3">
                           <h4 className="font-medium">第 {index + 1} 题</h4>
@@ -416,51 +500,91 @@ export default function StudentDetailPage() {
 
                         <div className="space-y-3 text-sm">
                           <div>
-                            <p className="font-medium text-gray-700">学生答案：</p>
+                            <p className="font-medium text-gray-700">
+                              学生答案：
+                            </p>
                             <div className="bg-gray-50 p-3 rounded mt-1">
                               {(() => {
-                                const question = selectedSubmission.exam?.questions?.find((q: any) => q.id === questionId);
-                                const formattedAnswer = question ? formatAnswerDisplay(detail.studentAnswer, question) : detail.studentAnswer;
-                                return formattedAnswer || '未作答';
+                                const question =
+                                  selectedSubmission.exam?.questions?.find(
+                                    (q: any) => q.id === questionId,
+                                  );
+                                const formattedAnswer = question
+                                  ? formatAnswerDisplay(
+                                      detail.studentAnswer,
+                                      question,
+                                    )
+                                  : detail.studentAnswer;
+                                return formattedAnswer || "未作答";
                               })()}
                             </div>
                           </div>
 
-                          {detail.type === 'objective' && (
+                          {detail.type === "objective" && (
                             <div>
-                              <p className="font-medium text-gray-700">正确答案：</p>
+                              <p className="font-medium text-gray-700">
+                                正确答案：
+                              </p>
                               <div className="bg-green-50 p-3 rounded mt-1">
                                 {(() => {
-                                  const question = selectedSubmission.exam?.questions?.find((q: any) => q.id === questionId);
-                                  return question ? formatAnswerDisplay(detail.correctAnswer, question) : detail.correctAnswer;
+                                  const question =
+                                    selectedSubmission.exam?.questions?.find(
+                                      (q: any) => q.id === questionId,
+                                    );
+                                  return question
+                                    ? formatAnswerDisplay(
+                                        detail.correctAnswer,
+                                        question,
+                                      )
+                                    : detail.correctAnswer;
                                 })()}
                               </div>
-                              <p className={`mt-2 ${detail.isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                              <p
+                                className={`mt-2 ${detail.isCorrect ? "text-green-600" : "text-red-600"}`}
+                              >
                                 {detail.feedback}
                               </p>
                             </div>
                           )}
 
-                          {detail.type === 'subjective' && detail.aiGrading && (
+                          {detail.type === "subjective" && detail.aiGrading && (
                             <div className="bg-blue-50 p-3 rounded">
-                              <p className="font-medium text-blue-800">AI评价：</p>
-                              <p className="text-blue-700 mt-1">{detail.aiGrading.reasoning}</p>
+                              <p className="font-medium text-blue-800">
+                                AI评价：
+                              </p>
+                              <p className="text-blue-700 mt-1">
+                                {detail.aiGrading.reasoning}
+                              </p>
                               {detail.aiGrading.suggestions && (
                                 <div className="mt-2">
-                                  <p className="font-medium text-blue-800">改进建议：</p>
-                                  <p className="text-blue-600">{detail.aiGrading.suggestions}</p>
+                                  <p className="font-medium text-blue-800">
+                                    改进建议：
+                                  </p>
+                                  <p className="text-blue-600">
+                                    {detail.aiGrading.suggestions}
+                                  </p>
                                 </div>
                               )}
                               <div className="mt-2 text-xs text-blue-600">
-                                置信度: {Math.round((detail.aiGrading.confidence || 0) * 100)}%
-                                {detail.needsReview && <span className="ml-2 text-orange-600">需要人工复审</span>}
+                                置信度:{" "}
+                                {Math.round(
+                                  (detail.aiGrading.confidence || 0) * 100,
+                                )}
+                                %
+                                {detail.needsReview && (
+                                  <span className="ml-2 text-orange-600">
+                                    需要人工复审
+                                  </span>
+                                )}
                               </div>
                             </div>
                           )}
 
                           {detail.referenceAnswer && (
                             <div>
-                              <p className="font-medium text-gray-700">参考答案：</p>
+                              <p className="font-medium text-gray-700">
+                                参考答案：
+                              </p>
                               <div className="bg-green-50 p-3 rounded mt-1">
                                 {detail.referenceAnswer}
                               </div>

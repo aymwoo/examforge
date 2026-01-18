@@ -8,6 +8,7 @@ export interface Exam {
   totalScore: number;
   status: string;
   accountModes: ExamAccountMode[];
+  feedbackVisibility?: "FINAL_SCORE" | "ANSWERS" | "FULL_DETAILS";
   startTime?: string;
   endTime?: string;
   createdAt: string;
@@ -60,6 +61,7 @@ export interface CreateExamDto {
   duration: number;
   totalScore?: number;
   accountModes?: ExamAccountMode[];
+  feedbackVisibility?: "FINAL_SCORE" | "ANSWERS" | "FULL_DETAILS";
 }
 
 export const examAccountModes = [
@@ -76,6 +78,7 @@ export interface UpdateExamDto {
   totalScore?: number;
   status?: string;
   accountModes?: ExamAccountMode[];
+  feedbackVisibility?: "FINAL_SCORE" | "ANSWERS" | "FULL_DETAILS";
 }
 
 export interface AddQuestionDto {

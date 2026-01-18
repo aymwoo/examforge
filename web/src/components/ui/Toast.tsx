@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 
-export type ToastVariant = "default" | "success" | "error";
+export type ToastVariant = "default" | "success" | "error" | "warning";
 
 export interface ToastItem {
   id: string;
@@ -19,6 +19,7 @@ export interface ToastItem {
 interface ToastContextValue {
   default: (title: string, description?: string) => void;
   success: (title: string, description?: string) => void;
+  warning: (title: string, description?: string) => void;
   error: (title: string, description?: string) => void;
 }
 
@@ -41,6 +42,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     () => ({
       default: (title, description) => push("default", title, description),
       success: (title, description) => push("success", title, description),
+      warning: (title, description) => push("warning", title, description),
       error: (title, description) => push("error", title, description),
     }),
     [push],
@@ -58,9 +60,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               "pointer-events-auto w-full max-w-sm rounded-xl border bg-white p-4 shadow-lg " +
               (toast.variant === "success"
                 ? "border-green-200"
-                : toast.variant === "error"
-                  ? "border-red-200"
-                  : "border-gray-200")
+                : toast.variant === "warning"
+                  ? "border-yellow-200"
+                  : toast.variant === "error"
+                    ? "border-red-200"
+                    : "border-gray-200")
             }
             duration={2000}
             onOpenChange={(open) => {
@@ -73,9 +77,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 "text-sm font-semibold " +
                 (toast.variant === "success"
                   ? "text-green-800"
-                  : toast.variant === "error"
-                    ? "text-red-800"
-                    : "text-gray-900")
+                  : toast.variant === "warning"
+                    ? "text-yellow-800"
+                    : toast.variant === "error"
+                      ? "text-red-800"
+                      : "text-gray-900")
               }
             >
               {toast.title}

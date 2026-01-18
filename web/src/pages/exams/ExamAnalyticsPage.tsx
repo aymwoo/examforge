@@ -58,6 +58,9 @@ export default function ExamAnalyticsPage() {
   const [savedReport, setSavedReport] = useState<SavedAIReport | null>(null);
   const [loadingSavedReport, setLoadingSavedReport] = useState(false);
   const [showAiReportModal, setShowAiReportModal] = useState<boolean>(false);
+  const [heatmapMode, setHeatmapMode] = useState<"mastery" | "matrix">(
+    "mastery",
+  );
 
   const getQuestionTypeName = (type: string) => {
     const typeMap: Record<string, string> = {
@@ -191,7 +194,27 @@ export default function ExamAnalyticsPage() {
   };
 
   // 热力图数据 - 学生答题情况矩阵
-  const getHeatmapData = () => {
+  const getHeatmapMasteryData = () => {
+    const heatmap = analytics?.heatmap;
+    if (!heatmap?.questions || !heatmap?.mastery) return [];
+
+    return heatmap.questions.map((question: any, index: number) => {
+      const mastery = heatmap.mastery?.[index] || {};
+      const masteryRate = mastery?.masteryRate ?? 0;
+      const averageScore = mastery?.averageScore ?? 0;
+      const maxScore = mastery?.maxScore ?? question.score ?? 0;
+
+      return {
+        question: `第${index + 1}题`,
+        masteryRate: Math.round(masteryRate),
+        averageScore,
+        maxScore,
+        order: question.order ?? index + 1,
+      };
+    });
+  };
+
+  const getHeatmapMatrixData = () => {
     const heatmap = analytics?.heatmap;
     if (!heatmap?.students || !heatmap?.questions || !heatmap?.values)
       return [];
@@ -200,17 +223,23 @@ export default function ExamAnalyticsPage() {
       student: string;
       question: string;
       score: number;
+      rate: number;
+      maxScore: number;
       x: number;
       y: number;
     }[] = [];
 
     heatmap.students.forEach((student: any, studentIndex: number) => {
-      heatmap.questions.forEach((_question: any, questionIndex: number) => {
+      heatmap.questions.forEach((question: any, questionIndex: number) => {
         const score = heatmap.values?.[studentIndex]?.[questionIndex] ?? 0;
+        const maxScore = question?.score ?? 0;
+        const rate = maxScore > 0 ? (score / maxScore) * 100 : 0;
         data.push({
           student: student.name || student.id,
           question: `第${questionIndex + 1}题`,
           score: Math.round(score),
+          rate: Math.round(rate),
+          maxScore,
           x: questionIndex,
           y: studentIndex,
         });
@@ -253,7 +282,52 @@ export default function ExamAnalyticsPage() {
   );
 
   // 热力图组件
-  const Heatmap = ({ data }: { data: any[] }) => {
+  const HeatmapMastery = ({ data }: { data: any[] }) => {
+    const questions = data.map((d) => d.question);
+    const getColor = (value: number) => {
+      const clamped = Math.max(0, Math.min(100, value));
+      const intensity = clamped / 100;
+      const hue = 220 - 140 * intensity;
+      const lightness = 95 - 45 * intensity;
+      return `hsl(${hue}, 70%, ${lightness}%)`;
+    };
+
+    return (
+      <div className="overflow-x-auto">
+        <div className="min-w-[600px]">
+          <div className="grid grid-cols-11 gap-1 text-xs mb-1">
+            <div className="font-semibold p-2 text-center">题号</div>
+            {questions.map((q) => (
+              <div key={q} className="text-center font-semibold p-2">
+                {q}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-11 gap-1 text-xs">
+            <div className="font-semibold p-2 text-right">掌握度</div>
+            {data.map((item) => (
+              <div
+                key={item.question}
+                className="aspect-square flex flex-col items-center justify-center text-[11px] font-semibold rounded"
+                style={{
+                  backgroundColor: getColor(item.masteryRate),
+                  color: item.masteryRate > 55 ? "white" : "#1f2937",
+                }}
+                title={`${item.question} 掌握度 ${item.masteryRate}% (均分 ${item.averageScore.toFixed(
+                  1,
+                )}/${item.maxScore})`}
+              >
+                <span>{item.masteryRate}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const HeatmapMatrix = ({ data }: { data: any[] }) => {
     const students = [...new Set(data.map((d) => d.student))];
     const questions = [...new Set(data.map((d) => d.question))];
 
@@ -279,18 +353,19 @@ export default function ExamAnalyticsPage() {
                   (d) => d.student === student && d.question === question,
                 );
                 const score = item?.score || 0;
-                const intensity = score / 100;
+                const rate = item?.rate ?? 0;
+                const intensity = rate / 100;
                 return (
                   <div
                     key={`${student}-${question}`}
-                    className="aspect-square flex items-center justify-center text-white text-xs font-semibold rounded"
+                    className="aspect-square flex flex-col items-center justify-center text-white text-[11px] font-semibold rounded"
                     style={{
                       backgroundColor: `rgba(59, 130, 246, ${intensity})`,
                       color: intensity > 0.5 ? "white" : "black",
                     }}
-                    title={`${student} - ${question}: ${score}分`}
+                    title={`${student} - ${question}: ${score}分 (${rate}%)`}
                   >
-                    {score}
+                    <span>{rate}%</span>
                   </div>
                 );
               })}
@@ -862,15 +937,50 @@ export default function ExamAnalyticsPage() {
                 </div>
               </div>
 
-              {/* 热力图 - 学生答题情况矩阵 */}
+              {/* 热力图 - 题目掌握度 */}
               <div className="rounded-3xl border-2 border-amber-100 bg-gradient-to-br from-amber-50 to-white p-8 shadow-lg">
-                <h3 className="text-xl font-bold text-amber-900 mb-6">
-                  学生答题情况热力图
-                </h3>
-                <Heatmap data={getHeatmapData()} />
-                <p className="text-sm text-amber-700 mt-4">
-                  颜色深浅表示得分高低，深蓝色表示高分，浅色表示低分。可快速识别学生薄弱题目和整体答题模式。
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
+                  <h3 className="text-xl font-bold text-amber-900">
+                    试题掌握度热力图
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-amber-800">视图</span>
+                    <div className="inline-flex rounded-full border border-amber-200 bg-white p-1 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setHeatmapMode("mastery")}
+                        className={`px-3 py-1 rounded-full transition ${
+                          heatmapMode === "mastery"
+                            ? "bg-amber-500 text-white"
+                            : "text-amber-800"
+                        }`}
+                      >
+                        按题掌握度
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHeatmapMode("matrix")}
+                        className={`px-3 py-1 rounded-full transition ${
+                          heatmapMode === "matrix"
+                            ? "bg-amber-500 text-white"
+                            : "text-amber-800"
+                        }`}
+                      >
+                        学生矩阵
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-amber-700 mb-6">
+                  {heatmapMode === "mastery"
+                    ? "题目重叠汇总学生答题情况，越热表示掌握越好，越冷表示掌握越差。"
+                    : "展示每位学生在每道题的得分，颜色越深表示得分越高。"}
                 </p>
+                {heatmapMode === "mastery" ? (
+                  <HeatmapMastery data={getHeatmapMasteryData()} />
+                ) : (
+                  <HeatmapMatrix data={getHeatmapMatrixData()} />
+                )}
               </div>
             </div>
 

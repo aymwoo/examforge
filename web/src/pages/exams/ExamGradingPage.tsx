@@ -14,6 +14,7 @@ import Modal from "@/components/ui/Modal";
 import ExamLayout from "@/components/ExamLayout";
 import { useToast } from "@/components/ui/Toast";
 import api from "@/services/api";
+import { updateExam } from "@/services/exams";
 import {
   buildStudentAiAnalysisStreamUrl,
   getStudentAiAnalysisBySubmission,
@@ -66,6 +67,10 @@ export default function ExamGradingPage() {
   const [selectedSubmissions, setSelectedSubmissions] = useState<Set<string>>(
     new Set(),
   );
+  const [feedbackVisibility, setFeedbackVisibility] = useState<
+    "FINAL_SCORE" | "ANSWERS" | "FULL_DETAILS"
+  >("FINAL_SCORE");
+  const [savingVisibility, setSavingVisibility] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<
     Record<string, AIGradingSuggestion>
   >({});
@@ -73,6 +78,11 @@ export default function ExamGradingPage() {
   const [loading, setLoading] = useState(true);
   const [gradingLoading, setGradingLoading] = useState(false);
   const toast = useToast();
+  const feedbackOptions = [
+    { value: "FINAL_SCORE", label: "仅最终得分" },
+    { value: "ANSWERS", label: "答案 + 正确答案" },
+    { value: "FULL_DETAILS", label: "全部细节" },
+  ] as const;
 
   const [resetLoading, setResetLoading] = useState(false);
   const [approveLoading, setApproveLoading] = useState(false);
@@ -118,23 +128,20 @@ export default function ExamGradingPage() {
   }, [examId]);
 
   const loadExamAndSubmissions = async () => {
-    if (!examId) return;
-
-    setLoading(true);
     try {
-      // 先加载考试信息
+      setLoading(true);
       const examResponse = await api.get(`/api/exams/${examId}`);
       setExam(examResponse.data);
+      setFeedbackVisibility(
+        examResponse.data?.feedbackVisibility || "FINAL_SCORE",
+      );
 
-      // 再加载提交信息
       const submissionsResponse = await api.get(
         `/api/exams/${examId}/submissions`,
       );
-      setSubmissions(submissionsResponse.data);
+      setSubmissions(submissionsResponse.data || []);
     } catch (err: any) {
-      console.error("Error loading data:", err);
-      console.error("Error response:", err.response);
-      setError(err.response?.data?.message || err.message || "加载失败");
+      setError(err.response?.data?.message || "加载失败");
     } finally {
       setLoading(false);
     }
@@ -524,18 +531,72 @@ export default function ExamGradingPage() {
     }
   };
 
-  const formatAnswerDisplay = (answer: string | string[], question: any) => {
-    if (!question || !question.options) return answer;
-
-    if (Array.isArray(answer)) {
-      return answer.join(", ");
-    } else {
-      return answer;
+  const getQuestionTypeLabel = (type: string) => {
+    switch (type) {
+      case "SINGLE_CHOICE":
+        return "单选题";
+      case "MULTIPLE_CHOICE":
+        return "多选题";
+      case "TRUE_FALSE":
+        return "判断题";
+      case "FILL_BLANK":
+        return "填空题";
+      case "SHORT_ANSWER":
+        return "简答题";
+      case "ESSAY":
+        return "论述题";
+      default:
+        return type;
     }
   };
 
+  const normalizeTrueFalseLabel = (value: unknown) => {
+    if (
+      value === true ||
+      value === "true" ||
+      value === "正确" ||
+      value === "对"
+    ) {
+      return "正确";
+    }
+    if (
+      value === false ||
+      value === "false" ||
+      value === "错误" ||
+      value === "错"
+    ) {
+      return "错误";
+    }
+    return value ? String(value) : "";
+  };
+
+  const formatAnswerDisplay = (
+    answer: string | string[] | boolean | null,
+    question: any,
+  ) => {
+    if (!question) return answer ? String(answer) : "";
+
+    if (question.type === "TRUE_FALSE") {
+      return normalizeTrueFalseLabel(answer);
+    }
+
+    if (!question.options) return answer ? String(answer) : "";
+
+    if (Array.isArray(answer)) {
+      return answer.join(", ");
+    }
+
+    return answer ? String(answer) : "";
+  };
+
   const convertAnswerToText = (answer: string | null, question: any) => {
-    if (!answer || !question || !question.options) return answer || "";
+    if (!answer || !question) return answer || "";
+
+    if (question.type === "TRUE_FALSE") {
+      return normalizeTrueFalseLabel(answer);
+    }
+
+    if (!question.options) return answer || "";
 
     try {
       const options = Array.isArray(question.options)
@@ -576,6 +637,23 @@ export default function ExamGradingPage() {
       ...prev,
       [questionId]: score,
     }));
+  };
+
+  const handleFeedbackVisibilityChange = async (
+    value: "FINAL_SCORE" | "ANSWERS" | "FULL_DETAILS",
+  ) => {
+    if (!examId) return;
+    setFeedbackVisibility(value);
+    setSavingVisibility(true);
+
+    try {
+      await updateExam(examId, { feedbackVisibility: value });
+      toast.success("学生反馈显示设置已更新");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "更新显示设置失败");
+    } finally {
+      setSavingVisibility(false);
+    }
   };
 
   const handleSaveGrading = async () => {
@@ -645,7 +723,32 @@ export default function ExamGradingPage() {
             </div>
 
             {submissions.length > 0 && (
-              <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">学生反馈显示</span>
+                  <select
+                    value={feedbackVisibility}
+                    onChange={(event) =>
+                      handleFeedbackVisibilityChange(
+                        event.target.value as
+                          | "FINAL_SCORE"
+                          | "ANSWERS"
+                          | "FULL_DETAILS",
+                      )
+                    }
+                    disabled={savingVisibility}
+                    className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-ink-900"
+                  >
+                    {feedbackOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {savingVisibility && (
+                    <span className="text-xs text-gray-500">保存中...</span>
+                  )}
+                </div>
                 <span className="text-sm text-gray-600">
                   已选择 {selectedSubmissions.size} 项
                 </span>
@@ -928,17 +1031,7 @@ export default function ExamGradingPage() {
                                 <h4 className="font-semibold text-ink-900">
                                   第 {index + 1} 题
                                   <span className="ml-2 text-sm bg-gray-100 px-2 py-1 rounded">
-                                    {question.type === "SINGLE_CHOICE"
-                                      ? "单选题"
-                                      : question.type === "MULTIPLE_CHOICE"
-                                        ? "多选题"
-                                        : question.type === "FILL_BLANK"
-                                          ? "填空题"
-                                          : question.type === "SHORT_ANSWER"
-                                            ? "简答题"
-                                            : question.type === "ESSAY"
-                                              ? "论述题"
-                                              : question.type}
+                                    {getQuestionTypeLabel(question.type)}
                                   </span>
                                 </h4>
                                 <span className="text-sm font-semibold text-blue-600">

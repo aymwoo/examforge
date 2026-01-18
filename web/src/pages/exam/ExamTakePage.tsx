@@ -63,6 +63,9 @@ export default function ExamTakePage() {
   const [submissionResult, setSubmissionResult] = useState<any>(null);
   const [showDetailedResults, setShowDetailedResults] = useState(false);
   const [detailedResultsLoading, setDetailedResultsLoading] = useState(false);
+  const [feedbackVisibility, setFeedbackVisibility] = useState<
+    "FINAL_SCORE" | "ANSWERS" | "FULL_DETAILS"
+  >("FINAL_SCORE");
 
   useEffect(() => {
     // 检查是否已登录
@@ -103,6 +106,7 @@ export default function ExamTakePage() {
       };
 
       setExam(examData);
+      setFeedbackVisibility(examData?.feedbackVisibility || "FINAL_SCORE");
       setTimeLeft(response.data.duration * 60); // 转换为秒
 
       // 检查是否已提交
@@ -380,29 +384,21 @@ export default function ExamTakePage() {
                     </div>
                   </div>
                 )}
+                {feedbackVisibility === "FINAL_SCORE" && (
+                  <p className="mt-3 text-sm text-gray-600">
+                    评分明细由教师设置为仅显示总分
+                  </p>
+                )}
               </div>
             )}
             <div className="flex gap-3">
-              {submissionResult && (
+              {submissionResult && feedbackVisibility !== "FINAL_SCORE" && (
                 <Button
                   disabled={detailedResultsLoading}
                   onClick={async () => {
                     if (detailedResultsLoading) return;
                     setDetailedResultsLoading(true);
                     try {
-                      console.log("submissionResult:", submissionResult);
-                      console.log("exam questions:", exam?.questions);
-                      console.log(
-                        "submissionResult.answers:",
-                        submissionResult.answers,
-                      );
-                      console.log(
-                        "answers count:",
-                        Array.isArray(submissionResult.answers)
-                          ? submissionResult.answers.length
-                          : Object.keys(submissionResult.answers || {}).length,
-                      );
-
                       // 设置评分详情数据（优先使用已有数据）
                       if (submissionResult.gradingDetails) {
                         try {
@@ -517,6 +513,11 @@ export default function ExamTakePage() {
 
                       const detail = gradingResults?.details?.[question.id];
                       const correctAnswer = detail?.correctAnswer;
+                      const showAnswers =
+                        feedbackVisibility === "ANSWERS" ||
+                        feedbackVisibility === "FULL_DETAILS";
+                      const showFullDetails =
+                        feedbackVisibility === "FULL_DETAILS";
                       const isWrong =
                         correctAnswer !== undefined &&
                         hasAnswer &&
@@ -559,32 +560,34 @@ export default function ExamTakePage() {
                               </div>
                             </div>
 
-                            <div>
-                              <div className="text-sm font-medium text-gray-700 mb-2">
-                                您的答案:
+                            {showAnswers && (
+                              <div>
+                                <div className="text-sm font-medium text-gray-700 mb-2">
+                                  您的答案:
+                                </div>
+                                <div
+                                  className={`border rounded-lg p-3 ${
+                                    !hasAnswer
+                                      ? "bg-gray-50 border-gray-200"
+                                      : isWrong
+                                        ? "bg-red-50 border-red-200 text-red-700"
+                                        : "bg-blue-50 border-blue-200"
+                                  }`}
+                                >
+                                  {(() => {
+                                    if (!hasAnswer) return "未作答";
+                                    if (Array.isArray(answer))
+                                      return answer.join(", ");
+                                    if (typeof answer === "object")
+                                      return JSON.stringify(answer);
+                                    return String(answer);
+                                  })()}
+                                </div>
                               </div>
-                              <div
-                                className={`border rounded-lg p-3 ${
-                                  !hasAnswer
-                                    ? "bg-gray-50 border-gray-200"
-                                    : isWrong
-                                      ? "bg-red-50 border-red-200 text-red-700"
-                                      : "bg-blue-50 border-blue-200"
-                                }`}
-                              >
-                                {(() => {
-                                  if (!hasAnswer) return "未作答";
-                                  if (Array.isArray(answer))
-                                    return answer.join(", ");
-                                  if (typeof answer === "object")
-                                    return JSON.stringify(answer);
-                                  return String(answer);
-                                })()}
-                              </div>
-                            </div>
+                            )}
 
                             {/* 从gradingResults中获取正确答案 */}
-                            {detail?.correctAnswer && (
+                            {showAnswers && detail?.correctAnswer && (
                               <div>
                                 <div className="text-sm font-medium text-gray-700 mb-2">
                                   正确答案:
@@ -603,7 +606,7 @@ export default function ExamTakePage() {
                               </div>
                             )}
 
-                            {detail?.feedback && (
+                            {showFullDetails && detail?.feedback && (
                               <div>
                                 <div className="text-sm font-medium text-gray-700 mb-2">
                                   评分说明:
@@ -614,28 +617,17 @@ export default function ExamTakePage() {
                               </div>
                             )}
 
-                            {/* legacy: answer feedback (if answers array format) */}
-                            {false && answer?.feedback && (
-                              <div>
-                                <div className="text-sm font-medium text-gray-700 mb-2">
-                                  评分说明:
+                            {(question as any).explanation &&
+                              showFullDetails && (
+                                <div>
+                                  <div className="text-sm font-medium text-gray-700 mb-2">
+                                    题目解析:
+                                  </div>
+                                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+                                    {(question as any).explanation}
+                                  </div>
                                 </div>
-                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm">
-                                  {answer.feedback}
-                                </div>
-                              </div>
-                            )}
-
-                            {(question as any).explanation && (
-                              <div>
-                                <div className="text-sm font-medium text-gray-700 mb-2">
-                                  题目解析:
-                                </div>
-                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
-                                  {(question as any).explanation}
-                                </div>
-                              </div>
-                            )}
+                              )}
                           </div>
                         </div>
                       );
@@ -923,8 +915,8 @@ export default function ExamTakePage() {
                 {currentQuestion.type === "TRUE_FALSE" && (
                   <div className="space-y-3">
                     {[
-                      { label: "正确 / 对", value: true },
-                      { label: "错误 / 错", value: false },
+                      { label: "正确", value: true },
+                      { label: "错误", value: false },
                     ].map((option) => (
                       <label
                         key={String(option.value)}
