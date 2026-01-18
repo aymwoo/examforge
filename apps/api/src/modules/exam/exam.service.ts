@@ -568,6 +568,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
         id: true,
         username: true,
         displayName: true,
+        studentId: true,
         accountType: true,
         createdAt: true,
         _count: {

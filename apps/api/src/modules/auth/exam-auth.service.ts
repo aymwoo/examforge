@@ -15,7 +15,7 @@ export interface ExamRegisterDto {
 export class ExamAuthService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly jwtService: JwtService,
+    private readonly jwtService: JwtService
   ) {}
 
   async examLogin(dto: ExamLoginDto) {
@@ -44,45 +44,17 @@ export class ExamAuthService {
       if (!isPasswordValid) {
         throw new UnauthorizedException('Invalid username or password');
       }
-    } else {
-      // 如果在考试学生表中没找到，且考试支持固定学生模式，则在班级学生表中查找
-      if (accountModes.includes('PERMANENT')) {
-        // 在班级学生表中查找（使用学号作为用户名）
-        const classStudent = await this.prisma.student.findFirst({
-          where: {
-            studentId: dto.username, // 学号作为用户名
-          },
-        });
-
-        if (classStudent) {
-          // 验证密码
-          const isPasswordValid = await bcrypt.compare(dto.password, classStudent.password);
-          if (!isPasswordValid) {
-            throw new UnauthorizedException('Invalid username or password');
-          }
-
-          // 创建对应的考试学生记录
-          student = await this.prisma.examStudent.create({
-            data: {
-              examId: dto.examId,
-              username: classStudent.studentId,
-              password: classStudent.password, // 使用原密码哈希
-              displayName: classStudent.name,
-              accountType: 'PERMANENT',
-              studentId: classStudent.studentId,
-            },
-          });
-        }
-      }
     }
 
     // 如果仍然没有找到学生账号
     if (!student) {
       // 如果考试支持自主注册，提示用户使用注册功能
       if (accountModes.includes('TEMPORARY_REGISTER')) {
-        throw new UnauthorizedException('Account not found. Please use registration if this is your first time.');
+        throw new UnauthorizedException('账号不存在，请使用注册入口完成首次登录。');
       }
-      throw new UnauthorizedException('Invalid username or password');
+      throw new UnauthorizedException(
+        'Account not found in this exam. Please contact your teacher to import class students.'
+      );
     }
 
     // 生成JWT token
@@ -150,11 +122,11 @@ export class ExamAuthService {
       }
 
       // 密码正确，生成token并返回
-      const payload = { 
-        sub: existing.id, 
+      const payload = {
+        sub: existing.id,
         username: existing.username,
         examId: existing.examId,
-        type: 'exam-student'
+        type: 'exam-student',
       };
       const token = this.jwtService.sign(payload);
 
