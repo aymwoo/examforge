@@ -135,10 +135,12 @@ mkdir -p dist/api dist/web
 # Copy API build
 cp -r apps/api/dist/* dist/api/ 2>/dev/null || print_warning "No API build found, skipping API packaging"
 
-# Copy prisma schema + baseline migration
+# Copy prisma schema + baseline migration + seed scripts
 mkdir -p dist/api/prisma/migrations
 cp apps/api/prisma/schema.prisma dist/api/prisma/schema.prisma
 cp -r apps/api/prisma/migrations/* dist/api/prisma/migrations/
+cp apps/api/prisma/seed-users.ts dist/api/prisma/ 2>/dev/null || true
+cp apps/api/prisma/seed-ai-providers.ts dist/api/prisma/ 2>/dev/null || true
 
 # Copy assets/uploads (best effort)
 mkdir -p dist/api/assets dist/api/uploads
@@ -166,20 +168,24 @@ cat > dist/api/package.json << 'EOF'
     "@nestjs/core": "^11.1.11",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.11",
     "@nestjs/swagger": "^11.2.3",
-    "@prisma/client": "^5.22.0",
-    "@prisma/migrate": "^5.22.0",
+    "@prisma/client": "5.22.0",
+    "@prisma/migrate": "5.22.0",
+    "prisma": "5.22.0",
     "archiver": "^7.0.1",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pdfkit": "^0.17.2",
     "pdfreader": "^3.0.8",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "sharp": "^0.34.5",
+    "sharp": "^0.32.6",
+    "node-gyp": "^10.0.1",
     "tsx": "^4.20.6",
     "uuid": "^13.0.0",
     "xlsx": "^0.18.5"
@@ -451,8 +457,9 @@ echo "🔐 Default Credentials:"
 echo "   Admin: admin / admin123"
 echo "   Teacher: teacher / teacher123"
 echo ""
-echo "🚀 To start the production server, run:"
-echo "   cd dist && ./start-production.sh"
+
+print_status "Starting production server..."
 echo ""
 
-print_status "Deployment script completed!"
+# Start the production server
+cd dist && ./start-production.sh
