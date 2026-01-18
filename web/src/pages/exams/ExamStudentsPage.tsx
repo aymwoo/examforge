@@ -26,6 +26,7 @@ interface ExamStudent {
   id: string;
   username: string;
   displayName?: string;
+  studentId?: string;
   createdAt: string;
   accountType?: string; // 添加账号类型字段
 }
@@ -358,6 +359,11 @@ export default function ExamStudentsPage() {
                             <div>
                               <div className="font-semibold text-indigo-900">
                                 {student.displayName || student.username}
+                                {mode === "PERMANENT" && student.studentId && (
+                                  <span className="ml-2 text-sm text-indigo-500">
+                                    {student.studentId}
+                                  </span>
+                                )}
                               </div>
                               <div className="text-sm text-gray-600">
                                 注册时间:{" "}

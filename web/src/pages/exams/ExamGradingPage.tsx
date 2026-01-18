@@ -8,6 +8,7 @@ import {
   Bot,
   Save,
   Eye,
+  ArrowUp,
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -121,11 +122,25 @@ export default function ExamGradingPage() {
   const [analysisText, setAnalysisText] = useState<string>("");
   const [analysisRecord, setAnalysisRecord] =
     useState<StudentAiAnalysisReport | null>(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const sseAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     loadExamAndSubmissions();
   }, [examId]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBackToTop(window.scrollY > 400);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const loadExamAndSubmissions = async () => {
     try {
@@ -710,6 +725,16 @@ export default function ExamGradingPage() {
   return (
     <ExamLayout activeTab="grading">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        {showBackToTop && (
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full border border-green-200 bg-white/90 px-4 py-2 text-sm font-semibold text-green-800 shadow-lg backdrop-blur transition hover:bg-white"
+          >
+            <ArrowUp className="h-4 w-4" />
+            回到顶部
+          </button>
+        )}
         <div className="rounded-3xl border-2 border-green-100 bg-gradient-to-br from-green-50 to-white p-8 shadow-lg">
           <div className="flex items-start justify-between gap-4">
             <div>
