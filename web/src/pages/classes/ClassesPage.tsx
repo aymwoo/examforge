@@ -3,7 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Users, Edit, Trash2, UserPlus } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import { getClasses, createClass, deleteClass, type Class, type CreateClassDto } from "@/services/classes";
+import {
+  getClasses,
+  createClass,
+  deleteClass,
+  type Class,
+  type CreateClassDto,
+} from "@/services/classes";
 
 export default function ClassesPage() {
   const navigate = useNavigate();
@@ -13,9 +19,9 @@ export default function ClassesPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [formData, setFormData] = useState<CreateClassDto>({
-    name: '',
-    code: '',
-    description: ''
+    name: "",
+    code: "",
+    description: "",
   });
 
   useEffect(() => {
@@ -28,7 +34,7 @@ export default function ClassesPage() {
       const data = await getClasses();
       setClasses(data);
     } catch (err) {
-      console.error('加载班级列表失败:', err);
+      console.error("加载班级列表失败:", err);
     } finally {
       setLoading(false);
     }
@@ -38,10 +44,10 @@ export default function ClassesPage() {
     try {
       await createClass(formData);
       setShowCreateModal(false);
-      setFormData({ name: '', code: '', description: '' });
+      setFormData({ name: "", code: "", description: "" });
       loadClasses();
     } catch (err: any) {
-      alert(err.response?.data?.message || '创建失败');
+      alert(err.response?.data?.message || "创建失败");
     }
   };
 
@@ -53,7 +59,7 @@ export default function ClassesPage() {
       setSelectedClass(null);
       loadClasses();
     } catch (err: any) {
-      alert(err.response?.data?.message || '删除失败');
+      alert(err.response?.data?.message || "删除失败");
     }
   };
 
@@ -95,10 +101,20 @@ export default function ClassesPage() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-xl font-bold text-ink-900 mb-1">{classItem.name}</h3>
-                  <p className="text-sm text-ink-600">班级代码: {classItem.code}</p>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/classes/${classItem.id}`)}
+                    className="text-left text-xl font-bold text-ink-900 mb-1 hover:text-blue-700"
+                  >
+                    {classItem.name}
+                  </button>
+                  <p className="text-sm text-ink-600">
+                    班级代码: {classItem.code}
+                  </p>
                   {classItem.description && (
-                    <p className="text-sm text-ink-600 mt-1">{classItem.description}</p>
+                    <p className="text-sm text-ink-600 mt-1">
+                      {classItem.description}
+                    </p>
                   )}
                 </div>
                 <div className="flex gap-2">
@@ -140,10 +156,11 @@ export default function ClassesPage() {
 
               <div className="mt-4 pt-4 border-t border-gray-100">
                 <p className="text-xs text-ink-500">
-                  创建者: {classItem.creator?.name || '未知'}
+                  创建者: {classItem.creator?.name || "未知"}
                 </p>
                 <p className="text-xs text-ink-500">
-                  创建时间: {new Date(classItem.createdAt).toLocaleDateString('zh-CN')}
+                  创建时间:{" "}
+                  {new Date(classItem.createdAt).toLocaleDateString("zh-CN")}
                 </p>
               </div>
             </div>
@@ -153,11 +170,11 @@ export default function ClassesPage() {
         {classes.length === 0 && (
           <div className="text-center py-12">
             <Users className="h-16 w-16 text-ink-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-ink-700 mb-2">暂无班级</h3>
+            <h3 className="text-lg font-semibold text-ink-700 mb-2">
+              暂无班级
+            </h3>
             <p className="text-ink-600 mb-4">创建第一个班级开始管理学生</p>
-            <Button onClick={() => setShowCreateModal(true)}>
-              创建班级
-            </Button>
+            <Button onClick={() => setShowCreateModal(true)}>创建班级</Button>
           </div>
         )}
 
@@ -166,7 +183,7 @@ export default function ClassesPage() {
           isOpen={showCreateModal}
           onClose={() => {
             setShowCreateModal(false);
-            setFormData({ name: '', code: '', description: '' });
+            setFormData({ name: "", code: "", description: "" });
           }}
           title="创建班级"
           onConfirm={handleCreate}
@@ -180,7 +197,9 @@ export default function ClassesPage() {
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="请输入班级名称"
               />
@@ -192,7 +211,9 @@ export default function ClassesPage() {
               <input
                 type="text"
                 value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, code: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="请输入班级代码"
               />
@@ -203,7 +224,9 @@ export default function ClassesPage() {
               </label>
               <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="请输入班级描述"
                 rows={3}
@@ -225,7 +248,9 @@ export default function ClassesPage() {
           confirmVariant="danger"
         >
           <p>确定要删除班级 "{selectedClass?.name}" 吗？</p>
-          <p className="text-red-600 text-sm mt-2">此操作将同时删除班级中的所有学生，且不可撤销。</p>
+          <p className="text-red-600 text-sm mt-2">
+            此操作将同时删除班级中的所有学生，且不可撤销。
+          </p>
         </Modal>
       </div>
     </div>
