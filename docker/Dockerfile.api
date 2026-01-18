@@ -16,32 +16,13 @@ RUN if [ -n "$APK_MIRROR" ]; then \
 RUN apk update && apk add --no-cache pnpm && \
     pnpm config set registry $NPM_REGISTRY
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
-
-# Dependencies will be installed in builder stage
-
-
-# Stage 2: Build the application
-FROM node:18-alpine AS builder
-WORKDIR /app
-
-ARG APK_MIRROR
-ARG NPM_REGISTRY=https://registry.npmjs.org
-
-# Optional: optimize for CN mirrors
-RUN if [ -n "$APK_MIRROR" ]; then \
-      sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
-    fi
+# Set PATH for node_modules binaries
+ENV PATH=/app/node_modules/.bin:$PATH
 
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install pnpm via apk (Alpine package manager)
-RUN apk update && apk add --no-cache pnpm && \
-    pnpm config set registry $NPM_REGISTRY
-
-# Install dependencies
+# Install all dependencies
 RUN pnpm install --frozen-lockfile --prod=false
 
 # Copy source code
@@ -51,7 +32,7 @@ COPY . .
 RUN pnpm --filter @examforge/api build
 
 # Generate Prisma client
-RUN export PATH=/app/node_modules/.bin:$PATH && pnpm --filter ./apps/api run prisma:generate
+RUN pnpm --filter ./apps/api run prisma:generate
 
 # Stage 3: Production runtime
 FROM node:18-alpine AS runtime
