@@ -1,0 +1,47 @@
+{
+  "name": "examforge-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ExamForge Monorepo - AI-driven question bank and examination system",
+  "scripts": {
+    "build": "pnpm --filter ./packages --filter ./apps --filter ./web run build",
+    "build:api": "pnpm --filter ./apps/api build",
+    "build:web": "pnpm --filter ./web build",
+    "dev": "pnpm --parallel --filter ./apps/api --filter ./web run dev",
+    "dev:api": "cd apps/api && pnpm start:dev",
+    "dev:web": "pnpm --filter ./web dev",
+    "lint": "pnpm --filter ./packages --filter ./apps --filter ./web run lint",
+    "lint:fix": "pnpm --filter ./packages --filter ./apps --filter ./web run lint:fix",
+    "test": "pnpm --filter ./packages --filter ./apps --filter ./web run test",
+    "test:e2e": "pnpm --filter @examforge/api test:e2e",
+    "clean": "pnpm --filter './**' run clean",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.7.4",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "@scarf/scarf",
+      "bcrypt",
+      "esbuild",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ],
+    "overrides": {
+      "glob": "^10.0.0",
+      "inflight": "^1.0.6"
+    }
+  },
+  "packageManager": "pnpm@10.28.0+sha512.05df71d1421f21399e053fde567cea34d446fa02c76571441bfc1c7956e98e363088982d940465fd34480d4d90a0668bc12362f8aa88000a64e83d0b0e47be48"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@examforge/scripts",
+  "version": "1.0.0",
+  "description": "Build and utility scripts",
+  "scripts": {
+    "import-excel": "ts-node import-excel.ts",
+    "normalize-import-records": "node normalize-import-records.js",
+    "seed": "ts-node seed.ts"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5",
+    "axios": "^1.7.9",
+    "@types/node": "^25.0.3"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

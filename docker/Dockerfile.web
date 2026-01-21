@@ -1,0 +1,82 @@
+# Multi-stage build for ExamForge Web Frontend
+
+# Stage 1: Build dependencies
+FROM node:18-alpine AS deps
+WORKDIR /app
+
+ARG APK_MIRROR
+ARG NPM_REGISTRY=https://registry.npmjs.org
+
+# Optional: optimize for CN mirrors
+RUN if [ -n "$APK_MIRROR" ]; then \
+      sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
+    fi
+
+# Install pnpm via apk (Alpine package manager)
+RUN apk update && apk add --no-cache pnpm && \
+    pnpm config set registry $NPM_REGISTRY
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Dependencies will be installed in builder stage
+
+# Stage 2: Build the application
+FROM node:18-alpine AS builder
+WORKDIR /app
+
+ARG APK_MIRROR
+ARG NPM_REGISTRY=https://registry.npmjs.org
+
+# Optional: optimize for CN mirrors
+RUN if [ -n "$APK_MIRROR" ]; then \
+      sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
+    fi
+
+# Install pnpm via apk (Alpine package manager)
+RUN apk update && apk add --no-cache pnpm && \
+    pnpm config set registry $NPM_REGISTRY
+
+# Set PATH for node_modules binaries
+ENV PATH=/app/node_modules/.bin:$PATH
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install all dependencies
+RUN pnpm install --frozen-lockfile --prod=false
+
+# Copy source code
+COPY . .
+
+# Build shared types first
+RUN pnpm --filter @examforge/shared-types run build
+
+# Build the web application
+RUN pnpm --filter @examforge/web build
+
+# Stage 3: Production runtime with nginx
+FROM nginx:alpine AS runtime
+
+ARG APK_MIRROR
+
+# Optional: optimize for CN mirrors
+RUN if [ -n "$APK_MIRROR" ]; then \
+      sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; \
+    fi
+
+# Copy nginx configuration
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+
+# Copy built application from builder stage
+COPY --from=builder /app/web/dist /usr/share/nginx/html
+
+# Expose port
+EXPOSE 80
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost || exit 1
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
