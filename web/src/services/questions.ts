@@ -101,15 +101,15 @@ export const uploadQuestionImage = async (
   file: File,
 ): Promise<{ imagePath: string }> => {
   const formData = new FormData();
-  formData.append('image', file);
+  formData.append("image", file);
   const response = await api.post<{ imagePath: string }>(
     `/api/questions/${questionId}/images`,
     formData,
     {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
-    }
+    },
   );
   return response.data;
 };
@@ -120,7 +120,7 @@ export const addClipboardImage = async (
 ): Promise<{ imagePath: string }> => {
   const response = await api.post<{ imagePath: string }>(
     `/api/questions/${questionId}/images/clipboard`,
-    { imageData }
+    { imageData },
   );
   return response.data;
 };
@@ -130,13 +130,15 @@ export const deleteQuestionImage = async (
   imageIndex: number,
 ): Promise<{ success: boolean }> => {
   const response = await api.delete<{ success: boolean }>(
-    `/api/questions/${questionId}/images/${imageIndex}`
+    `/api/questions/${questionId}/images/${imageIndex}`,
   );
   return response.data;
 };
 
 export const getQuestionImportRecord = async (questionId: string) => {
-  const response = await api.get(`/api/import/question/${questionId}/import-record`);
+  const response = await api.get(
+    `/api/import/question/${questionId}/import-record`,
+  );
   return response.data;
 };
 

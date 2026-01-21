@@ -37,13 +37,9 @@ export class UserController {
   findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Query('role') role?: string,
+    @Query('role') role?: string
   ) {
-    return this.userService.findAll(
-      page ? parseInt(page) : 1,
-      limit ? parseInt(limit) : 10,
-      role,
-    );
+    return this.userService.findAll(page ? parseInt(page) : 1, limit ? parseInt(limit) : 10, role);
   }
 
   @Get(':id')
@@ -74,17 +70,24 @@ export class UserController {
   @Put('change-password')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Change user password' })
-  changePassword(@Request() req: any, @Body() body: { currentPassword: string; newPassword: string }) {
+  changePassword(
+    @Request() req: any,
+    @Body() body: { currentPassword: string; newPassword: string }
+  ) {
     return this.userService.changePassword(req.user.id, body.currentPassword, body.newPassword);
   }
 
   @Patch(':id/reset-password')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Reset user password (admin only)' })
-  resetUserPassword(@Request() req: any, @Param('id') id: string, @Body() body: { newPassword: string }) {
+  resetUserPassword(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() body: { newPassword: string }
+  ) {
     // 检查用户是否为管理员
     if (req.user.role !== 'ADMIN') {
-      throw new Error('Only administrators can reset other users\' passwords');
+      throw new Error("Only administrators can reset other users' passwords");
     }
     return this.userService.resetUserPassword(id, body.newPassword);
   }

@@ -41,20 +41,22 @@ export default function StudentDashboard() {
   const loadStudentData = async () => {
     try {
       // 获取学生信息
-      const studentResponse = await api.get('/api/students/profile');
+      const studentResponse = await api.get("/api/students/profile");
       setStudentInfo(studentResponse.data);
 
       // 获取班级信息
       if (studentResponse.data.classId) {
-        const classResponse = await api.get(`/api/classes/${studentResponse.data.classId}`);
+        const classResponse = await api.get(
+          `/api/classes/${studentResponse.data.classId}`,
+        );
         setClassInfo(classResponse.data);
       }
 
       // 获取历史考试
-      const examsResponse = await api.get('/api/students/exams');
+      const examsResponse = await api.get("/api/students/exams");
       setExams(examsResponse.data);
     } catch (error) {
-      console.error('加载学生数据失败:', error);
+      console.error("加载学生数据失败:", error);
     } finally {
       setLoading(false);
     }
@@ -62,27 +64,27 @@ export default function StudentDashboard() {
 
   const getExamStatus = (exam: StudentExam) => {
     if (exam.submission) {
-      return { text: '已完成', color: 'text-green-600 bg-green-50' };
+      return { text: "已完成", color: "text-green-600 bg-green-50" };
     }
-    
-    if (exam.status !== 'PUBLISHED') {
-      return { text: '未发布', color: 'text-gray-600 bg-gray-50' };
+
+    if (exam.status !== "PUBLISHED") {
+      return { text: "未发布", color: "text-gray-600 bg-gray-50" };
     }
 
     const now = new Date();
     if (exam.endTime && now > new Date(exam.endTime)) {
-      return { text: '已结束', color: 'text-red-600 bg-red-50' };
+      return { text: "已结束", color: "text-red-600 bg-red-50" };
     }
 
     if (exam.startTime && now < new Date(exam.startTime)) {
-      return { text: '未开始', color: 'text-blue-600 bg-blue-50' };
+      return { text: "未开始", color: "text-blue-600 bg-blue-50" };
     }
 
-    return { text: '进行中', color: 'text-orange-600 bg-orange-50' };
+    return { text: "进行中", color: "text-orange-600 bg-orange-50" };
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('zh-CN');
+    return new Date(dateString).toLocaleString("zh-CN");
   };
 
   if (loading) {
@@ -128,11 +130,15 @@ export default function StudentDashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">班级人数</p>
-                <p className="font-medium text-gray-900">{classInfo.studentCount} 人</p>
+                <p className="font-medium text-gray-900">
+                  {classInfo.studentCount} 人
+                </p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">班级描述</p>
-                <p className="font-medium text-gray-900">{classInfo.description || '暂无描述'}</p>
+                <p className="font-medium text-gray-900">
+                  {classInfo.description || "暂无描述"}
+                </p>
               </div>
             </div>
           </div>
@@ -144,7 +150,9 @@ export default function StudentDashboard() {
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <BookOpen className="h-6 w-6 text-green-600 mr-3" />
-                <h2 className="text-xl font-semibold text-gray-900">考试记录</h2>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  考试记录
+                </h2>
               </div>
               <div className="text-sm text-gray-500">
                 共 {exams.length} 场考试
@@ -156,7 +164,9 @@ export default function StudentDashboard() {
             {exams.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">暂无考试记录</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  暂无考试记录
+                </h3>
                 <p className="text-gray-500">还没有参加过任何考试</p>
               </div>
             ) : (
@@ -164,11 +174,18 @@ export default function StudentDashboard() {
                 {exams.map((exam) => {
                   const status = getExamStatus(exam);
                   return (
-                    <div key={exam.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div
+                      key={exam.id}
+                      className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center">
-                          <h3 className="text-lg font-medium text-gray-900 mr-3">{exam.title}</h3>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                          <h3 className="text-lg font-medium text-gray-900 mr-3">
+                            {exam.title}
+                          </h3>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${status.color}`}
+                          >
                             {status.text}
                           </span>
                         </div>
@@ -190,13 +207,17 @@ export default function StudentDashboard() {
                         {exam.startTime && (
                           <div>
                             <p className="text-gray-500">开始时间</p>
-                            <p className="font-medium">{formatDate(exam.startTime)}</p>
+                            <p className="font-medium">
+                              {formatDate(exam.startTime)}
+                            </p>
                           </div>
                         )}
                         {exam.endTime && (
                           <div>
                             <p className="text-gray-500">结束时间</p>
-                            <p className="font-medium">{formatDate(exam.endTime)}</p>
+                            <p className="font-medium">
+                              {formatDate(exam.endTime)}
+                            </p>
                           </div>
                         )}
                         {exam.submission && (
@@ -220,7 +241,7 @@ export default function StudentDashboard() {
                         </div>
                       )}
 
-                      {status.text === '进行中' && !exam.submission && (
+                      {status.text === "进行中" && !exam.submission && (
                         <div className="mt-4">
                           <Button
                             onClick={() => navigate(`/exam/${exam.id}`)}

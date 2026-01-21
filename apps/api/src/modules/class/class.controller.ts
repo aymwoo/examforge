@@ -11,13 +11,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-  ApiParam,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { ClassService } from './class.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
@@ -125,11 +119,17 @@ export class ClassController {
   @ApiParam({ name: 'id', description: '班级ID' })
   @ApiResponse({ status: 200, description: '重置完成' })
   resetStudentPasswords(
-    @Param('id') id: string, 
-    @Body() body: { studentIds: string[], newPassword: string }, 
+    @Param('id') id: string,
+    @Body() body: { studentIds: string[]; newPassword: string },
     @Request() req
   ) {
-    return this.classService.resetStudentPasswords(id, body.studentIds, body.newPassword, req.user.id, req.user.role);
+    return this.classService.resetStudentPasswords(
+      id,
+      body.studentIds,
+      body.newPassword,
+      req.user.id,
+      req.user.role
+    );
   }
 
   @Patch(':id/students/:studentId')
@@ -139,11 +139,17 @@ export class ClassController {
   @ApiParam({ name: 'studentId', description: '学号' })
   @ApiResponse({ status: 200, description: '更新成功' })
   updateStudent(
-    @Param('id') id: string, 
-    @Param('studentId') studentId: string, 
-    @Body() updateStudentDto: Partial<CreateStudentDto>, 
+    @Param('id') id: string,
+    @Param('studentId') studentId: string,
+    @Body() updateStudentDto: Partial<CreateStudentDto>,
     @Request() req
   ) {
-    return this.classService.updateStudent(id, studentId, updateStudentDto, req.user.id, req.user.role);
+    return this.classService.updateStudent(
+      id,
+      studentId,
+      updateStudentDto,
+      req.user.id,
+      req.user.role
+    );
   }
 }

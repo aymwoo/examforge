@@ -6,7 +6,7 @@ import { ExamAuthService } from '../exam-auth.service';
 export class ExamStudentGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly examAuthService: ExamAuthService,
+    private readonly examAuthService: ExamAuthService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -19,15 +19,12 @@ export class ExamStudentGuard implements CanActivate {
 
     try {
       const payload = this.jwtService.verify(token);
-      
+
       if (payload.type !== 'exam-student') {
         throw new UnauthorizedException('Invalid token type');
       }
 
-      const student = await this.examAuthService.validateExamStudent(
-        payload.sub,
-        payload.examId,
-      );
+      const student = await this.examAuthService.validateExamStudent(payload.sub, payload.examId);
 
       request.examStudent = student;
       return true;

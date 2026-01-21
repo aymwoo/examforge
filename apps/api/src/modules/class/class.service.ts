@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
@@ -12,7 +17,7 @@ export class ClassService {
   async create(dto: CreateClassDto, userId: string) {
     // 检查班级代码是否已存在
     const existingClass = await this.prisma.class.findUnique({
-      where: { code: dto.code }
+      where: { code: dto.code },
     });
 
     if (existingClass) {
@@ -26,13 +31,13 @@ export class ClassService {
       },
       include: {
         creator: {
-          select: { id: true, name: true, username: true }
+          select: { id: true, name: true, username: true },
         },
         students: true,
         _count: {
-          select: { students: true }
-        }
-      }
+          select: { students: true },
+        },
+      },
     });
   }
 
@@ -43,13 +48,13 @@ export class ClassService {
       where,
       include: {
         creator: {
-          select: { id: true, name: true, username: true }
+          select: { id: true, name: true, username: true },
         },
         _count: {
-          select: { students: true }
-        }
+          select: { students: true },
+        },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -58,15 +63,15 @@ export class ClassService {
       where: { id },
       include: {
         creator: {
-          select: { id: true, name: true, username: true }
+          select: { id: true, name: true, username: true },
         },
         students: {
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
         },
         _count: {
-          select: { students: true }
-        }
-      }
+          select: { students: true },
+        },
+      },
     });
 
     if (!classData) {
@@ -87,7 +92,7 @@ export class ClassService {
     // 如果更新班级代码，检查是否冲突
     if (dto.code && dto.code !== classData.code) {
       const existingClass = await this.prisma.class.findUnique({
-        where: { code: dto.code }
+        where: { code: dto.code },
       });
 
       if (existingClass) {
@@ -100,13 +105,13 @@ export class ClassService {
       data: dto,
       include: {
         creator: {
-          select: { id: true, name: true, username: true }
+          select: { id: true, name: true, username: true },
         },
         students: true,
         _count: {
-          select: { students: true }
-        }
-      }
+          select: { students: true },
+        },
+      },
     });
   }
 
@@ -114,7 +119,7 @@ export class ClassService {
     await this.findOne(id, userId, userRole);
 
     return this.prisma.class.delete({
-      where: { id }
+      where: { id },
     });
   }
 
@@ -123,7 +128,7 @@ export class ClassService {
 
     // 检查学号是否已存在
     const existingStudent = await this.prisma.student.findUnique({
-      where: { studentId: dto.studentId }
+      where: { studentId: dto.studentId },
     });
 
     if (existingStudent) {
@@ -138,7 +143,7 @@ export class ClassService {
         ...dto,
         password: hashedPassword,
         classId,
-      }
+      },
     });
   }
 
@@ -146,10 +151,10 @@ export class ClassService {
     await this.findOne(classId, userId, userRole);
 
     const student = await this.prisma.student.findFirst({
-      where: { 
+      where: {
         studentId,
-        classId 
-      }
+        classId,
+      },
     });
 
     if (!student) {
@@ -157,11 +162,16 @@ export class ClassService {
     }
 
     return this.prisma.student.delete({
-      where: { id: student.id }
+      where: { id: student.id },
     });
   }
 
-  async importStudents(classId: string, students: CreateStudentDto[], userId?: string, userRole?: string) {
+  async importStudents(
+    classId: string,
+    students: CreateStudentDto[],
+    userId?: string,
+    userRole?: string
+  ) {
     await this.findOne(classId, userId, userRole);
 
     const results = [];
@@ -170,7 +180,7 @@ export class ClassService {
       try {
         // 检查学号是否已存在
         const existingStudent = await this.prisma.student.findUnique({
-          where: { studentId: studentDto.studentId }
+          where: { studentId: studentDto.studentId },
         });
 
         if (existingStudent) {
@@ -178,7 +188,7 @@ export class ClassService {
             studentId: studentDto.studentId,
             name: studentDto.name,
             success: false,
-            error: '学号已存在'
+            error: '学号已存在',
           });
           continue;
         }
@@ -191,33 +201,39 @@ export class ClassService {
             ...studentDto,
             password: hashedPassword,
             classId,
-          }
+          },
         });
 
         results.push({
           studentId: student.studentId,
           name: student.name,
-          success: true
+          success: true,
         });
       } catch (error) {
         results.push({
           studentId: studentDto.studentId,
           name: studentDto.name,
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     }
 
     return {
       total: students.length,
-      success: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
-      results
+      success: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      results,
     };
   }
 
-  async resetStudentPasswords(classId: string, studentIds: string[], newPassword: string, userId?: string, userRole?: string) {
+  async resetStudentPasswords(
+    classId: string,
+    studentIds: string[],
+    newPassword: string,
+    userId?: string,
+    userRole?: string
+  ) {
     await this.findOne(classId, userId, userRole);
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -226,55 +242,61 @@ export class ClassService {
     for (const studentId of studentIds) {
       try {
         const student = await this.prisma.student.findFirst({
-          where: { 
+          where: {
             studentId,
-            classId 
-          }
+            classId,
+          },
         });
 
         if (!student) {
           results.push({
             studentId,
             success: false,
-            error: '学生不存在'
+            error: '学生不存在',
           });
           continue;
         }
 
         await this.prisma.student.update({
           where: { id: student.id },
-          data: { password: hashedPassword }
+          data: { password: hashedPassword },
         });
 
         results.push({
           studentId,
-          success: true
+          success: true,
         });
       } catch (error) {
         results.push({
           studentId,
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     }
 
     return {
       total: studentIds.length,
-      success: results.filter(r => r.success).length,
-      failed: results.filter(r => !r.success).length,
-      results
+      success: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      results,
     };
   }
 
-  async updateStudent(classId: string, studentId: string, dto: Partial<CreateStudentDto>, userId?: string, userRole?: string) {
+  async updateStudent(
+    classId: string,
+    studentId: string,
+    dto: Partial<CreateStudentDto>,
+    userId?: string,
+    userRole?: string
+  ) {
     await this.findOne(classId, userId, userRole);
 
     const student = await this.prisma.student.findFirst({
-      where: { 
+      where: {
         studentId,
-        classId 
-      }
+        classId,
+      },
     });
 
     if (!student) {
@@ -284,7 +306,7 @@ export class ClassService {
     // 如果更新学号，检查是否冲突
     if (dto.studentId && dto.studentId !== student.studentId) {
       const existingStudent = await this.prisma.student.findUnique({
-        where: { studentId: dto.studentId }
+        where: { studentId: dto.studentId },
       });
 
       if (existingStudent) {
@@ -293,7 +315,7 @@ export class ClassService {
     }
 
     const updateData: any = { ...dto };
-    
+
     // 如果更新密码，需要加密
     if (dto.password) {
       updateData.password = await bcrypt.hash(dto.password, 10);
@@ -301,7 +323,7 @@ export class ClassService {
 
     return this.prisma.student.update({
       where: { id: student.id },
-      data: updateData
+      data: updateData,
     });
   }
 
@@ -309,7 +331,7 @@ export class ClassService {
     // 检查权限
     if (userRole !== 'ADMIN') {
       const classItem = await this.prisma.class.findFirst({
-        where: { id: classId, createdBy: userId }
+        where: { id: classId, createdBy: userId },
       });
       if (!classItem) {
         throw new ForbiddenException('无权访问此班级');
@@ -318,7 +340,7 @@ export class ClassService {
 
     return this.prisma.student.findMany({
       where: { classId },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
   }
 }

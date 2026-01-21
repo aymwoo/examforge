@@ -8,7 +8,12 @@
     "prettier.config.js"
   ],
   "scripts": {},
-  "keywords": ["config", "eslint", "typescript", "prettier"],
+  "keywords": [
+    "config",
+    "eslint",
+    "typescript",
+    "prettier"
+  ],
   "author": "",
   "license": "ISC"
 }

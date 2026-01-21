@@ -5,7 +5,7 @@ import type {
   PaginatedResponse,
   Exam,
   CreateExamDto,
-} from '@examforge/shared-types';
+} from "@examforge/shared-types";
 
 export interface QuestionListParams {
   page?: number;

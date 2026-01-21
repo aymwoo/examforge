@@ -4,62 +4,63 @@
  * Usage: pnpm run seed
  */
 
-import axios from 'axios';
+import axios from "axios";
 
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const API_URL = process.env.API_URL || "http://localhost:3000";
 
 const sampleQuestions = [
   {
-    content: 'What is 2 + 2?',
-    type: 'SINGLE_CHOICE',
+    content: "What is 2 + 2?",
+    type: "SINGLE_CHOICE",
     options: [
-      { label: 'A', content: '3' },
-      { label: 'B', content: '4' },
-      { label: 'C', content: '5' },
-      { label: 'D', content: '6' },
+      { label: "A", content: "3" },
+      { label: "B", content: "4" },
+      { label: "C", content: "5" },
+      { label: "D", content: "6" },
     ],
-    answer: 'B',
+    answer: "B",
     difficulty: 1,
-    tags: ['math', 'basic'],
+    tags: ["math", "basic"],
   },
   {
-    content: 'Which of the following are prime numbers?',
-    type: 'MULTIPLE_CHOICE',
+    content: "Which of the following are prime numbers?",
+    type: "MULTIPLE_CHOICE",
     options: [
-      { label: 'A', content: '2' },
-      { label: 'B', content: '3' },
-      { label: 'C', content: '4' },
-      { label: 'D', content: '5' },
+      { label: "A", content: "2" },
+      { label: "B", content: "3" },
+      { label: "C", content: "4" },
+      { label: "D", content: "5" },
     ],
-    answer: 'A,B,D',
+    answer: "A,B,D",
     difficulty: 2,
-    tags: ['math', 'numbers'],
+    tags: ["math", "numbers"],
   },
   {
-    content: 'The Earth is flat.',
-    type: 'TRUE_FALSE',
-    answer: 'FALSE',
+    content: "The Earth is flat.",
+    type: "TRUE_FALSE",
+    answer: "FALSE",
     difficulty: 1,
-    tags: ['science', 'general'],
+    tags: ["science", "general"],
   },
   {
-    content: 'Complete the sentence: The capital of China is ____.',
-    type: 'FILL_BLANK',
-    answer: 'Beijing',
+    content: "Complete the sentence: The capital of China is ____.",
+    type: "FILL_BLANK",
+    answer: "Beijing",
     difficulty: 1,
-    tags: ['geography'],
+    tags: ["geography"],
   },
   {
-    content: 'Explain the concept of recursion in programming.',
-    type: 'ESSAY',
-    answer: 'Recursion is a programming technique where a function calls itself to solve a problem by breaking it down into smaller instances of the same problem.',
+    content: "Explain the concept of recursion in programming.",
+    type: "ESSAY",
+    answer:
+      "Recursion is a programming technique where a function calls itself to solve a problem by breaking it down into smaller instances of the same problem.",
     difficulty: 3,
-    tags: ['programming', 'algorithms'],
+    tags: ["programming", "algorithms"],
   },
 ];
 
 async function seedDatabase() {
-  console.log('Seeding database with sample data...');
+  console.log("Seeding database with sample data...");
 
   let successCount = 0;
   let failCount = 0;
@@ -81,8 +82,8 @@ async function seedDatabase() {
   // Seed sample exam
   try {
     const exam = await axios.post(`${API_URL}/exams`, {
-      title: 'Sample Math Quiz',
-      description: 'A basic mathematics quiz for testing',
+      title: "Sample Math Quiz",
+      description: "A basic mathematics quiz for testing",
       duration: 30,
       totalScore: 100,
     });
@@ -91,7 +92,7 @@ async function seedDatabase() {
     // Add questions to exam
     for (let i = 0; i < Math.min(3, sampleQuestions.length); i++) {
       await axios.post(`${API_URL}/exams/${exam.data.id}/questions`, {
-        questionId: '1', // Would need actual IDs in real scenario
+        questionId: "1", // Would need actual IDs in real scenario
         order: i + 1,
         score: 10,
       });
@@ -100,7 +101,7 @@ async function seedDatabase() {
     console.error(`✗ Failed to create exam`);
   }
 
-  console.log('\nSeeding complete!');
+  console.log("\nSeeding complete!");
   console.log(`Success: ${successCount}`);
   console.log(`Failed: ${failCount}`);
 }

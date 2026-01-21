@@ -15,7 +15,15 @@ import {
   UseInterceptors,
   UploadedFile,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiParam, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiParam,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { QuestionService } from './question.service';
@@ -153,7 +161,11 @@ export class QuestionController {
       },
     })
   )
-  async uploadImage(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @Request() req) {
+  async uploadImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req
+  ) {
     if (!file) {
       throw new BadRequestException('Image file is required');
     }
@@ -162,7 +174,11 @@ export class QuestionController {
 
   @Delete(':id/images/:imageIndex')
   @ApiOperation({ summary: 'Delete image from question' })
-  async deleteImage(@Param('id') id: string, @Param('imageIndex') imageIndex: string, @Request() req) {
+  async deleteImage(
+    @Param('id') id: string,
+    @Param('imageIndex') imageIndex: string,
+    @Request() req
+  ) {
     return this.questionService.removeImage(id, parseInt(imageIndex), req.user.id);
   }
 
@@ -176,7 +192,11 @@ export class QuestionController {
       },
     },
   })
-  async addClipboardImage(@Param('id') id: string, @Body() body: { imageData: string }, @Request() req) {
+  async addClipboardImage(
+    @Param('id') id: string,
+    @Body() body: { imageData: string },
+    @Request() req
+  ) {
     return this.questionService.addClipboardImage(id, body.imageData, req.user.id);
   }
 }

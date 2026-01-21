@@ -16,7 +16,10 @@
     "watch": "tsc --watch",
     "clean": "rm -rf dist"
   },
-  "keywords": ["types", "shared"],
+  "keywords": [
+    "types",
+    "shared"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {

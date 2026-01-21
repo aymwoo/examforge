@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
-import { AxiosRequestConfig } from 'axios';
+import React, { createContext, useContext, useState } from "react";
+import { AxiosRequestConfig } from "axios";
 
 interface PendingRequest {
   config: AxiosRequestConfig;
@@ -17,17 +17,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [showGlobalLogin, setShowGlobalLogin] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
 
   const addPendingRequest = (request: PendingRequest) => {
-    setPendingRequests(prev => [...prev, request]);
+    setPendingRequests((prev) => [...prev, request]);
   };
 
   const retryPendingRequests = async () => {
-    const { default: api } = await import('../services/api');
-    
+    const { default: api } = await import("../services/api");
+
     for (const request of pendingRequests) {
       try {
         const response = await api.request(request.config);
@@ -36,25 +38,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         request.reject(error);
       }
     }
-    
+
     setPendingRequests([]);
   };
 
   const clearPendingRequests = () => {
-    pendingRequests.forEach(request => {
-      request.reject(new Error('Login cancelled'));
+    pendingRequests.forEach((request) => {
+      request.reject(new Error("Login cancelled"));
     });
     setPendingRequests([]);
   };
 
   return (
-    <AuthContext.Provider value={{
-      showGlobalLogin,
-      setShowGlobalLogin,
-      addPendingRequest,
-      retryPendingRequests,
-      clearPendingRequests,
-    }}>
+    <AuthContext.Provider
+      value={{
+        showGlobalLogin,
+        setShowGlobalLogin,
+        addPendingRequest,
+        retryPendingRequests,
+        clearPendingRequests,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -63,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
+    throw new Error("useAuth must be used within AuthProvider");
   }
   return context;
 };

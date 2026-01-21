@@ -28,7 +28,7 @@ export const downloadJson = (data: any, filename: string) => {
 export const downloadExcel = (
   data: any[],
   filename: string,
-  sheetName: string = "Data"
+  sheetName: string = "Data",
 ) => {
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();

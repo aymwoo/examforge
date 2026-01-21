@@ -14,21 +14,21 @@ export default function ExamEntryPage() {
 
   const checkExamAccess = async () => {
     if (!examId) {
-      navigate('/');
+      navigate("/");
       return;
     }
 
     try {
       // 检查是否有考试登录token
-      const examToken = localStorage.getItem('examToken');
-      
+      const examToken = localStorage.getItem("examToken");
+
       if (examToken) {
         // 验证token是否有效且属于当前考试
         try {
           const response = await api.get(`/api/auth/exam-profile`, {
-            headers: { Authorization: `Bearer ${examToken}` }
+            headers: { Authorization: `Bearer ${examToken}` },
           });
-          
+
           // 如果token有效且属于当前考试，直接进入考试
           if (response.data.examId === examId) {
             navigate(`/exam/${examId}/take`);
@@ -36,15 +36,14 @@ export default function ExamEntryPage() {
           }
         } catch (error) {
           // token无效，清除并继续登录流程
-          localStorage.removeItem('examToken');
+          localStorage.removeItem("examToken");
         }
       }
 
       // 需要登录，跳转到登录页面
       navigate(`/exam/${examId}/login`);
-      
     } catch (error) {
-      console.error('检查考试访问权限失败:', error);
+      console.error("检查考试访问权限失败:", error);
       navigate(`/exam/${examId}/login`);
     } finally {
       setLoading(false);

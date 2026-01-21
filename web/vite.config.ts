@@ -18,8 +18,12 @@ export default defineConfig({
         ws: true,
         configure: (proxy) => {
           proxy.on("proxyReq", (proxyReq, req) => {
-            if (req.url?.startsWith("/api/import/pdf/progress") ||
-                req.url?.startsWith("/api/ai/generate-questions-json-stream/progress")) {
+            if (
+              req.url?.startsWith("/api/import/pdf/progress") ||
+              req.url?.startsWith(
+                "/api/ai/generate-questions-json-stream/progress",
+              )
+            ) {
               proxyReq.setHeader("Accept", "text/event-stream");
               proxyReq.setHeader("Cache-Control", "no-cache");
               proxyReq.setHeader("Connection", "keep-alive");
@@ -30,7 +34,9 @@ export default defineConfig({
             const contentType = String(proxyRes.headers["content-type"] || "");
             const isProgressStream =
               req.url?.startsWith("/api/import/pdf/progress") ||
-              req.url?.startsWith("/api/ai/generate-questions-json-stream/progress") ||
+              req.url?.startsWith(
+                "/api/ai/generate-questions-json-stream/progress",
+              ) ||
               contentType.includes("text/event-stream");
 
             if (isProgressStream) {

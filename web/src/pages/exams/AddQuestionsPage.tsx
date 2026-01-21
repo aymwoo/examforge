@@ -8,7 +8,7 @@ import { listQuestions, type Question } from "@/services/questions";
 
 const typeLabels: Record<string, string> = {
   SINGLE_CHOICE: "单选题",
-  MULTIPLE_CHOICE: "多选题", 
+  MULTIPLE_CHOICE: "多选题",
   TRUE_FALSE: "判断题",
   FILL_BLANK: "填空题",
   ESSAY: "简答题",
@@ -19,8 +19,12 @@ export default function AddQuestionsPage() {
   const navigate = useNavigate();
   const [exam, setExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set());
-  const [existingQuestionIds, setExistingQuestionIds] = useState<Set<string>>(new Set());
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(
+    new Set(),
+  );
+  const [existingQuestionIds, setExistingQuestionIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
@@ -40,9 +44,9 @@ export default function AddQuestionsPage() {
 
   const [showModal, setShowModal] = useState(false);
   const [modalConfig, setModalConfig] = useState({
-    title: '',
-    message: '',
-    type: 'success' as 'success' | 'error'
+    title: "",
+    message: "",
+    type: "success" as "success" | "error",
   });
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,23 +77,25 @@ export default function AddQuestionsPage() {
       const examData = await getExamById(id);
       setExam(examData);
       // 保存已存在的题目ID
-      const existingIds = new Set(examData.examQuestions?.map((eq: any) => eq.questionId) || []);
+      const existingIds = new Set(
+        examData.examQuestions?.map((eq: any) => eq.questionId) || [],
+      );
       setExistingQuestionIds(existingIds);
     } catch (error) {
-      console.error('加载考试失败:', error);
+      console.error("加载考试失败:", error);
     }
   };
 
   const loadQuestions = async (pageNum: number = 1) => {
     if (!exam) return;
-    
+
     setLoading(true);
     try {
       const params: any = {
         page: pageNum,
         limit: 20,
       };
-      
+
       if (filters.type) params.type = filters.type;
       if (filters.difficulty) params.difficulty = parseInt(filters.difficulty);
       if (filters.tags) params.tags = filters.tags;
@@ -109,7 +115,7 @@ export default function AddQuestionsPage() {
       setMeta(response.meta);
       setPage(pageNum);
     } catch (error) {
-      console.error('加载题目失败:', error);
+      console.error("加载题目失败:", error);
     } finally {
       setLoading(false);
     }
@@ -134,7 +140,7 @@ export default function AddQuestionsPage() {
     if (existingQuestionIds.has(questionId)) {
       return;
     }
-    
+
     const newSelected = new Set(selectedQuestions);
     if (newSelected.has(questionId)) {
       newSelected.delete(questionId);
@@ -146,7 +152,9 @@ export default function AddQuestionsPage() {
 
   const handleSelectAll = () => {
     // 只选择未添加的题目
-    const availableQuestions = questions.filter(q => !existingQuestionIds.has(q.id));
+    const availableQuestions = questions.filter(
+      (q) => !existingQuestionIds.has(q.id),
+    );
     if (selectedQuestions.size === availableQuestions.length) {
       setSelectedQuestions(new Set());
     } else {
@@ -157,9 +165,9 @@ export default function AddQuestionsPage() {
   const handleAddQuestions = async () => {
     if (selectedQuestions.size === 0) {
       setModalConfig({
-        title: '提示',
-        message: '请选择要添加的题目',
-        type: 'error'
+        title: "提示",
+        message: "请选择要添加的题目",
+        type: "error",
       });
       setShowModal(true);
       return;
@@ -167,31 +175,31 @@ export default function AddQuestionsPage() {
 
     setSaving(true);
     try {
-      const promises = Array.from(selectedQuestions).map((questionId, index) => 
+      const promises = Array.from(selectedQuestions).map((questionId, index) =>
         fetch(`/api/exams/${id}/questions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             questionId,
             order: (exam?.examQuestions?.length || 0) + index + 1,
-            score: 10
-          })
-        })
+            score: 10,
+          }),
+        }),
       );
-      
+
       await Promise.all(promises);
       setModalConfig({
-        title: '成功',
-        message: '题目添加成功',
-        type: 'success'
+        title: "成功",
+        message: "题目添加成功",
+        type: "success",
       });
       setShowModal(true);
     } catch (error) {
-      console.error('添加题目失败:', error);
+      console.error("添加题目失败:", error);
       setModalConfig({
-        title: '错误',
-        message: '添加题目失败，请重试',
-        type: 'error'
+        title: "错误",
+        message: "添加题目失败，请重试",
+        type: "error",
       });
       setShowModal(true);
     } finally {
@@ -222,10 +230,10 @@ export default function AddQuestionsPage() {
           </Button>
           <h1 className="text-3xl font-bold text-gray-900">添加题目到考试</h1>
           <p className="text-gray-600 mt-2">
-            为 "{exam?.title}" 选择要添加的题目 
+            为 "{exam?.title}" 选择要添加的题目
             <span className="ml-2">
-              (当前已有 
-              <button 
+              (当前已有
+              <button
                 onClick={() => navigate(`/exams/${id}`)}
                 className="text-blue-600 font-medium hover:text-blue-800 underline mx-1"
               >
@@ -262,7 +270,9 @@ export default function AddQuestionsPage() {
               </label>
               <select
                 value={filters.difficulty}
-                onChange={(e) => handleFilterChange("difficulty", e.target.value)}
+                onChange={(e) =>
+                  handleFilterChange("difficulty", e.target.value)
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">全部难度</option>
@@ -317,15 +327,24 @@ export default function AddQuestionsPage() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={questions.filter(q => !existingQuestionIds.has(q.id)).length > 0 && 
-                           selectedQuestions.size === questions.filter(q => !existingQuestionIds.has(q.id)).length}
+                  checked={
+                    questions.filter((q) => !existingQuestionIds.has(q.id))
+                      .length > 0 &&
+                    selectedQuestions.size ===
+                      questions.filter((q) => !existingQuestionIds.has(q.id))
+                        .length
+                  }
                   onChange={handleSelectAll}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-gray-700">全选可用题目</span>
               </label>
               <p className="text-gray-700">
-                已选择 <span className="font-semibold text-blue-600">{selectedQuestions.size}</span> 道题目
+                已选择{" "}
+                <span className="font-semibold text-blue-600">
+                  {selectedQuestions.size}
+                </span>{" "}
+                道题目
               </p>
             </div>
             <Button
@@ -334,7 +353,7 @@ export default function AddQuestionsPage() {
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
             >
               <Plus className="h-4 w-4" />
-              {saving ? '添加中...' : '添加选中题目'}
+              {saving ? "添加中..." : "添加选中题目"}
             </Button>
           </div>
         </div>
@@ -342,11 +361,11 @@ export default function AddQuestionsPage() {
         {/* 题目列表 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">可选题目</h2>
-          
+
           {questions.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">没有找到符合条件的题目</p>
-              <Button onClick={() => navigate('/questions')}>
+              <Button onClick={() => navigate("/questions")}>
                 前往题库管理
               </Button>
             </div>
@@ -356,29 +375,31 @@ export default function AddQuestionsPage() {
                 {questions.map((question) => {
                   const isExisting = existingQuestionIds.has(question.id);
                   const isSelected = selectedQuestions.has(question.id);
-                  
+
                   return (
                     <div
                       key={question.id}
                       className={`border rounded-xl p-6 transition-all ${
                         isExisting
-                          ? 'border-gray-300 bg-gray-50 opacity-60'
+                          ? "border-gray-300 bg-gray-50 opacity-60"
                           : isSelected
-                          ? 'border-blue-500 bg-blue-50 cursor-pointer'
-                          : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                            ? "border-blue-500 bg-blue-50 cursor-pointer"
+                            : "border-gray-200 hover:border-gray-300 cursor-pointer"
                       }`}
                       onClick={() => handleQuestionToggle(question.id)}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-3">
-                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                              isExisting
-                                ? 'border-gray-400 bg-gray-400'
-                                : isSelected
-                                ? 'border-blue-500 bg-blue-500'
-                                : 'border-gray-300'
-                            }`}>
+                            <div
+                              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                isExisting
+                                  ? "border-gray-400 bg-gray-400"
+                                  : isSelected
+                                    ? "border-blue-500 bg-blue-500"
+                                    : "border-gray-300"
+                              }`}
+                            >
                               {(isExisting || isSelected) && (
                                 <Check className="h-4 w-4 text-white" />
                               )}
@@ -401,24 +422,34 @@ export default function AddQuestionsPage() {
                             )}
                             {question.tags && question.tags.length > 0 && (
                               <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs">
-                                {question.tags.join(', ')}
+                                {question.tags.join(", ")}
                               </span>
                             )}
                           </div>
-                          <div className={`mb-2 ${isExisting ? 'text-gray-500' : 'text-gray-800'}`}>
+                          <div
+                            className={`mb-2 ${isExisting ? "text-gray-500" : "text-gray-800"}`}
+                          >
                             {question.content}
                           </div>
-                          {question.options && Array.isArray(question.options) && question.options.length > 0 && (
-                            <div className={`text-sm space-y-1 ml-8 ${isExisting ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {question.options.map((option: any, optIndex: number) => (
-                                <div key={optIndex}>
-                                  {option.label}: {option.content}
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          {question.options &&
+                            Array.isArray(question.options) &&
+                            question.options.length > 0 && (
+                              <div
+                                className={`text-sm space-y-1 ml-8 ${isExisting ? "text-gray-400" : "text-gray-600"}`}
+                              >
+                                {question.options.map(
+                                  (option: any, optIndex: number) => (
+                                    <div key={optIndex}>
+                                      {option.label}: {option.content}
+                                    </div>
+                                  ),
+                                )}
+                              </div>
+                            )}
                           {question.answer && (
-                            <div className={`text-sm ml-8 mt-2 ${isExisting ? 'text-gray-400' : 'text-green-600'}`}>
+                            <div
+                              className={`text-sm ml-8 mt-2 ${isExisting ? "text-gray-400" : "text-green-600"}`}
+                            >
                               答案: {question.answer}
                             </div>
                           )}
@@ -433,7 +464,8 @@ export default function AddQuestionsPage() {
               {meta.totalPages > 1 && (
                 <div className="flex items-center justify-between">
                   <div className="text-sm text-gray-700">
-                    共 {meta.total} 道题目，第 {meta.page} / {meta.totalPages} 页
+                    共 {meta.total} 道题目，第 {meta.page} / {meta.totalPages}{" "}
+                    页
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
@@ -465,7 +497,7 @@ export default function AddQuestionsPage() {
           isOpen={showModal}
           onClose={() => {
             setShowModal(false);
-            if (modalConfig.type === 'success') {
+            if (modalConfig.type === "success") {
               navigate(`/exams/${id}`);
             }
           }}
@@ -473,7 +505,7 @@ export default function AddQuestionsPage() {
           confirmText="确定"
           onConfirm={() => {
             setShowModal(false);
-            if (modalConfig.type === 'success') {
+            if (modalConfig.type === "success") {
               navigate(`/exams/${id}`);
             }
           }}

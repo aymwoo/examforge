@@ -35,7 +35,7 @@ async function listUsers() {
 
 async function resetPassword(username: string, newPassword: string) {
   const hashedPassword = await bcrypt.hash(newPassword, 10);
-  
+
   const user = await prisma.user.update({
     where: { username },
     data: { password: hashedPassword },
@@ -46,7 +46,7 @@ async function resetPassword(username: string, newPassword: string) {
 
 async function main() {
   await listUsers();
-  
+
   console.log('\n=== 默认登录信息 ===');
   console.log('管理员账号:');
   console.log('  用户名: admin');
@@ -55,7 +55,7 @@ async function main() {
   console.log('教师账号:');
   console.log('  用户名: teacher');
   console.log('  密码: teacher123');
-  
+
   // 如果需要重置密码，取消下面的注释
   // await resetPassword('admin', '111111');
   // await resetPassword('teacher', '111111');

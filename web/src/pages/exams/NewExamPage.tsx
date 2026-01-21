@@ -5,9 +5,9 @@ import Button from "@/components/ui/Button";
 import { createExam, type CreateExamDto } from "@/services/exams";
 
 export enum ExamAccountMode {
-  PERMANENT = 'PERMANENT',
-  TEMPORARY_IMPORT = 'TEMPORARY_IMPORT', 
-  TEMPORARY_REGISTER = 'TEMPORARY_REGISTER'
+  PERMANENT = "PERMANENT",
+  TEMPORARY_IMPORT = "TEMPORARY_IMPORT",
+  TEMPORARY_REGISTER = "TEMPORARY_REGISTER",
 }
 
 export default function NewExamPage() {
@@ -17,7 +17,8 @@ export default function NewExamPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Get question IDs from URL params
-  const questionIds = searchParams.get('questionIds')?.split(',').filter(Boolean) || [];
+  const questionIds =
+    searchParams.get("questionIds")?.split(",").filter(Boolean) || [];
 
   const [form, setForm] = useState<CreateExamDto>({
     title: "",
@@ -30,9 +31,9 @@ export default function NewExamPage() {
   // Set default title if questions are provided
   useEffect(() => {
     if (questionIds.length > 0 && !form.title) {
-      setForm(prev => ({
+      setForm((prev) => ({
         ...prev,
-        title: `导入题目考试 (${questionIds.length}题)`
+        title: `导入题目考试 (${questionIds.length}题)`,
       }));
     }
   }, [questionIds.length, form.title]);
@@ -70,23 +71,25 @@ export default function NewExamPage() {
         totalScore: form.totalScore,
         accountModes: form.accountModes,
       };
-      
+
       const createdExam = await createExam(examData as CreateExamDto);
-      
+
       // If we have question IDs, navigate to exam detail page with them
       if (questionIds.length > 0) {
-        navigate(`/exams/${createdExam.id}?addQuestions=${questionIds.join(',')}`);
+        navigate(
+          `/exams/${createdExam.id}?addQuestions=${questionIds.join(",")}`,
+        );
       } else {
         navigate(`/exams/${createdExam.id}`);
       }
     } catch (err: unknown) {
-      console.error('Create exam error:', err);
+      console.error("Create exam error:", err);
       const axiosError = err as any;
       setError(
-        axiosError.response?.data?.message || 
-        axiosError.response?.data?.error || 
-        axiosError.message || 
-        "创建失败"
+        axiosError.response?.data?.message ||
+          axiosError.response?.data?.error ||
+          axiosError.message ||
+          "创建失败",
       );
     } finally {
       setSaving(false);
@@ -140,7 +143,9 @@ export default function NewExamPage() {
               <textarea
                 className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[100px]"
                 value={form.description || ""}
-                onChange={(e) => handleInputChange("description", e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
                 placeholder="请输入考试描述（可选）"
               />
             </div>
@@ -155,7 +160,9 @@ export default function NewExamPage() {
                   min="1"
                   className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
                   value={form.duration || 60}
-                  onChange={(e) => handleInputChange("duration", parseInt(e.target.value))}
+                  onChange={(e) =>
+                    handleInputChange("duration", parseInt(e.target.value))
+                  }
                   placeholder="60"
                 />
               </div>
@@ -169,7 +176,9 @@ export default function NewExamPage() {
                   min="1"
                   className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
                   value={form.totalScore || 100}
-                  onChange={(e) => handleInputChange("totalScore", parseInt(e.target.value))}
+                  onChange={(e) =>
+                    handleInputChange("totalScore", parseInt(e.target.value))
+                  }
                   placeholder="100"
                 />
               </div>
@@ -182,9 +191,15 @@ export default function NewExamPage() {
                 </label>
                 <div className="flex gap-2 flex-wrap">
                   {[
-                    { value: ExamAccountMode.PERMANENT, label: '固定账号' },
-                    { value: ExamAccountMode.TEMPORARY_IMPORT, label: '临时导入' },
-                    { value: ExamAccountMode.TEMPORARY_REGISTER, label: '自主注册' }
+                    { value: ExamAccountMode.PERMANENT, label: "固定账号" },
+                    {
+                      value: ExamAccountMode.TEMPORARY_IMPORT,
+                      label: "临时导入",
+                    },
+                    {
+                      value: ExamAccountMode.TEMPORARY_REGISTER,
+                      label: "自主注册",
+                    },
                   ].map((mode) => (
                     <button
                       key={mode.value}
@@ -194,16 +209,22 @@ export default function NewExamPage() {
                         const isSelected = currentModes.includes(mode.value);
                         if (isSelected) {
                           if (currentModes.length > 1) {
-                            handleInputChange("accountModes", currentModes.filter(m => m !== mode.value));
+                            handleInputChange(
+                              "accountModes",
+                              currentModes.filter((m) => m !== mode.value),
+                            );
                           }
                         } else {
-                          handleInputChange("accountModes", [...currentModes, mode.value]);
+                          handleInputChange("accountModes", [
+                            ...currentModes,
+                            mode.value,
+                          ]);
                         }
                       }}
                       className={`px-4 py-2 text-sm rounded-lg border transition-colors whitespace-nowrap ${
                         (form.accountModes || []).includes(mode.value)
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                          ? "border-blue-500 bg-blue-50 text-blue-700"
+                          : "border-gray-300 bg-gray-50 text-gray-700 hover:border-blue-400 hover:bg-blue-50"
                       }`}
                     >
                       {mode.label}
@@ -214,9 +235,7 @@ export default function NewExamPage() {
             </div>
 
             <div className="rounded-2xl border border-border bg-slate-50 p-4">
-              <h3 className="mb-3 text-sm font-semibold text-ink-900">
-                说明
-              </h3>
+              <h3 className="mb-3 text-sm font-semibold text-ink-900">说明</h3>
               <ul className="ml-4 list-decimal space-y-2 text-sm text-ink-700">
                 <li>创建考试后，将跳转到考试详情页面</li>
                 <li>在考试详情页面可以添加题目和管理学生</li>

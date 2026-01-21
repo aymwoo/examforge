@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import Modal from '@/components/ui/Modal';
-import Button from '@/components/ui/Button';
-import { User, BatchOperationResponse } from '@/services/user-admin-api';
-import { userAdminApi } from '@/services/user-admin-api';
-import { useToast } from '@/components/ui/Toast';
-import { format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import React, { useState, useEffect } from "react";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import { User, BatchOperationResponse } from "@/services/user-admin-api";
+import { userAdminApi } from "@/services/user-admin-api";
+import { useToast } from "@/components/ui/Toast";
+import { format } from "date-fns";
+import { zhCN } from "date-fns/locale";
 
 interface PendingUsersModalProps {
   open: boolean;
@@ -13,8 +13,16 @@ interface PendingUsersModalProps {
   onModalClose?: () => void;
 }
 
-const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChange, onModalClose }) => {
-  const { success: showSuccess, error: showError, warning: showWarning } = useToast();
+const PendingUsersModal: React.FC<PendingUsersModalProps> = ({
+  open,
+  onOpenChange,
+  onModalClose,
+}) => {
+  const {
+    success: showSuccess,
+    error: showError,
+    warning: showWarning,
+  } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,35 +39,45 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
   const fetchPendingUsers = async (currentPage: number) => {
     try {
       setLoading(true);
-      const response = await userAdminApi.getPendingApprovalUsers(currentPage, 10);
-      console.log('Pending users response:', response); // 调试日志
+      const response = await userAdminApi.getPendingApprovalUsers(
+        currentPage,
+        10,
+      );
+      console.log("Pending users response:", response); // 调试日志
       // 确保响应具有正确的结构
-      if (!response || typeof response !== 'object' || !response.data || !response.meta) {
-        console.error('Invalid response structure:', response);
-        throw new Error('Invalid response structure from server');
+      if (
+        !response ||
+        typeof response !== "object" ||
+        !response.data ||
+        !response.meta
+      ) {
+        console.error("Invalid response structure:", response);
+        throw new Error("Invalid response structure from server");
       }
-      if (typeof response.meta !== 'object' ||
-          typeof response.meta.totalPages === 'undefined' ||
-          typeof response.meta.total === 'undefined') {
-        console.error('Invalid meta structure in response:', response);
-        throw new Error('Invalid meta structure in response from server');
+      if (
+        typeof response.meta !== "object" ||
+        typeof response.meta.totalPages === "undefined" ||
+        typeof response.meta.total === "undefined"
+      ) {
+        console.error("Invalid meta structure in response:", response);
+        throw new Error("Invalid meta structure in response from server");
       }
       setUsers(response.data);
       setTotalPages(response.meta.totalPages);
       setTotalUsers(response.meta.total);
     } catch (error) {
-      showError?.('获取待审核用户失败');
-      console.error('Error fetching pending users:', error);
+      showError?.("获取待审核用户失败");
+      console.error("Error fetching pending users:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSelectUser = (userId: string) => {
-    setSelectedUsers(prev =>
+    setSelectedUsers((prev) =>
       prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId],
     );
   };
 
@@ -67,52 +85,58 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
     if (selectedUsers.length === users.length) {
       setSelectedUsers([]);
     } else {
-      setSelectedUsers(users.map(user => user.id));
+      setSelectedUsers(users.map((user) => user.id));
     }
   };
 
   const handleApproveSelected = async () => {
     if (selectedUsers.length === 0) {
-      showWarning?.('请至少选择一个用户');
+      showWarning?.("请至少选择一个用户");
       return;
     }
 
     try {
-      const response: BatchOperationResponse = await userAdminApi.batchApproveUsers(selectedUsers);
-      const successCount = response.results.filter(r => r.status === 'success').length;
+      const response: BatchOperationResponse =
+        await userAdminApi.batchApproveUsers(selectedUsers);
+      const successCount = response.results.filter(
+        (r) => r.status === "success",
+      ).length;
       showSuccess?.(`成功批准 ${successCount} 个用户`);
 
       // 刷新列表
       await fetchPendingUsers(page);
       setSelectedUsers([]);
     } catch (error) {
-      showError?.('批量批准用户失败');
-      console.error('Error approving users:', error);
+      showError?.("批量批准用户失败");
+      console.error("Error approving users:", error);
     }
   };
 
   const handleRejectSelected = async () => {
     if (selectedUsers.length === 0) {
-      showWarning?.('请至少选择一个用户');
+      showWarning?.("请至少选择一个用户");
       return;
     }
 
     try {
-      const response: BatchOperationResponse = await userAdminApi.batchRejectUsers(selectedUsers);
-      const successCount = response.results.filter(r => r.status === 'success').length;
+      const response: BatchOperationResponse =
+        await userAdminApi.batchRejectUsers(selectedUsers);
+      const successCount = response.results.filter(
+        (r) => r.status === "success",
+      ).length;
       showSuccess?.(`成功拒绝 ${successCount} 个用户`);
 
       // 刷新列表
       await fetchPendingUsers(page);
       setSelectedUsers([]);
     } catch (error) {
-      showError?.('批量拒绝用户失败');
-      console.error('Error rejecting users:', error);
+      showError?.("批量拒绝用户失败");
+      console.error("Error rejecting users:", error);
     }
   };
 
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'yyyy-MM-dd HH:mm', { locale: zhCN });
+    return format(new Date(dateString), "yyyy-MM-dd HH:mm", { locale: zhCN });
   };
 
   return (
@@ -161,11 +185,24 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
           {totalUsers === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-green-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
                 </svg>
               </div>
-              <h3 className="mt-4 text-lg font-medium text-gray-900">暂无待审核用户</h3>
+              <h3 className="mt-4 text-lg font-medium text-gray-900">
+                暂无待审核用户
+              </h3>
               <p className="mt-2 text-sm text-gray-500">
                 当前没有需要审核的用户注册申请。
               </p>
@@ -188,15 +225,28 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
                         <input
                           type="checkbox"
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          checked={selectedUsers.length === users.length && users.length > 0}
+                          checked={
+                            selectedUsers.length === users.length &&
+                            users.length > 0
+                          }
                           onChange={handleSelectAll}
                         />
                       </th>
-                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户名</th>
-                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
-                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">邮箱</th>
-                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">角色</th>
-                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">注册时间</th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        用户名
+                      </th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        姓名
+                      </th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        邮箱
+                      </th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        角色
+                      </th>
+                      <th className="p-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        注册时间
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
@@ -204,7 +254,7 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
                       <tr
                         key={user.id}
                         className={`hover:bg-blue-50 transition-colors duration-150 ${
-                          selectedUsers.includes(user.id) ? 'bg-blue-50' : ''
+                          selectedUsers.includes(user.id) ? "bg-blue-50" : ""
                         }`}
                       >
                         <td className="p-4">
@@ -215,21 +265,33 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
                             onChange={() => handleSelectUser(user.id)}
                           />
                         </td>
-                        <td className="p-4 font-medium text-gray-900">{user.username}</td>
+                        <td className="p-4 font-medium text-gray-900">
+                          {user.username}
+                        </td>
                         <td className="p-4 text-gray-700">{user.name}</td>
-                        <td className="p-4 text-gray-600">{user.email || '-'}</td>
+                        <td className="p-4 text-gray-600">
+                          {user.email || "-"}
+                        </td>
                         <td className="p-4">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            user.role === 'ADMIN'
-                              ? 'bg-purple-100 text-purple-800'
-                              : user.role === 'TEACHER'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-green-100 text-green-800'
-                          }`}>
-                            {user.role === 'ADMIN' ? '管理员' : user.role === 'TEACHER' ? '教师' : '学生'}
+                          <span
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                              user.role === "ADMIN"
+                                ? "bg-purple-100 text-purple-800"
+                                : user.role === "TEACHER"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-green-100 text-green-800"
+                            }`}
+                          >
+                            {user.role === "ADMIN"
+                              ? "管理员"
+                              : user.role === "TEACHER"
+                                ? "教师"
+                                : "学生"}
                           </span>
                         </td>
-                        <td className="p-4 text-sm text-gray-500">{formatDate(user.createdAt)}</td>
+                        <td className="p-4 text-sm text-gray-500">
+                          {formatDate(user.createdAt)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -244,7 +306,7 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
                   <div className="flex space-x-2">
                     <Button
                       variant="outline"
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
                       disabled={page === 1}
                       className="px-4 py-2"
                     >
@@ -252,7 +314,9 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({ open, onOpenChang
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      onClick={() =>
+                        setPage((p) => Math.min(totalPages, p + 1))
+                      }
                       disabled={page === totalPages}
                       className="px-4 py-2"
                     >

@@ -19,10 +19,10 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Don't add auth header for dashboard endpoint (allow public access)
-    if (config.url?.includes('/dashboard')) {
+    if (config.url?.includes("/dashboard")) {
       return config;
     }
-    
+
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -38,31 +38,35 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // 如果是登录请求失败，不触发全局401处理
-      if (error.config?.url?.includes('/auth/login')) {
+      if (error.config?.url?.includes("/auth/login")) {
         return Promise.reject(error);
       }
-      
+
       // 清除过期的token
       localStorage.removeItem("token");
-      
+
       // 触发全局登录模态框
-      window.dispatchEvent(new CustomEvent('show401Login', {
-        detail: { 
-          config: error.config,
-          error: error
-        }
-      }));
-      
+      window.dispatchEvent(
+        new CustomEvent("show401Login", {
+          detail: {
+            config: error.config,
+            error: error,
+          },
+        }),
+      );
+
       // 返回一个永远不会resolve的Promise，让调用方等待重试
       return new Promise((resolve, reject) => {
         // 将resolve和reject保存到事件详情中，供重试时使用
-        window.dispatchEvent(new CustomEvent('add401Request', {
-          detail: {
-            config: error.config,
-            resolve,
-            reject
-          }
-        }));
+        window.dispatchEvent(
+          new CustomEvent("add401Request", {
+            detail: {
+              config: error.config,
+              resolve,
+              reject,
+            },
+          }),
+        );
       });
     }
     return Promise.reject(error);

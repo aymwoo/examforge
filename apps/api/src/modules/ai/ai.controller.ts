@@ -12,7 +12,14 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiConsumes,
+  ApiBody,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AIService } from './ai.service';
 import { memoryStorage } from 'multer';
@@ -58,9 +65,9 @@ export class AIController {
         message: { type: 'string' },
         testApiKey: { type: 'string' },
         testBaseUrl: { type: 'string' },
-        testModel: { type: 'string' }
-      }
-    }
+        testModel: { type: 'string' },
+      },
+    },
   })
   async testConnection(@Body() dto: TestConnectionDto, @Req() req: any) {
     return this.aiService.testConnection(
@@ -134,7 +141,7 @@ export class AIController {
     // 使用AI服务生成题目
     const result = await this.aiService.generateQuestionsFromText(prompt, {
       userId: req.user?.id,
-      customPrompt: prompt
+      customPrompt: prompt,
     });
 
     // 确保只返回指定数量的题目
@@ -162,7 +169,11 @@ export class AIController {
       required: ['prompt'],
     },
   })
-  async generateQuestionsJsonStream(@Body() body: { prompt: string; count?: number }, @Req() req: any, @Res() res: Response) {
+  async generateQuestionsJsonStream(
+    @Body() body: { prompt: string; count?: number },
+    @Req() req: any,
+    @Res() res: Response
+  ) {
     const { prompt, count = 5 } = body;
 
     // 创建任务ID
@@ -181,7 +192,7 @@ export class AIController {
       {
         userId: req.user?.id,
         customPrompt: prompt,
-        count: count
+        count: count,
       },
       this.progressStore
     );

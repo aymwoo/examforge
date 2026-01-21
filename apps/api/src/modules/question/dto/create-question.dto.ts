@@ -1,4 +1,16 @@
-import { IsString, IsNotEmpty, IsEnum, IsArray, IsOptional, IsInt, Min, Max, MaxLength, ValidateNested, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsEnum,
+  IsArray,
+  IsOptional,
+  IsInt,
+  Min,
+  Max,
+  MaxLength,
+  ValidateNested,
+  IsBoolean,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { QuestionType } from '@/common/enums/question.enum';
@@ -77,7 +89,12 @@ export class CreateQuestionDto {
   @IsOptional()
   isPublic?: boolean;
 
-  @ApiProperty({ enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'], required: false, description: 'Question status', default: 'DRAFT' })
+  @ApiProperty({
+    enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'],
+    required: false,
+    description: 'Question status',
+    default: 'DRAFT',
+  })
   @IsEnum(['DRAFT', 'PUBLISHED', 'ARCHIVED'])
   @IsOptional()
   status?: string;

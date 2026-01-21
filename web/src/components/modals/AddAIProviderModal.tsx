@@ -42,7 +42,13 @@ export default function AddAIProviderModal({
     setError(null);
     try {
       await onSave(formData);
-      setFormData({ name: "", apiKey: "", baseUrl: "", model: "", isGlobal: false });
+      setFormData({
+        name: "",
+        apiKey: "",
+        baseUrl: "",
+        model: "",
+        isGlobal: false,
+      });
       onClose();
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || "保存失败");
@@ -52,7 +58,7 @@ export default function AddAIProviderModal({
   };
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     setError(null);
   };
 
@@ -135,14 +141,16 @@ export default function AddAIProviderModal({
             />
           </div>
 
-          {userRole === 'ADMIN' && (
+          {userRole === "ADMIN" && (
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
                 id="isGlobal"
                 className="rounded border-border"
                 checked={formData.isGlobal}
-                onChange={(e) => handleInputChange("isGlobal", e.target.checked)}
+                onChange={(e) =>
+                  handleInputChange("isGlobal", e.target.checked)
+                }
               />
               <label htmlFor="isGlobal" className="text-sm text-ink-900">
                 设为系统全局配置（所有用户可见）
@@ -160,11 +168,7 @@ export default function AddAIProviderModal({
             >
               取消
             </Button>
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={saving}
-            >
+            <Button type="submit" className="flex-1" disabled={saving}>
               <Save className="h-4 w-4 mr-2" />
               {saving ? "保存中..." : "保存"}
             </Button>

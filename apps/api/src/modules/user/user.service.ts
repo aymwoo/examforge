@@ -46,7 +46,6 @@ export class UserService {
         },
       });
     } catch (error) {
-      console.error('Create user error details:', error);
       if (error.code === 'P2002') {
         throw new ConflictException('用户名或邮箱已存在');
       }

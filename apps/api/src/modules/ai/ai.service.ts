@@ -28,10 +28,14 @@ export interface AIGradingResult {
 export class AIService {
   constructor(
     private readonly settingsService: SettingsService,
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaService
   ) {}
 
-  private async getEffectivePrompt(customPrompt?: string, userPrompt?: string, userId?: string): Promise<string> {
+  private async getEffectivePrompt(
+    customPrompt?: string,
+    userPrompt?: string,
+    userId?: string
+  ): Promise<string> {
     // 二级优先级：自定义提示词（如导入页面编辑的） > 用户设置的提示词（教师的个性化提示词） > 系统默认提示词
     if (customPrompt && customPrompt.trim()) {
       return customPrompt;
@@ -56,12 +60,16 @@ export class AIService {
     text: string,
     opts?: { chunkIndex?: number; totalChunks?: number; userId?: string; customPrompt?: string }
   ): Promise<GenerateExamQuestionsResponse> {
-    const settings = opts?.userId 
+    const settings = opts?.userId
       ? await this.settingsService.getUserSettings(opts.userId)
       : await this.settingsService.getSettings();
-    
+
     // 三级优先级：导入页面编辑的提示词 > 教师设置的提示词 > 系统默认提示词
-    const promptTemplate = await this.getEffectivePrompt(opts?.customPrompt, settings.promptTemplate, opts?.userId);
+    const promptTemplate = await this.getEffectivePrompt(
+      opts?.customPrompt,
+      settings.promptTemplate,
+      opts?.userId
+    );
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(
@@ -137,8 +145,11 @@ export class AIService {
     }
   }
 
-  async generateExamQuestions(imageBuffer: Buffer, userId?: string): Promise<GenerateExamQuestionsResponse> {
-    const settings = userId 
+  async generateExamQuestions(
+    imageBuffer: Buffer,
+    userId?: string
+  ): Promise<GenerateExamQuestionsResponse> {
+    const settings = userId
       ? await this.settingsService.getUserSettings(userId)
       : await this.settingsService.getSettings();
     const promptTemplate = settings.promptTemplate;
@@ -271,8 +282,12 @@ export class AIService {
       const userProvider = userSetting?.value;
 
       // First priority: If user has a specific custom provider ID, use that
-      if (userProvider && userProvider !== AIProvider.OPENAI &&
-          userProvider !== AIProvider.QWEN && userProvider !== AIProvider.CUSTOM) {
+      if (
+        userProvider &&
+        userProvider !== AIProvider.OPENAI &&
+        userProvider !== AIProvider.QWEN &&
+        userProvider !== AIProvider.CUSTOM
+      ) {
         provider = await this.prisma.aIProvider.findUnique({
           where: { id: userProvider, isActive: true },
         });
@@ -369,7 +384,9 @@ export class AIService {
       }
     } else {
       // Use the custom provider found
-      const apiUrl = this.buildApiUrl(provider.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1');
+      const apiUrl = this.buildApiUrl(
+        provider.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+      );
 
       console.log(`AI Test Connection URL: ${apiUrl}`);
       console.log(`AI Model: ${provider.model || 'qwen-turbo'}`);
@@ -424,12 +441,16 @@ export class AIService {
     userId?: string,
     customPrompt?: string
   ): Promise<GenerateExamQuestionsResponse> {
-    const settings = userId 
+    const settings = userId
       ? await this.settingsService.getUserSettings(userId)
       : await this.settingsService.getSettings();
-    
+
     // 三级优先级：导入页面编辑的提示词 > 教师设置的提示词 > 系统默认提示词
-    const promptTemplate = await this.getEffectivePrompt(customPrompt, settings.promptTemplate, userId);
+    const promptTemplate = await this.getEffectivePrompt(
+      customPrompt,
+      settings.promptTemplate,
+      userId
+    );
 
     if (!settings.aiApiKey) {
       throw new BadRequestException(
@@ -470,7 +491,9 @@ export class AIService {
                 {
                   type: 'image_url',
                   image_url: {
-                    url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/png;base64,${imageBase64}`,
+                    url: imageBase64.startsWith('data:')
+                      ? imageBase64
+                      : `data:image/png;base64,${imageBase64}`,
                   },
                 },
               ],
@@ -582,19 +605,19 @@ export class AIService {
   private parseAIResponse(content: string): AIQuestion[] {
     // Log raw content for debugging (first 500 chars)
     console.log('[AI Response] Raw content preview:', content.slice(0, 500));
-    
+
     // Clean up common problematic characters before parsing
     const cleanedContent = content
-      .replace(/"/g, '"')  // 中文左引号
-      .replace(/"/g, '"')  // 中文右引号
-      .replace(/'/g, "'")  // 中文左单引号
-      .replace(/'/g, "'")  // 中文右单引号
+      .replace(/"/g, '"') // 中文左引号
+      .replace(/"/g, '"') // 中文右引号
+      .replace(/'/g, "'") // 中文左单引号
+      .replace(/'/g, "'") // 中文右单引号
       .replace(/，/g, ',') // 中文逗号
       .replace(/：/g, ':') // 中文冒号
       .replace(/；/g, ';') // 中文分号
       .replace(/（/g, '(') // 中文左括号
       .replace(/）/g, ')'); // 中文右括号
-    
+
     console.log('[AI Response] After character cleanup:', cleanedContent.slice(0, 500));
 
     try {
@@ -648,7 +671,7 @@ export class AIService {
       console.error('[AI Response] Parse error:', (error as Error).message);
       console.error('[AI Response] Original content:', content);
       console.error('[AI Response] Cleaned content:', cleanedContent);
-      
+
       // Try to identify problematic characters
       const problematicChars = content.match(/[""''，：；（）]/g);
       if (problematicChars) {
@@ -677,7 +700,7 @@ export class AIService {
 
   async gradeSubjectiveAnswer(prompt: string, providerId?: string): Promise<AIGradingResult> {
     let provider;
-    
+
     if (providerId) {
       // 使用指定的Provider
       provider = await this.prisma.aIProvider.findUnique({
@@ -696,7 +719,7 @@ export class AIService {
       if (!settings.aiApiKey) {
         throw new BadRequestException('AI Provider未配置');
       }
-      
+
       provider = {
         apiKey: settings.aiApiKey,
         baseUrl: settings.aiBaseUrl,
@@ -714,7 +737,7 @@ export class AIService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${provider.apiKey}`,
+          Authorization: `Bearer ${provider.apiKey}`,
         },
         body: JSON.stringify({
           model: provider.model,
@@ -749,7 +772,7 @@ export class AIService {
       try {
         const result = JSON.parse(content);
         console.log('解析后的AI评分结果:', JSON.stringify(result, null, 2));
-        
+
         return {
           score: result.score || 0,
           reasoning: result.reasoning || '无评分理由',
@@ -759,7 +782,7 @@ export class AIService {
       } catch (parseError) {
         console.error('解析AI响应JSON失败:', parseError);
         console.log('尝试从文本中提取信息...');
-        
+
         // 如果JSON解析失败，尝试从文本中提取信息
         return this.parseGradingFromText(content);
       }
@@ -793,10 +816,16 @@ export class AIService {
       : await this.settingsService.getSettings();
 
     // 三级优先级：导入页面编辑的提示词 > 教师设置的提示词 > 系统默认提示词
-    const promptTemplate = await this.getEffectivePrompt(opts?.customPrompt, settings.promptTemplate, opts?.userId);
+    const promptTemplate = await this.getEffectivePrompt(
+      opts?.customPrompt,
+      settings.promptTemplate,
+      opts?.userId
+    );
 
     if (!settings.aiApiKey) {
-      const error = new Error('AI API Key not configured. Please configure AI provider in settings.');
+      const error = new Error(
+        'AI API Key not configured. Please configure AI provider in settings.'
+      );
       if (progressStore) {
         progressStore.append(jobId, {
           stage: 'error',
@@ -917,7 +946,8 @@ export class AIService {
 
       return { questions: limitedQuestions };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate questions from AI';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to generate questions from AI';
       if (progressStore) {
         progressStore.append(jobId, {
           stage: 'error',

@@ -4,7 +4,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'TEACHER' | 'STUDENT';
+  role: "ADMIN" | "TEACHER" | "STUDENT";
   createdAt: string;
   updatedAt: string;
 }
@@ -24,7 +24,10 @@ export const createUser = async (data: Partial<User>): Promise<User> => {
   return response.data;
 };
 
-export const updateUser = async (id: string, data: Partial<User>): Promise<User> => {
+export const updateUser = async (
+  id: string,
+  data: Partial<User>,
+): Promise<User> => {
   const response = await api.put<User>(`/api/users/${id}`, data);
   return response.data;
 };
