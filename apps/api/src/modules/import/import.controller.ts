@@ -13,7 +13,14 @@ import {
   Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiConsumes,
+  ApiBody,
+  ApiQuery,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
 
@@ -76,31 +83,35 @@ export class ImportController {
             type: 'object',
             properties: {
               stem: { type: 'string', description: '题目内容' },
-              type: { type: 'string', description: '题目类型', enum: ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_BLANK', 'ESSAY'] },
+              type: {
+                type: 'string',
+                description: '题目类型',
+                enum: ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_BLANK', 'ESSAY'],
+              },
               options: {
                 type: 'array',
                 items: { type: 'string' },
-                description: '选项列表（选择题必需）'
+                description: '选项列表（选择题必需）',
               },
               answer: {
                 type: 'string',
-                description: '答案，对于多选题可以是数组，判断题可以是布尔值'
+                description: '答案，对于多选题可以是数组，判断题可以是布尔值',
               },
               explanation: { type: 'string', description: '解析' },
               tags: {
                 type: 'array',
                 items: { type: 'string' },
-                description: '标签列表'
+                description: '标签列表',
               },
               difficulty: { type: 'number', description: '难度（1-5）', minimum: 1, maximum: 5 },
-              knowledgePoint: { type: 'string', description: '知识点' }
+              knowledgePoint: { type: 'string', description: '知识点' },
             },
-            required: ['stem']
-          }
-        }
+            required: ['stem'],
+          },
+        },
       },
-      required: ['questions']
-    }
+      required: ['questions'],
+    },
   })
   async importJson(@Body() body: { questions: any[] }, @Req() req: any) {
     if (!body.questions) {
@@ -200,10 +211,10 @@ export class ImportController {
         const allowedMimes = [
           'application/pdf',
           'image/jpeg',
-          'image/jpg', 
+          'image/jpg',
           'image/png',
           'image/gif',
-          'image/webp'
+          'image/webp',
         ];
         const fileExt = file.originalname.toLowerCase().slice(file.originalname.lastIndexOf('.'));
         const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -211,7 +222,10 @@ export class ImportController {
         if (allowedMimes.includes(file.mimetype) || allowedExtensions.includes(fileExt)) {
           cb(null, true);
         } else {
-          cb(new BadRequestException('Only PDF and image files (JPG, PNG, GIF, WebP) are allowed'), false);
+          cb(
+            new BadRequestException('Only PDF and image files (JPG, PNG, GIF, WebP) are allowed'),
+            false
+          );
         }
       },
       limits: {
@@ -226,8 +240,8 @@ export class ImportController {
     schema: { type: 'string' },
   })
   async importPdf(
-    @UploadedFile() file: Express.Multer.File, 
-    @Query('mode') mode?: string, 
+    @UploadedFile() file: Express.Multer.File,
+    @Query('mode') mode?: string,
     @Query('prompt') prompt?: string,
     @Query('cropTop') cropTop?: number,
     @Query('cropBottom') cropBottom?: number,
@@ -248,11 +262,11 @@ export class ImportController {
     };
 
     void this.importService.importFromPdf(
-      jobId, 
-      file.buffer, 
-      mode, 
-      req?.user?.id, 
-      prompt, 
+      jobId,
+      file.buffer,
+      mode,
+      req?.user?.id,
+      prompt,
       file.originalname,
       imageProcessingOptions
     );
@@ -343,6 +357,24 @@ export class ImportController {
   @ApiOperation({ summary: 'Get PDF images from import record' })
   async getPdfImages(@Param('jobId') jobId: string, @Req() req: any) {
     return this.importService.getPdfImages(jobId, req.user?.id);
+  }
+
+  @Get('history/:jobId/questions')
+  @ApiOperation({ summary: 'Get questions for an import job with server-side pagination' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  async getImportJobQuestions(
+    @Param('jobId') jobId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Req() req: any
+  ) {
+    return this.importService.getImportJobQuestions(
+      jobId,
+      req.user?.id,
+      Number(page),
+      Number(limit)
+    );
   }
 
   @Get('question/:questionId/import-record')

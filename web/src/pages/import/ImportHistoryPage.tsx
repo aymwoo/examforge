@@ -34,6 +34,7 @@ export default function ImportHistoryPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailPage, setDetailPage] = useState(1);
   const [detailPageSize] = useState(10); // 每页显示10个题目
+  const [detailTotal, setDetailTotal] = useState(0);
 
   const targetJobId = new URLSearchParams(location.search).get("jobId");
   const [autoOpened, setAutoOpened] = useState(false);
@@ -44,10 +45,18 @@ export default function ImportHistoryPage() {
 
   useEffect(() => {
     if (!loading && targetJobId && records.length > 0 && !autoOpened) {
-      viewImportDetails(targetJobId);
+      // Just set the dialog open, let the detailDialog effect trigger the fetch
+      setDetailDialog(targetJobId);
       setAutoOpened(true);
     }
   }, [autoOpened, loading, records.length, targetJobId]);
+
+  // When dialog or page changes, fetch data
+  useEffect(() => {
+    if (detailDialog) {
+      fetchImportDetails(detailDialog, detailPage);
+    }
+  }, [detailDialog, detailPage]);
 
   const fetchImportHistory = async () => {
     try {
@@ -113,54 +122,38 @@ export default function ImportHistoryPage() {
     }
   };
 
-  const viewImportDetails = async (jobId: string) => {
+  const viewImportDetails = (jobId: string) => {
     setDetailDialog(jobId);
+    setDetailPage(1); // Reset to first page when opening new dialog
+    // The useEffect will trigger the fetch
+  };
+
+  const fetchImportDetails = async (jobId: string, page: number) => {
     setDetailLoading(true);
-    setDetailPage(1);
 
     try {
-      // 获取导入记录的题目ID列表
-      const response = await fetch(`/api/import/history/${jobId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+      const response = await fetch(
+        `/api/import/history/${jobId}/questions?page=${page}&limit=${detailPageSize}`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
         },
-      });
+      );
 
       if (response.ok) {
-        const record = await response.json();
-        const questionIds = record.questionIds || [];
-
-        // 获取题目详情
-        if (questionIds.length > 0) {
-          // 为了获取题目详情，我们需要通过API获取这些题目
-          // 由于没有直接的API获取多个ID的题目，我们使用ids参数查询
-          const questionsResponse = await fetch(
-            `/api/questions?ids=${questionIds.join(",")}&page=1&limit=${questionIds.length}`,
-            {
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-            },
-          );
-
-          if (questionsResponse.ok) {
-            const questionsData = await questionsResponse.json();
-            setDetailQuestions(questionsData.data || []);
-          } else {
-            setDetailQuestions([]);
-            showError("获取题目详情失败");
-          }
-        } else {
-          setDetailQuestions([]);
-          showError("该导入记录没有题目");
-        }
+        const data = await response.json();
+        setDetailQuestions(data.data || []);
+        setDetailTotal(data.total || 0);
       } else {
         setDetailQuestions([]);
-        showError("获取导入记录失败");
+        setDetailTotal(0);
+        showError("获取题目详情失败");
       }
     } catch (error) {
       console.error("获取题目详情失败:", error);
       setDetailQuestions([]);
+      setDetailTotal(0);
       showError("获取题目详情失败");
     } finally {
       setDetailLoading(false);
@@ -417,85 +410,80 @@ export default function ImportHistoryPage() {
               ) : (
                 <div className="space-y-4">
                   {/* 计算当前页的题目 */}
-                  {detailQuestions
-                    .slice(
-                      (detailPage - 1) * detailPageSize,
-                      detailPage * detailPageSize,
-                    )
-                    .map((question) => (
-                      <div
-                        key={question.id}
-                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <div className="flex items-start gap-3">
-                              <span className="font-medium text-gray-900">
-                                {question.content}
-                              </span>
-                            </div>
+                  {detailQuestions.map((question) => (
+                    <div
+                      key={question.id}
+                      className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-start gap-3">
+                            <span className="font-medium text-gray-900">
+                              {question.content}
+                            </span>
                           </div>
-                          <span className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700 ml-2">
-                            {question.type === "SINGLE_CHOICE"
-                              ? "单选题"
-                              : question.type === "MULTIPLE_CHOICE"
-                                ? "多选题"
-                                : question.type === "TRUE_FALSE"
-                                  ? "判断题"
-                                  : question.type === "FILL_BLANK"
-                                    ? "填空题"
-                                    : question.type === "ESSAY"
-                                      ? "简答题"
-                                      : question.type}
-                          </span>
                         </div>
-
-                        <div className="ml-7 flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-700">
-                          <span className="flex items-center gap-1">
-                            <span className="font-semibold text-gray-900">
-                              难度:
-                            </span>
-                            <span>{question.difficulty}</span>
-                          </span>
-                          {question.tags && question.tags.length > 0 && (
-                            <span className="flex items-center gap-1">
-                              <span className="font-semibold text-gray-900">
-                                标签:
-                              </span>
-                              <span>{question.tags.join(", ")}</span>
-                            </span>
-                          )}
-                          {question.knowledgePoint && (
-                            <span className="flex items-center gap-1">
-                              <span className="font-semibold text-gray-900">
-                                知识点:
-                              </span>
-                              <span>{question.knowledgePoint}</span>
-                            </span>
-                          )}
-                          <span className="flex items-center gap-1">
-                            <span className="font-semibold text-gray-900">
-                              可见性:
-                            </span>
-                            <span
-                              className={
-                                question.isPublic
-                                  ? "text-green-600"
-                                  : "text-orange-600"
-                              }
-                            >
-                              {question.isPublic ? "公开" : "私有"}
-                            </span>
-                          </span>
-                        </div>
+                        <span className="shrink-0 rounded-lg bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700 ml-2">
+                          {question.type === "SINGLE_CHOICE"
+                            ? "单选题"
+                            : question.type === "MULTIPLE_CHOICE"
+                              ? "多选题"
+                              : question.type === "TRUE_FALSE"
+                                ? "判断题"
+                                : question.type === "FILL_BLANK"
+                                  ? "填空题"
+                                  : question.type === "ESSAY"
+                                    ? "简答题"
+                                    : question.type}
+                        </span>
                       </div>
-                    ))}
+
+                      <div className="ml-7 flex flex-wrap gap-x-4 gap-y-2 text-sm text-gray-700">
+                        <span className="flex items-center gap-1">
+                          <span className="font-semibold text-gray-900">
+                            难度:
+                          </span>
+                          <span>{question.difficulty}</span>
+                        </span>
+                        {question.tags && question.tags.length > 0 && (
+                          <span className="flex items-center gap-1">
+                            <span className="font-semibold text-gray-900">
+                              标签:
+                            </span>
+                            <span>{question.tags.join(", ")}</span>
+                          </span>
+                        )}
+                        {question.knowledgePoint && (
+                          <span className="flex items-center gap-1">
+                            <span className="font-semibold text-gray-900">
+                              知识点:
+                            </span>
+                            <span>{question.knowledgePoint}</span>
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1">
+                          <span className="font-semibold text-gray-900">
+                            可见性:
+                          </span>
+                          <span
+                            className={
+                              question.isPublic
+                                ? "text-green-600"
+                                : "text-orange-600"
+                            }
+                          >
+                            {question.isPublic ? "公开" : "私有"}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
             {/* 分页控件 */}
-            {detailQuestions.length > detailPageSize && (
+            {detailTotal > detailPageSize && (
               <div className="border-t border-gray-200 p-6 bg-gray-50">
                 <div className="flex items-center justify-center gap-4">
                   <button
@@ -509,22 +497,21 @@ export default function ImportHistoryPage() {
                   </button>
 
                   <span className="text-sm text-gray-700">
-                    第 {detailPage} /{" "}
-                    {Math.ceil(detailQuestions.length / detailPageSize)} 页
+                    第 {detailPage} / {Math.ceil(detailTotal / detailPageSize)}{" "}
+                    页
                   </span>
 
                   <button
                     onClick={() =>
                       setDetailPage((prev) =>
                         Math.min(
-                          Math.ceil(detailQuestions.length / detailPageSize),
+                          Math.ceil(detailTotal / detailPageSize),
                           prev + 1,
                         ),
                       )
                     }
                     disabled={
-                      detailPage ===
-                      Math.ceil(detailQuestions.length / detailPageSize)
+                      detailPage === Math.ceil(detailTotal / detailPageSize)
                     }
                     className="px-3 py-1.5 border border-gray-300 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -536,7 +523,7 @@ export default function ImportHistoryPage() {
                     {(() => {
                       const pages = [];
                       const totalPages = Math.ceil(
-                        detailQuestions.length / detailPageSize,
+                        detailTotal / detailPageSize,
                       );
                       const currentPage = detailPage;
 

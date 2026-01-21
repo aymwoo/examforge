@@ -1408,4 +1408,61 @@ export class ImportService {
       questionIds: JSON.parse(record.questionIds || '[]'),
     }));
   }
+
+  async getImportJobQuestions(
+    jobId: string,
+    userId: string | undefined,
+    page: number = 1,
+    limit: number = 10
+  ) {
+    // We fetch the record directly to avoid the overhead of fetching all questions found in getImportRecord
+    const where: any = { jobId };
+    if (userId) where.userId = userId;
+
+    const record = await this.prisma.importRecord.findFirst({
+      where,
+      select: { questionIds: true },
+    });
+
+    if (!record) {
+      throw new BadRequestException('Import record not found');
+    }
+
+    const allQuestionIds = this.parseQuestionIds(record.questionIds);
+    const total = allQuestionIds.length;
+
+    // Calculate pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const slicedIds = allQuestionIds.slice(startIndex, endIndex);
+
+    if (slicedIds.length === 0) {
+      return {
+        data: [],
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
+
+    // Fetch the specific questions for this page
+    const questions = await this.prisma.question.findMany({
+      where: { id: { in: slicedIds } },
+      orderBy: { importOrder: 'asc' },
+    });
+
+    // Sort questions to match the order in slicedIds (which preserves the original import order if IDs are ordered)
+    // or rely on importOrder if that's reliable. importOrder is best.
+    // However, if we just want to ensure they match the slice, we can re-sort in JS if needed,
+    // but DB order by importOrder is usually sufficient and cleaner.
+
+    return {
+      data: questions,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 }
