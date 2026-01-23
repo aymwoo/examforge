@@ -71,6 +71,7 @@ export default function ExamAnalyticsPage() {
       MULTIPLE_CHOICE: "多选题",
       TRUE_FALSE: "判断题",
       FILL_BLANK: "填空题",
+      MATCHING: "连线题",
       SHORT_ANSWER: "简答题",
       ESSAY: "论述题",
     };

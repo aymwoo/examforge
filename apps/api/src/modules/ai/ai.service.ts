@@ -6,6 +6,11 @@ export interface AIQuestion {
   content: string;
   type: string;
   options?: Array<{ label: string; content: string }>;
+  matching?: {
+    leftItems: string[];
+    rightItems: string[];
+    matches: Record<string, string>;
+  };
   answer: string;
   explanation?: string;
   difficulty: number;

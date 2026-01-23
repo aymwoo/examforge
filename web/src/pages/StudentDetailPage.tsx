@@ -175,6 +175,10 @@ export default function StudentDetailPage() {
       return normalizeTrueFalseLabel(answer);
     }
 
+    if (question.type === "MATCHING") {
+      return formatMatchingAnswer(answer);
+    }
+
     if (!question.options) return answer ? String(answer) : "";
 
     const options = Array.isArray(question.options)
@@ -212,6 +216,47 @@ export default function StudentDetailPage() {
       return optionText === answer;
     });
     return index >= 0 ? String.fromCharCode(65 + index) : String(answer);
+  };
+
+  const formatMatchingAnswer = (answer: any) => {
+    const pairs = parseMatchingPairs(answer);
+    if (pairs.length === 0) return answer ? String(answer) : "";
+    return pairs.map((pair) => `${pair.left}→${pair.right}`).join(", ");
+  };
+
+  const parseMatchingPairs = (answer: any) => {
+    if (!answer) return [] as Array<{ left: string; right: string }>;
+    if (Array.isArray(answer)) {
+      return answer
+        .map((pair) => ({
+          left: String(pair.left || ""),
+          right: String(pair.right || ""),
+        }))
+        .filter((pair) => pair.left && pair.right);
+    }
+    if (typeof answer === "string") {
+      try {
+        const parsed = JSON.parse(answer);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((pair) => ({
+              left: String(pair.left || ""),
+              right: String(pair.right || ""),
+            }))
+            .filter((pair) => pair.left && pair.right);
+        }
+        if (parsed && typeof parsed === "object") {
+          const matches = (parsed as any).matches || {};
+          return Object.entries(matches).map(([left, right]) => ({
+            left: String(left),
+            right: String(right),
+          }));
+        }
+      } catch {
+        return [];
+      }
+    }
+    return [];
   };
 
   if (loading) {

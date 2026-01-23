@@ -19,6 +19,11 @@ interface Question {
   content: string;
   type: string;
   options?: string[];
+  matching?: {
+    leftItems: string[];
+    rightItems: string[];
+    matches: Record<string, string>;
+  };
   images?: string[];
   score: number;
   order: number;
@@ -68,6 +73,80 @@ export default function ExamTakePage() {
     "FINAL_SCORE" | "ANSWERS" | "FULL_DETAILS"
   >("FINAL_SCORE");
 
+  const normalizeMatchingPayload = (question: any) => {
+    if (!question) return undefined;
+    if (question.matching) return question.matching;
+    if (question.type !== "MATCHING" || !question.answer) return undefined;
+    try {
+      const parsed = JSON.parse(question.answer);
+      if (Array.isArray(parsed)) {
+        const leftItems = parsed
+          .map((pair: any) => String(pair.left || ""))
+          .filter((item: string) => item.length > 0);
+        const rightItems = parsed
+          .map((pair: any) => String(pair.right || ""))
+          .filter((item: string) => item.length > 0);
+        const matches = Object.fromEntries(
+          parsed
+            .filter((pair: any) => pair.left && pair.right)
+            .map((pair: any) => [String(pair.left), String(pair.right)]),
+        );
+        return {
+          leftItems,
+          rightItems,
+          matches,
+        };
+      }
+      if (parsed && typeof parsed === "object") {
+        return parsed;
+      }
+    } catch {
+      return undefined;
+    }
+    return undefined;
+  };
+
+  const parseMatchingPairs = (value: any) => {
+    if (!value) return [] as Array<{ left: string; right: string }>;
+    if (Array.isArray(value)) {
+      return value
+        .map((pair) => ({
+          left: String(pair.left || ""),
+          right: String(pair.right || ""),
+        }))
+        .filter((pair) => pair.left && pair.right);
+    }
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((pair) => ({
+              left: String(pair.left || ""),
+              right: String(pair.right || ""),
+            }))
+            .filter((pair) => pair.left && pair.right);
+        }
+        if (parsed && typeof parsed === "object") {
+          const matches = (parsed as any).matches || {};
+          return Object.entries(matches).map(([left, right]) => ({
+            left: String(left),
+            right: String(right),
+          }));
+        }
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const formatMatchingPairs = (value: any) => {
+    const pairs = parseMatchingPairs(value);
+    if (pairs.length === 0) return "";
+    return pairs.map((pair) => `${pair.left}→${pair.right}`).join(", ");
+  };
+
   useEffect(() => {
     // 检查是否已登录
     const token = localStorage.getItem("examToken");
@@ -103,6 +182,7 @@ export default function ExamTakePage() {
         questions: response.data.questions?.map((q: any) => ({
           ...q,
           images: q.images || [],
+          matching: normalizeMatchingPayload(q),
         })),
       };
 
@@ -222,6 +302,66 @@ export default function ExamTakePage() {
       };
       return newAnswers;
     });
+  };
+
+  const initializeMatchingAnswer = (question: Question) => {
+    const leftItems = question.matching?.leftItems || [];
+    const rightItems = question.matching?.rightItems || [];
+    const matches = question.matching?.matches || {};
+    return {
+      leftItems,
+      rightItems,
+      matches,
+      pairs: leftItems.map((left) => ({
+        left,
+        right: matches[left] || "",
+      })),
+    };
+  };
+
+  const getMatchingAnswerPairs = (questionId: string, question: Question) => {
+    const existing = answers[questionId];
+    if (Array.isArray(existing)) {
+      return existing.map((pair: any) => ({
+        left: String(pair.left || ""),
+        right: String(pair.right || ""),
+      }));
+    }
+    if (!question.matching && typeof existing === "string") {
+      try {
+        const parsed = JSON.parse(existing);
+        if (Array.isArray(parsed)) {
+          return parsed.map((pair: any) => ({
+            left: String(pair.left || ""),
+            right: String(pair.right || ""),
+          }));
+        }
+      } catch {
+        return [];
+      }
+    }
+    if (!question.matching) return [];
+    return initializeMatchingAnswer(question).pairs;
+  };
+
+  const handleMatchingDrop = (
+    question: Question,
+    leftItem: string,
+    rightItem: string,
+  ) => {
+    const pairs = getMatchingAnswerPairs(question.id, question);
+    const nextPairs = pairs.map((pair) =>
+      pair.left === leftItem ? { ...pair, right: rightItem } : pair,
+    );
+    handleAnswerChange(question.id, nextPairs);
+  };
+
+  const resetMatchingPair = (question: Question, leftItem: string) => {
+    const pairs = getMatchingAnswerPairs(question.id, question);
+    const nextPairs = pairs.map((pair) =>
+      pair.left === leftItem ? { ...pair, right: "" } : pair,
+    );
+    handleAnswerChange(question.id, nextPairs);
   };
 
   const handleSubmitExam = async () => {
@@ -573,6 +713,9 @@ export default function ExamTakePage() {
                                 >
                                   {(() => {
                                     if (!hasAnswer) return "未作答";
+                                    if (question.type === "MATCHING") {
+                                      return formatMatchingPairs(answer);
+                                    }
                                     if (Array.isArray(answer))
                                       return answer.join(", ");
                                     if (typeof answer === "object")
@@ -593,6 +736,9 @@ export default function ExamTakePage() {
                                   {(() => {
                                     const correctAnswer = detail?.correctAnswer;
                                     if (!correctAnswer) return "";
+                                    if (question.type === "MATCHING") {
+                                      return formatMatchingPairs(correctAnswer);
+                                    }
                                     if (Array.isArray(correctAnswer))
                                       return correctAnswer.join(", ");
                                     if (typeof correctAnswer === "object")
@@ -951,6 +1097,98 @@ export default function ExamTakePage() {
                     ))}
                   </div>
                 )}
+
+                {currentQuestion.type === "MATCHING" &&
+                  currentQuestion.matching && (
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-border bg-slate-50 p-4 text-sm text-ink-700">
+                        从左侧拖动到右侧完成连线，可再次拖动覆盖。
+                      </div>
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-ink-900">
+                            左侧
+                          </h4>
+                          {currentQuestion.matching.leftItems.map(
+                            (leftItem) => {
+                              const currentPairs = getMatchingAnswerPairs(
+                                currentQuestion.id,
+                                currentQuestion,
+                              );
+                              const matchedRight =
+                                currentPairs.find(
+                                  (pair) => pair.left === leftItem,
+                                )?.right || "";
+                              return (
+                                <div
+                                  key={leftItem}
+                                  draggable
+                                  onDragStart={(event) => {
+                                    event.dataTransfer.setData(
+                                      "text/plain",
+                                      leftItem,
+                                    );
+                                  }}
+                                  className="rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm"
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span>{leftItem}</span>
+                                    {matchedRight && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          resetMatchingPair(
+                                            currentQuestion,
+                                            leftItem,
+                                          )
+                                        }
+                                        className="text-xs text-ink-500 hover:text-ink-700"
+                                      >
+                                        清除
+                                      </button>
+                                    )}
+                                  </div>
+                                  {matchedRight && (
+                                    <p className="mt-2 text-xs text-ink-600">
+                                      已连线: {matchedRight}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            },
+                          )}
+                        </div>
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-semibold text-ink-900">
+                            右侧
+                          </h4>
+                          {currentQuestion.matching.rightItems.map(
+                            (rightItem) => (
+                              <div
+                                key={rightItem}
+                                onDragOver={(event) => event.preventDefault()}
+                                onDrop={(event) => {
+                                  event.preventDefault();
+                                  const leftItem =
+                                    event.dataTransfer.getData("text/plain");
+                                  if (leftItem) {
+                                    handleMatchingDrop(
+                                      currentQuestion,
+                                      leftItem,
+                                      rightItem,
+                                    );
+                                  }
+                                }}
+                                className="rounded-xl border border-dashed border-border bg-white px-3 py-3 text-sm text-ink-900"
+                              >
+                                {rightItem}
+                              </div>
+                            ),
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                 {(currentQuestion.type === "FILL_BLANK" ||
                   currentQuestion.type === "SHORT_ANSWER" ||

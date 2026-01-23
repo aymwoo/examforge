@@ -204,12 +204,27 @@ export class SubmissionService {
   }
 
   private checkAnswer(question: any, userAnswer: string): boolean {
-    const normalizedUser = userAnswer.trim().toUpperCase();
+    const normalizedUser = String(userAnswer ?? '')
+      .trim()
+      .toUpperCase();
 
     const correct = parseQuestionAnswer(question.answer);
     const normalizedCorrect = Array.isArray(correct)
       ? correct.join(',').trim().toUpperCase()
-      : (correct || '').trim().toUpperCase();
+      : String(correct ?? '')
+          .trim()
+          .toUpperCase();
+
+    if (question.type === QuestionType.MATCHING) {
+      const userPairs = this.parseMatchingPairs(userAnswer);
+      const correctPairs = this.parseMatchingPairs(question.answer);
+      if (correctPairs.length === 0) return false;
+      const total = correctPairs.length;
+      const correctCount = correctPairs.filter((pair) =>
+        userPairs.some((userPair) => userPair.left === pair.left && userPair.right === pair.right)
+      ).length;
+      return total > 0 && correctCount === total;
+    }
 
     switch (question.type) {
       case QuestionType.SINGLE_CHOICE:
@@ -247,7 +262,33 @@ export class SubmissionService {
       QuestionType.MULTIPLE_CHOICE,
       QuestionType.TRUE_FALSE,
       QuestionType.FILL_BLANK,
+      QuestionType.MATCHING,
     ].includes(type as QuestionType);
+  }
+
+  private parseMatchingPairs(answer: string | null | undefined) {
+    if (!answer) return [] as Array<{ left: string; right: string }>;
+    try {
+      const parsed = JSON.parse(answer);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((pair) => ({
+            left: String(pair.left || ''),
+            right: String(pair.right || ''),
+          }))
+          .filter((pair) => pair.left && pair.right);
+      }
+      if (parsed && typeof parsed === 'object') {
+        const matches = (parsed as { matches?: Record<string, string> }).matches || {};
+        return Object.entries(matches).map(([left, right]) => ({
+          left: String(left),
+          right: String(right),
+        }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
   }
 
   private transformSubmission(submission: any) {

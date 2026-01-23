@@ -583,6 +583,8 @@ export default function ExamGradingPage() {
         return "判断题";
       case "FILL_BLANK":
         return "填空题";
+      case "MATCHING":
+        return "连线题";
       case "SHORT_ANSWER":
         return "简答题";
       case "ESSAY":
@@ -622,6 +624,10 @@ export default function ExamGradingPage() {
       return normalizeTrueFalseLabel(answer);
     }
 
+    if (question.type === "MATCHING") {
+      return formatMatchingAnswer(answer, question.matching);
+    }
+
     if (!question.options) return answer ? String(answer) : "";
 
     if (Array.isArray(answer)) {
@@ -636,6 +642,10 @@ export default function ExamGradingPage() {
 
     if (question.type === "TRUE_FALSE") {
       return normalizeTrueFalseLabel(answer);
+    }
+
+    if (question.type === "MATCHING") {
+      return formatMatchingAnswer(answer, question.matching);
     }
 
     if (!question.options) return answer || "";
@@ -672,6 +682,81 @@ export default function ExamGradingPage() {
     } catch (error) {
       return answer || "";
     }
+  };
+
+  const formatMatchingAnswer = (
+    answer: any,
+    matching?: {
+      leftItems: string[];
+      rightItems: string[];
+      matches: Record<string, string>;
+    },
+  ) => {
+    if (!answer || !matching) return "";
+    const pairs = parseMatchingAnswer(answer);
+    if (pairs.length === 0) return "";
+    return pairs.map((pair) => `${pair.left}→${pair.right}`).join(", ");
+  };
+
+  const parseMatchingAnswer = (answer: any) => {
+    if (!answer) return [] as Array<{ left: string; right: string }>;
+    if (Array.isArray(answer)) {
+      return answer
+        .map((pair) => ({
+          left: String(pair.left || ""),
+          right: String(pair.right || ""),
+        }))
+        .filter((pair) => pair.left && pair.right);
+    }
+    if (typeof answer === "string") {
+      try {
+        const parsed = JSON.parse(answer);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((pair) => ({
+              left: String(pair.left || ""),
+              right: String(pair.right || ""),
+            }))
+            .filter((pair) => pair.left && pair.right);
+        }
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const normalizeMatchingQuestion = (question: any) => {
+    if (question.type !== "MATCHING") return question;
+    if (question.matching) return question;
+    if (!question.answer) return question;
+    try {
+      const parsed = JSON.parse(question.answer);
+      if (parsed && typeof parsed === "object") {
+        const matching = Array.isArray(parsed)
+          ? {
+              leftItems: parsed
+                .map((pair: any) => String(pair.left || ""))
+                .filter((item: string) => item.length > 0),
+              rightItems: parsed
+                .map((pair: any) => String(pair.right || ""))
+                .filter((item: string) => item.length > 0),
+              matches: Object.fromEntries(
+                parsed
+                  .filter((pair: any) => pair.left && pair.right)
+                  .map((pair: any) => [String(pair.left), String(pair.right)]),
+              ),
+            }
+          : parsed;
+        return {
+          ...question,
+          matching,
+        };
+      }
+    } catch {
+      return question;
+    }
+    return question;
   };
 
   const handleScoreChange = (questionId: string, score: number) => {
@@ -1074,7 +1159,9 @@ export default function ExamGradingPage() {
 
                     {exam?.examQuestions?.map(
                       (examQuestion: any, index: number) => {
-                        const question = examQuestion.question;
+                        const question = normalizeMatchingQuestion(
+                          examQuestion.question,
+                        );
                         const suggestion = aiSuggestions[question.id];
                         const studentAnswer =
                           selectedSubmission.answers[question.id];

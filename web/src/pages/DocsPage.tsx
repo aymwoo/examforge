@@ -181,7 +181,7 @@ export default function DocsPage() {
                         题目类型
                       </td>
                       <td className="border border-gray-300 px-4 py-2">
-                        单选题/SINGLE_CHOICE
+                        单选题/SINGLE_CHOICE（支持连线题/MATCHING）
                       </td>
                     </tr>
                     <tr>

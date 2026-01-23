@@ -4,7 +4,8 @@
  * Usage: pnpm run seed
  */
 
-import axios from "axios";
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const axios = require("axios");
 
 const API_URL = process.env.API_URL || "http://localhost:3000";
 
@@ -56,6 +57,24 @@ const sampleQuestions = [
       "Recursion is a programming technique where a function calls itself to solve a problem by breaking it down into smaller instances of the same problem.",
     difficulty: 3,
     tags: ["programming", "algorithms"],
+  },
+  {
+    content: "Match the programming concept with its description.",
+    type: "MATCHING",
+    matching: {
+      leftItems: ["Stack", "Queue"],
+      rightItems: ["First In First Out", "Last In First Out"],
+      matches: {
+        Stack: "Last In First Out",
+        Queue: "First In First Out",
+      },
+    },
+    answer: [
+      { left: "Stack", right: "Last In First Out" },
+      { left: "Queue", right: "First In First Out" },
+    ],
+    difficulty: 2,
+    tags: ["programming", "data-structure"],
   },
 ];
 

@@ -45,6 +45,17 @@ export class CreateQuestionDto {
   @IsOptional()
   options?: OptionDto[];
 
+  @ApiProperty({
+    required: false,
+    description: 'Matching question config (leftItems/rightItems/matches)',
+  })
+  @IsOptional()
+  matching?: {
+    leftItems: string[];
+    rightItems: string[];
+    matches: Record<string, string>;
+  };
+
   @ApiProperty({ required: false, description: 'Correct answer' })
   @IsString()
   @IsOptional()

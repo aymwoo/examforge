@@ -432,9 +432,11 @@ export default function ImportHistoryPage() {
                                 ? "判断题"
                                 : question.type === "FILL_BLANK"
                                   ? "填空题"
-                                  : question.type === "ESSAY"
-                                    ? "简答题"
-                                    : question.type}
+                                  : question.type === "MATCHING"
+                                    ? "连线题"
+                                    : question.type === "ESSAY"
+                                      ? "简答题"
+                                      : question.type}
                         </span>
                       </div>
 

@@ -27,6 +27,7 @@ const typeLabels: Record<string, string> = {
   MULTIPLE_CHOICE: "多选题",
   TRUE_FALSE: "判断题",
   FILL_BLANK: "填空题",
+  MATCHING: "连线题",
   ESSAY: "简答题",
 };
 
@@ -43,13 +44,68 @@ export default function QuestionDetailPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedImportImages, setSelectedImportImages] = useState<any[]>([]);
 
+  const normalizeMatchingData = (data: Partial<Question>) => {
+    if (data.matching) {
+      return data.matching;
+    }
+    if (data.type !== "MATCHING") {
+      return undefined;
+    }
+    const rawAnswer = data.answer;
+    if (!rawAnswer || typeof rawAnswer !== "string" || !rawAnswer.trim()) {
+      return {
+        leftItems: [],
+        rightItems: [],
+        matches: {},
+      };
+    }
+    try {
+      const parsed = JSON.parse(rawAnswer);
+      if (!Array.isArray(parsed)) {
+        return {
+          leftItems: [],
+          rightItems: [],
+          matches: {},
+        };
+      }
+      const leftItems = parsed
+        .map((item: any) => String(item.left || "").trim())
+        .filter((item: string) => item.length > 0);
+      const rightItems = parsed
+        .map((item: any) => String(item.right || "").trim())
+        .filter((item: string) => item.length > 0);
+      const matches: Record<string, string> = {};
+      parsed.forEach((pair: any) => {
+        if (pair.left && pair.right) {
+          matches[String(pair.left)] = String(pair.right);
+        }
+      });
+      return {
+        leftItems,
+        rightItems: Array.from(new Set(rightItems)),
+        matches,
+      };
+    } catch {
+      return {
+        leftItems: [],
+        rightItems: [],
+        matches: {},
+      };
+    }
+  };
+
   const loadQuestion = async () => {
     if (!id) return;
     setLoading(true);
     setError(null);
     try {
       const data = await getQuestionById(id);
-      setQuestion(data);
+      const normalizedMatching = normalizeMatchingData(data);
+      const normalizedQuestion = {
+        ...data,
+        matching: normalizedMatching,
+      };
+      setQuestion(normalizedQuestion);
       setEditForm({
         content: data.content,
         type: data.type,
@@ -59,6 +115,7 @@ export default function QuestionDetailPage() {
         difficulty: data.difficulty,
         knowledgePoint: data.knowledgePoint,
         options: data.options,
+        matching: normalizedMatching,
       });
 
       // Load import records for this question
@@ -92,6 +149,7 @@ export default function QuestionDetailPage() {
   const handleCancel = () => {
     setIsEditing(false);
     if (question) {
+      const normalizedMatching = normalizeMatchingData(question);
       setEditForm({
         content: question.content,
         type: question.type,
@@ -101,6 +159,7 @@ export default function QuestionDetailPage() {
         difficulty: question.difficulty,
         knowledgePoint: question.knowledgePoint,
         options: question.options,
+        matching: normalizedMatching,
       });
     }
   };
@@ -110,6 +169,35 @@ export default function QuestionDetailPage() {
     setSaving(true);
     setError(null);
     try {
+      if (editForm.type === "MATCHING") {
+        const leftItems = editForm.matching?.leftItems || [];
+        const rightItems = editForm.matching?.rightItems || [];
+        const matches = editForm.matching?.matches || {};
+        const hasEmptyLeft = leftItems.some((item) => !item.trim());
+        const hasEmptyRight = rightItems.some((item) => !item.trim());
+        if (leftItems.length === 0 || rightItems.length === 0) {
+          setError("连线题必须包含左右两列内容");
+          setSaving(false);
+          return;
+        }
+        if (hasEmptyLeft || hasEmptyRight) {
+          setError("连线题左右两列不能有空项");
+          setSaving(false);
+          return;
+        }
+        if (Object.keys(matches).length !== leftItems.length) {
+          setError("连线题需要为每个左侧项设置匹配");
+          setSaving(false);
+          return;
+        }
+      } else if (
+        !editForm.answer ||
+        (typeof editForm.answer === "string" && !editForm.answer.trim())
+      ) {
+        setError("答案不能为空");
+        setSaving(false);
+        return;
+      }
       const updated = await updateQuestion(id, editForm);
       setQuestion(updated);
       setIsEditing(false);
@@ -146,6 +234,69 @@ export default function QuestionDetailPage() {
 
   const handleInputChange = (field: string, value: any) => {
     setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleMatchingListChange = (
+    side: "leftItems" | "rightItems",
+    value: string,
+  ) => {
+    const items = value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    setEditForm((prev) => {
+      const currentMatches = prev.matching?.matches || {};
+      const nextMatches: Record<string, string> = {};
+      if (side === "leftItems") {
+        items.forEach((item) => {
+          if (currentMatches[item]) {
+            nextMatches[item] = currentMatches[item];
+          }
+        });
+      } else {
+        Object.entries(currentMatches).forEach(([left, right]) => {
+          if (items.includes(right)) {
+            nextMatches[left] = right;
+          }
+        });
+      }
+      return {
+        ...prev,
+        matching: {
+          leftItems:
+            side === "leftItems" ? items : prev.matching?.leftItems || [],
+          rightItems:
+            side === "rightItems" ? items : prev.matching?.rightItems || [],
+          matches: nextMatches,
+        },
+      };
+    });
+  };
+
+  const updateMatchingPair = (leftItem: string, rightItem: string) => {
+    setEditForm((prev) => {
+      const leftItems = prev.matching?.leftItems || [];
+      const rightItems = prev.matching?.rightItems || [];
+      const nextMatches = {
+        ...(prev.matching?.matches || {}),
+        [leftItem]: rightItem,
+      };
+      const answerValue = JSON.stringify(
+        leftItems.map((left) => ({
+          left,
+          right: nextMatches[left] || "",
+        })),
+      );
+      return {
+        ...prev,
+        matching: {
+          leftItems,
+          rightItems,
+          matches: nextMatches,
+        },
+        answer: answerValue,
+      };
+    });
   };
 
   const handleViewImportRecord = async (record: any) => {
@@ -272,6 +423,7 @@ export default function QuestionDetailPage() {
                   <option value="MULTIPLE_CHOICE">多选题</option>
                   <option value="TRUE_FALSE">判断题</option>
                   <option value="FILL_BLANK">填空题</option>
+                  <option value="MATCHING">连线题</option>
                   <option value="ESSAY">简答题</option>
                 </select>
               </div>
@@ -316,19 +468,88 @@ export default function QuestionDetailPage() {
                 </div>
               )}
 
+              {editForm.type === "MATCHING" && (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      左侧列表（每行一个）
+                    </label>
+                    <textarea
+                      className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[120px]"
+                      value={editForm.matching?.leftItems?.join("\n") || ""}
+                      onChange={(e) =>
+                        handleMatchingListChange("leftItems", e.target.value)
+                      }
+                      placeholder="示例：\n概念A\n概念B"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      右侧列表（每行一个）
+                    </label>
+                    <textarea
+                      className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[120px]"
+                      value={editForm.matching?.rightItems?.join("\n") || ""}
+                      onChange={(e) =>
+                        handleMatchingListChange("rightItems", e.target.value)
+                      }
+                      placeholder="示例：\n定义1\n定义2"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      正确连线
+                    </label>
+                    <div className="space-y-3">
+                      {(editForm.matching?.leftItems || []).map((leftItem) => (
+                        <div
+                          key={leftItem}
+                          className="flex flex-col gap-2 rounded-xl border border-border bg-slate-50 p-3"
+                        >
+                          <span className="text-sm font-semibold text-ink-900">
+                            {leftItem}
+                          </span>
+                          <select
+                            className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                            value={editForm.matching?.matches?.[leftItem] || ""}
+                            onChange={(e) =>
+                              updateMatchingPair(leftItem, e.target.value)
+                            }
+                          >
+                            <option value="">请选择匹配项</option>
+                            {(editForm.matching?.rightItems || []).map(
+                              (rightItem) => (
+                                <option key={rightItem} value={rightItem}>
+                                  {rightItem}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="mb-2 block text-sm font-semibold text-ink-900">
                   答案
                 </label>
                 <textarea
                   className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[80px]"
-                  value={editForm.answer || ""}
+                  value={
+                    typeof editForm.answer === "string" ? editForm.answer : ""
+                  }
                   onChange={(e) => handleInputChange("answer", e.target.value)}
                   placeholder={
                     editForm.type === "TRUE_FALSE"
                       ? "正确 或 错误"
-                      : "请输入正确答案"
+                      : editForm.type === "MATCHING"
+                        ? "系统已根据连线生成答案，可留空"
+                        : "请输入正确答案"
                   }
+                  disabled={editForm.type === "MATCHING"}
                 />
                 <p className="mt-1 text-xs text-ink-700">
                   {editForm.type === "MULTIPLE_CHOICE"
@@ -527,13 +748,70 @@ export default function QuestionDetailPage() {
                 </div>
               )}
 
+              {question.matching && (
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-ink-900">
+                    连线配置
+                  </h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl border border-border bg-slate-50 p-3">
+                      <p className="text-xs font-semibold text-ink-700 mb-2">
+                        左侧
+                      </p>
+                      <div className="space-y-2">
+                        {question.matching.leftItems.map((item) => (
+                          <div
+                            key={item}
+                            className="rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-border bg-slate-50 p-3">
+                      <p className="text-xs font-semibold text-ink-700 mb-2">
+                        右侧
+                      </p>
+                      <div className="space-y-2">
+                        {question.matching.rightItems.map((item) => (
+                          <div
+                            key={item}
+                            className="rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                          >
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+                    {Object.entries(question.matching.matches).map(
+                      ([left, right]) => (
+                        <div key={left}>
+                          {left} → {right}
+                        </div>
+                      ),
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <h3 className="mb-2 text-sm font-semibold text-ink-900">
                     答案
                   </h3>
                   <div className="rounded-xl border border-border bg-slate-50 px-3 py-2 text-ink-900">
-                    <MarkdownRenderer content={question.answer || "-"} />
+                    <MarkdownRenderer
+                      content={
+                        Array.isArray(question.answer)
+                          ? question.answer
+                              .map((pair) => `${pair.left}→${pair.right}`)
+                              .join(", ")
+                          : question.answer || "-"
+                      }
+                    />
                   </div>
                 </div>
 

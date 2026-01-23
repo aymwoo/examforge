@@ -33,6 +33,11 @@ export default function NewQuestionPage() {
       { label: "C", content: "" },
       { label: "D", content: "" },
     ],
+    matching: {
+      leftItems: [""],
+      rightItems: [""],
+      matches: {},
+    },
     knowledgePoint: "",
     isPublic: true,
   });
@@ -89,7 +94,29 @@ export default function NewQuestionPage() {
       setError("选择题必须至少有一个选项");
       return false;
     }
-    if (!form.answer?.trim()) {
+    if (form.type === "MATCHING") {
+      const leftItems = form.matching?.leftItems || [];
+      const rightItems = form.matching?.rightItems || [];
+      const matches = form.matching?.matches || {};
+      const hasEmptyLeft = leftItems.some((item) => !item.trim());
+      const hasEmptyRight = rightItems.some((item) => !item.trim());
+      if (leftItems.length === 0 || rightItems.length === 0) {
+        setError("连线题必须包含左右两列内容");
+        return false;
+      }
+      if (hasEmptyLeft || hasEmptyRight) {
+        setError("连线题左右两列不能有空项");
+        return false;
+      }
+      if (Object.keys(matches).length !== leftItems.length) {
+        setError("连线题需要为每个左侧项设置匹配");
+        return false;
+      }
+    }
+    if (
+      form.type !== "MATCHING" &&
+      (!form.answer || (typeof form.answer === "string" && !form.answer.trim()))
+    ) {
       setError("答案不能为空");
       return false;
     }
@@ -126,6 +153,73 @@ export default function NewQuestionPage() {
   const handleTypeChange = (newType: string) => {
     setForm((prev) => ({ ...prev, type: newType }));
     setError(null);
+  };
+
+  const handleMatchingListChange = (
+    side: "leftItems" | "rightItems",
+    value: string,
+  ) => {
+    const items = value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    setForm((prev) => {
+      const currentMatches = prev.matching?.matches || {};
+      const nextMatches: Record<string, string> = {};
+      if (side === "leftItems") {
+        items.forEach((item) => {
+          if (currentMatches[item]) {
+            nextMatches[item] = currentMatches[item];
+          }
+        });
+      } else {
+        Object.entries(currentMatches).forEach(([left, right]) => {
+          if (items.includes(right)) {
+            nextMatches[left] = right;
+          }
+        });
+      }
+      return {
+        ...prev,
+        matching: {
+          leftItems:
+            side === "leftItems" ? items : prev.matching?.leftItems || [],
+          rightItems:
+            side === "rightItems" ? items : prev.matching?.rightItems || [],
+          matches: nextMatches,
+        },
+        answer:
+          side === "rightItems" && Object.keys(nextMatches).length === 0
+            ? ""
+            : prev.answer,
+      };
+    });
+  };
+
+  const updateMatchingPair = (leftItem: string, rightItem: string) => {
+    setForm((prev) => {
+      const leftItems = prev.matching?.leftItems || [];
+      const rightItems = prev.matching?.rightItems || [];
+      const nextMatches = {
+        ...(prev.matching?.matches || {}),
+        [leftItem]: rightItem,
+      };
+      const answerValue = JSON.stringify(
+        leftItems.map((left) => ({
+          left,
+          right: nextMatches[left] || "",
+        })),
+      );
+      return {
+        ...prev,
+        matching: {
+          leftItems,
+          rightItems,
+          matches: nextMatches,
+        },
+        answer: answerValue,
+      };
+    });
   };
 
   if (loading) {
@@ -187,6 +281,7 @@ export default function NewQuestionPage() {
                   <option value="MULTIPLE_CHOICE">多选题</option>
                   <option value="TRUE_FALSE">判断题</option>
                   <option value="FILL_BLANK">填空题</option>
+                  <option value="MATCHING">连线题</option>
                   <option value="ESSAY">简答题</option>
                 </select>
               </div>
@@ -226,19 +321,89 @@ export default function NewQuestionPage() {
                 </div>
               )}
 
+              {form.type === "MATCHING" && (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      左侧列表（每行一个）
+                    </label>
+                    <textarea
+                      className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[120px]"
+                      value={form.matching?.leftItems?.join("\n") || ""}
+                      onChange={(e) =>
+                        handleMatchingListChange("leftItems", e.target.value)
+                      }
+                      placeholder="示例：\n概念A\n概念B"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      右侧列表（每行一个）
+                    </label>
+                    <textarea
+                      className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[120px]"
+                      value={form.matching?.rightItems?.join("\n") || ""}
+                      onChange={(e) =>
+                        handleMatchingListChange("rightItems", e.target.value)
+                      }
+                      placeholder="示例：\n定义1\n定义2"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="mb-2 block text-sm font-semibold text-ink-900">
+                      正确连线
+                    </label>
+                    <div className="space-y-3">
+                      {(form.matching?.leftItems || []).map((leftItem) => (
+                        <div
+                          key={leftItem}
+                          className="flex flex-col gap-2 rounded-xl border border-border bg-slate-50 p-3"
+                        >
+                          <span className="text-sm font-semibold text-ink-900">
+                            {leftItem}
+                          </span>
+                          <select
+                            className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900"
+                            value={form.matching?.matches?.[leftItem] || ""}
+                            onChange={(e) =>
+                              updateMatchingPair(leftItem, e.target.value)
+                            }
+                          >
+                            <option value="">请选择匹配项</option>
+                            {(form.matching?.rightItems || []).map(
+                              (rightItem) => (
+                                <option key={rightItem} value={rightItem}>
+                                  {rightItem}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-ink-700">
+                      系统会根据这里的配对生成标准答案，考试时学生需要拖动完成连线。
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="mb-2 block text-sm font-semibold text-ink-900">
                   答案
                 </label>
                 <textarea
                   className="mt-2 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 min-h-[80px]"
-                  value={form.answer || ""}
+                  value={typeof form.answer === "string" ? form.answer : ""}
                   onChange={(e) => handleInputChange("answer", e.target.value)}
                   placeholder={
                     form.type === "TRUE_FALSE"
                       ? "正确 或 错误"
-                      : "请输入正确答案"
+                      : form.type === "MATCHING"
+                        ? "系统已根据连线生成答案，可留空"
+                        : "请输入正确答案"
                   }
+                  disabled={form.type === "MATCHING"}
                 />
                 <p className="mt-1 text-xs text-ink-700">
                   {form.type === "MULTIPLE_CHOICE"

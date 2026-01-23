@@ -24,6 +24,7 @@ export class QuestionService {
 
   async create(dto: CreateQuestionDto, userId?: string) {
     const optionsJson = dto.options ? JSON.stringify(dto.options) : null;
+    const matchingJson = dto.matching ? JSON.stringify(dto.matching) : null;
     const tagsStr = dto.tags ? JSON.stringify(dto.tags) : '[]';
     const imagesStr = dto.images ? JSON.stringify(dto.images) : '[]';
 
@@ -32,7 +33,7 @@ export class QuestionService {
         content: dto.content,
         type: dto.type as any,
         options: optionsJson,
-        answer: serializeQuestionAnswer(dto.answer),
+        answer: serializeQuestionAnswer(dto.answer ?? matchingJson),
         explanation: dto.explanation,
         illustration: dto.illustration,
         images: imagesStr,
@@ -147,7 +148,9 @@ export class QuestionService {
     if (dto.content !== undefined) updateData.content = dto.content;
     if (dto.type !== undefined) updateData.type = dto.type;
     if (dto.options !== undefined) updateData.options = JSON.stringify(dto.options);
-    if (dto.answer !== undefined) updateData.answer = serializeQuestionAnswer(dto.answer);
+    if (dto.answer !== undefined || dto.matching !== undefined) {
+      updateData.answer = serializeQuestionAnswer(dto.answer ?? dto.matching);
+    }
     if (dto.explanation !== undefined) updateData.explanation = dto.explanation;
     if (dto.illustration !== undefined) updateData.illustration = dto.illustration;
     if (dto.images !== undefined) updateData.images = JSON.stringify(dto.images);
@@ -346,12 +349,64 @@ export class QuestionService {
   }
 
   private transformQuestion(question: any) {
+    let matching = undefined;
+    if (question.type === QuestionType.MATCHING) {
+      matching = this.parseMatchingAnswer(question.answer);
+    }
     return {
       ...question,
       options: question.options ? JSON.parse(question.options) : undefined,
       answer: question.answer ?? undefined,
+      matching,
       tags: question.tags ? JSON.parse(question.tags) : [],
       images: question.images ? this.safeParseImages(question.images) : [],
     };
+  }
+
+  private parseMatchingAnswer(answer?: string | null) {
+    if (!answer) {
+      return undefined;
+    }
+
+    try {
+      const parsed = JSON.parse(answer);
+      if (Array.isArray(parsed)) {
+        const matches: Record<string, string> = {};
+        const leftItems: string[] = [];
+        const rightItems: string[] = [];
+        parsed.forEach((pair) => {
+          if (pair?.left && pair?.right) {
+            const left = String(pair.left);
+            const right = String(pair.right);
+            matches[left] = right;
+            leftItems.push(left);
+            rightItems.push(right);
+          }
+        });
+        return {
+          leftItems,
+          rightItems: Array.from(new Set(rightItems)),
+          matches,
+        };
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        const matches = (parsed as { matches?: Record<string, string> }).matches || {};
+        const leftItems = (parsed as { leftItems?: string[] }).leftItems || Object.keys(matches);
+        const rightItems =
+          (parsed as { rightItems?: string[] }).rightItems || Object.values(matches);
+        return {
+          leftItems,
+          rightItems: Array.from(new Set(rightItems.map((item) => String(item)))) as string[],
+          matches: Object.fromEntries(
+            Object.entries(matches).map(([left, right]) => [String(left), String(right)])
+          ),
+        };
+      }
+    } catch {
+      return undefined;
+    }
+
+    return undefined;
   }
 }

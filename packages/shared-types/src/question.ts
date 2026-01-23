@@ -3,6 +3,7 @@ export enum QuestionType {
   MULTIPLE_CHOICE = "MULTIPLE_CHOICE",
   TRUE_FALSE = "TRUE_FALSE",
   FILL_BLANK = "FILL_BLANK",
+  MATCHING = "MATCHING",
   ESSAY = "ESSAY",
 }
 
@@ -11,6 +12,7 @@ export const QuestionTypeLabels: Record<QuestionType, string> = {
   [QuestionType.MULTIPLE_CHOICE]: "多选题",
   [QuestionType.TRUE_FALSE]: "判断题",
   [QuestionType.FILL_BLANK]: "填空题",
+  [QuestionType.MATCHING]: "连线题",
   [QuestionType.ESSAY]: "简答题",
 };
 
@@ -30,6 +32,11 @@ export interface Question {
   content: string;
   type: QuestionType;
   options?: QuestionOption[];
+  matching?: {
+    leftItems: string[];
+    rightItems: string[];
+    matches: Record<string, string>;
+  };
   answer: string;
   explanation?: string;
   illustration?: string;
@@ -47,6 +54,11 @@ export interface CreateQuestionDto {
   content: string;
   type: QuestionType;
   options?: QuestionOption[];
+  matching?: {
+    leftItems: string[];
+    rightItems: string[];
+    matches: Record<string, string>;
+  };
   answer: string;
   explanation?: string;
   tags?: string[];
@@ -58,6 +70,11 @@ export interface UpdateQuestionDto {
   content?: string;
   type?: QuestionType;
   options?: QuestionOption[];
+  matching?: {
+    leftItems: string[];
+    rightItems: string[];
+    matches: Record<string, string>;
+  };
   answer?: string;
   explanation?: string;
   tags?: string[];

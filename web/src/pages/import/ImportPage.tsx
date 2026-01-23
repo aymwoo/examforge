@@ -464,9 +464,9 @@ export default function ImportPage() {
 [
   {
     "stem": "题目内容",
-    "type": "SINGLE_CHOICE|MULTIPLE_CHOICE|TRUE_FALSE|FILL_BLANK|ESSAY",
+    "type": "SINGLE_CHOICE|MULTIPLE_CHOICE|TRUE_FALSE|FILL_BLANK|MATCHING|ESSAY",
     "options": ["选项A", "选项B", "选项C", "选项D"], // 仅选择题需要
-    "answer": "A|[A,B,C]|true|正确答案|正确答案内容", // 根据题型变化
+    "answer": "A|[A,B,C]|true|正确答案|[{"left":"左侧1","right":"右侧A"}]", // 根据题型变化
     "explanation": "解析内容",
     "tags": ["${aiGenerationParams.subject}", "标签1", "标签2"], // 请将学科作为标签添加
     "difficulty": 1-5的数字,
@@ -803,7 +803,8 @@ export default function ImportPage() {
                           <span className="font-semibold text-ink-900">
                             题型
                           </span>{" "}
-                          - 可选，支持：单选题、多选题、判断题、填空题、简答题
+                          -
+                          可选，支持：单选题、多选题、判断题、填空题、连线题、简答题
                         </li>
                         <li>
                           <span className="font-semibold text-ink-900">
@@ -876,6 +877,12 @@ export default function ImportPage() {
                           FILL_BLANK
                         </td>
                       </tr>
+                      <tr className="border-b border-border">
+                        <td className="py-2 text-ink-700">连线题</td>
+                        <td className="py-2 text-right text-ink-900">
+                          MATCHING
+                        </td>
+                      </tr>
                       <tr>
                         <td className="py-2 text-ink-700">简答题</td>
                         <td className="py-2 text-right text-ink-900">ESSAY</td>
@@ -946,13 +953,30 @@ export default function ImportPage() {
   },
   {
     "stem": "简答题示例：请简述什么是人工智能",
-    "type": "ESSAY",
-    "answer": "人工智能是计算机科学的一个分支",
-    "explanation": "需要详细阐述概念",
-    "tags": ["简答"],
-    "difficulty": 3,
-    "knowledgePoint": "计算机科学"
-  }
+     "type": "MATCHING",
+     "matching": {
+       "leftItems": ["光合作用", "呼吸作用"],
+       "rightItems": ["合成有机物", "分解有机物"],
+       "matches": {"光合作用": "合成有机物", "呼吸作用": "分解有机物"}
+     },
+     "answer": [
+       {"left": "光合作用", "right": "合成有机物"},
+       {"left": "呼吸作用", "right": "分解有机物"}
+     ],
+     "explanation": "连线题用 matching 字段描述左右列表及映射",
+     "tags": ["连线"],
+     "difficulty": 2,
+     "knowledgePoint": "生物"
+   },
+   {
+     "stem": "简答题示例：请简述什么是人工智能",
+     "type": "ESSAY",
+     "answer": "人工智能是计算机科学的一个分支",
+     "explanation": "需要详细阐述概念",
+     "tags": ["简答"],
+     "difficulty": 3,
+     "knowledgePoint": "计算机科学"
+   }
 ]`}
                   </pre>
                 </div>

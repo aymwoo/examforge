@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Plus, Search, Trash2, Image } from "lucide-react";
+import { Plus, Search, Trash2, Image, Download } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Button from "@/components/ui/Button";
 import {
@@ -9,6 +9,7 @@ import {
   type Question,
 } from "@/services/questions";
 import { getCurrentUser } from "@/utils/auth";
+import { downloadExcel, downloadJson } from "@/utils/exportUtils";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -20,6 +21,7 @@ const typeLabels: Record<string, string> = {
   MULTIPLE_CHOICE: "多选题",
   TRUE_FALSE: "判断题",
   FILL_BLANK: "填空题",
+  MATCHING: "连线题",
   ESSAY: "简答题",
 };
 
@@ -42,6 +44,7 @@ export default function QuestionsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleting, setDeleting] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [exportingAll, setExportingAll] = useState(false);
 
   // Image modal state
   const [showImageModal, setShowImageModal] = useState(false);
@@ -150,6 +153,152 @@ export default function QuestionsPage() {
 
   const handleResetFilters = () => {
     setFilters({ type: "", difficulty: "", tags: "", search: "" });
+  };
+
+  const fetchAllQuestions = async () => {
+    const allQuestions: Question[] = [];
+    let currentPage = 1;
+    let totalPages = 1;
+
+    while (currentPage <= totalPages) {
+      const response = await listQuestions({ page: currentPage, limit: 200 });
+      allQuestions.push(...response.data);
+      totalPages = response.meta.totalPages;
+      currentPage += 1;
+    }
+
+    return allQuestions;
+  };
+
+  const formatMatchingAnswer = (answer: any) => {
+    if (!answer) return "";
+    const pairs = parseMatchingPairs(answer);
+    if (pairs.length === 0) return "";
+    return pairs.map((pair) => `${pair.left}→${pair.right}`).join(", ");
+  };
+
+  const parseMatchingPairs = (value: any) => {
+    if (!value) return [] as Array<{ left: string; right: string }>;
+    if (Array.isArray(value)) {
+      return value
+        .map((pair) => ({
+          left: String(pair.left || ""),
+          right: String(pair.right || ""),
+        }))
+        .filter((pair) => pair.left && pair.right);
+    }
+    if (typeof value === "string") {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((pair) => ({
+              left: String(pair.left || ""),
+              right: String(pair.right || ""),
+            }))
+            .filter((pair) => pair.left && pair.right);
+        }
+        if (parsed && typeof parsed === "object") {
+          const matches = (parsed as any).matches || {};
+          return Object.entries(matches).map(([left, right]) => ({
+            left: String(left),
+            right: String(right),
+          }));
+        }
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
+  const getExportQuestions = () => {
+    if (selectedIds.size > 0) {
+      return questions.filter((question) => selectedIds.has(question.id));
+    }
+    return questions;
+  };
+
+  const buildExportRows = (exportQuestions: Question[]) =>
+    exportQuestions.map((question) => {
+      const matching = question.matching;
+      return {
+        题干: question.content,
+        题型: typeLabels[question.type] || question.type,
+        选项: question.options
+          ? question.options
+              .map((opt) => `${opt.label}.${opt.content}`)
+              .join(" ")
+          : "",
+        连线左侧: matching?.leftItems?.join(" | ") || "",
+        连线右侧: matching?.rightItems?.join(" | ") || "",
+        连线映射: matching
+          ? Object.entries(matching.matches)
+              .map(([left, right]) => `${left}=>${right}`)
+              .join(" | ")
+          : "",
+        答案:
+          question.type === "MATCHING"
+            ? formatMatchingAnswer(question.answer)
+            : Array.isArray(question.answer)
+              ? question.answer.join(", ")
+              : question.answer || "",
+        解析: question.explanation || "",
+        标签: question.tags?.join(", ") || "",
+        难度: question.difficulty,
+        知识点: question.knowledgePoint || "",
+      };
+    });
+
+  const buildExportJson = (exportQuestions: Question[]) =>
+    exportQuestions.map((question) => ({
+      ...question,
+      matching: question.matching,
+      answer: question.answer,
+    }));
+
+  const handleExportJson = () => {
+    const data = buildExportJson(getExportQuestions());
+    downloadJson(data, `question-bank-${Date.now()}`);
+  };
+
+  const handleExportExcel = () => {
+    const rows = buildExportRows(getExportQuestions());
+    downloadExcel(rows, `question-bank-${Date.now()}`, "题库");
+  };
+
+  const handleExportAllJson = async () => {
+    if (!window.confirm("确定要导出全部题库为 JSON 吗？")) {
+      return;
+    }
+    setExportingAll(true);
+    try {
+      const allQuestions = await fetchAllQuestions();
+      const data = buildExportJson(allQuestions);
+      downloadJson(data, `question-bank-all-${Date.now()}`);
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || "导出失败");
+    } finally {
+      setExportingAll(false);
+    }
+  };
+
+  const handleExportAllExcel = async () => {
+    if (!window.confirm("确定要导出全部题库为 Excel 吗？")) {
+      return;
+    }
+    setExportingAll(true);
+    try {
+      const allQuestions = await fetchAllQuestions();
+      const rows = buildExportRows(allQuestions);
+      downloadExcel(rows, `question-bank-all-${Date.now()}`, "题库");
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || "导出失败");
+    } finally {
+      setExportingAll(false);
+    }
   };
 
   // Selection handlers
@@ -374,6 +523,40 @@ export default function QuestionsPage() {
               <Plus className="h-4 w-4 mr-2" />
               新增题目
             </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportJson}
+              className="text-ink-700 border-ink-200 hover:bg-ink-50"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              导出 JSON{selectedIds.size > 0 ? "(选中)" : "(当前页)"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              className="text-ink-700 border-ink-200 hover:bg-ink-50"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              导出 Excel{selectedIds.size > 0 ? "(选中)" : "(当前页)"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportAllJson}
+              disabled={exportingAll}
+              className="text-ink-700 border-ink-200 hover:bg-ink-50"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {exportingAll ? "导出中..." : "导出全部 JSON"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportAllExcel}
+              disabled={exportingAll}
+              className="text-ink-700 border-ink-200 hover:bg-ink-50"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {exportingAll ? "导出中..." : "导出全部 Excel"}
+            </Button>
             {getCurrentUser()?.role === "ADMIN" && (
               <Button
                 onClick={handleClearQuestionBank}
@@ -419,6 +602,7 @@ export default function QuestionsPage() {
                 <option value="MULTIPLE_CHOICE">多选题</option>
                 <option value="TRUE_FALSE">判断题</option>
                 <option value="FILL_BLANK">填空题</option>
+                <option value="MATCHING">连线题</option>
                 <option value="ESSAY">简答题</option>
               </select>
             </div>
@@ -464,9 +648,11 @@ export default function QuestionsPage() {
           </div>
         </div>
 
-        {loading && (
+        {(loading || exportingAll) && (
           <div className="rounded-2xl border border-border bg-white p-12 text-center">
-            <p className="text-ink-700">加载中...</p>
+            <p className="text-ink-700">
+              {exportingAll ? "正在导出全部题库..." : "加载中..."}
+            </p>
           </div>
         )}
 

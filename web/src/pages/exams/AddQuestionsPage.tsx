@@ -11,6 +11,7 @@ const typeLabels: Record<string, string> = {
   MULTIPLE_CHOICE: "多选题",
   TRUE_FALSE: "判断题",
   FILL_BLANK: "填空题",
+  MATCHING: "连线题",
   ESSAY: "简答题",
 };
 
@@ -450,7 +451,12 @@ export default function AddQuestionsPage() {
                             <div
                               className={`text-sm ml-8 mt-2 ${isExisting ? "text-gray-400" : "text-green-600"}`}
                             >
-                              答案: {question.answer}
+                              答案:{" "}
+                              {Array.isArray(question.answer)
+                                ? question.answer
+                                    .map((pair) => `${pair.left}→${pair.right}`)
+                                    .join(", ")
+                                : question.answer}
                             </div>
                           )}
                         </div>

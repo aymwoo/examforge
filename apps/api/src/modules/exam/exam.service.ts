@@ -18,6 +18,7 @@ import { CreateExamStudentDto } from './dto/create-exam-student.dto';
 import { BatchCreateExamStudentsDto } from './dto/batch-create-exam-students.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AccountGenerator } from '../../common/utils/account-generator';
+import { QuestionType } from '@/common/enums/question.enum';
 import * as bcrypt from 'bcrypt';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -561,12 +562,72 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
         questionId: eq.questionId,
         order: eq.order,
         score: eq.score,
-        question: eq.question,
+        question: this.transformExamQuestion(eq.question),
       })),
       submissionCount: exam._count.submissions,
       totalStudents: exam._count.examStudents,
       _count: undefined,
     };
+  }
+
+  private transformExamQuestion(question: any) {
+    if (!question) return question;
+    let matching = undefined;
+    if (question.type === QuestionType.MATCHING) {
+      matching = this.parseMatchingAnswer(question.answer);
+    }
+    return {
+      ...question,
+      matching,
+      options: question.options ? JSON.parse(question.options) : undefined,
+    };
+  }
+
+  private parseMatchingAnswer(answer?: string | null) {
+    if (!answer) {
+      return undefined;
+    }
+
+    try {
+      const parsed = JSON.parse(answer);
+      if (Array.isArray(parsed)) {
+        const matches: Record<string, string> = {};
+        const leftItems: string[] = [];
+        const rightItems: string[] = [];
+        parsed.forEach((pair) => {
+          if (pair?.left && pair?.right) {
+            const left = String(pair.left);
+            const right = String(pair.right);
+            matches[left] = right;
+            leftItems.push(left);
+            rightItems.push(right);
+          }
+        });
+        return {
+          leftItems,
+          rightItems: Array.from(new Set(rightItems)),
+          matches,
+        };
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        const matches = (parsed as { matches?: Record<string, string> }).matches || {};
+        const leftItems = (parsed as { leftItems?: string[] }).leftItems || Object.keys(matches);
+        const rightItems =
+          (parsed as { rightItems?: string[] }).rightItems || Object.values(matches);
+        return {
+          leftItems,
+          rightItems: Array.from(new Set(rightItems.map((item) => String(item)))) as string[],
+          matches: Object.fromEntries(
+            Object.entries(matches).map(([left, right]) => [String(left), String(right)])
+          ),
+        };
+      }
+    } catch {
+      return undefined;
+    }
+
+    return undefined;
   }
 
   // 学生管理功能
@@ -742,6 +803,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
           id: eq.question.id,
           content: eq.question.content,
           type: eq.question.type,
+          matching: this.parseMatchingAnswer(eq.question.answer),
           images: (() => {
             if (!eq.question.images) {
               console.log('No images field for question', eq.question.id);
@@ -1157,7 +1219,29 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
         message: `正在评分第${currentQuestion}题 (${question.type})`,
       });
 
-      if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
+      if (
+        question.type === 'SINGLE_CHOICE' ||
+        question.type === 'MULTIPLE_CHOICE' ||
+        question.type === 'TRUE_FALSE' ||
+        question.type === 'MATCHING'
+      ) {
+        if (question.type === 'MATCHING') {
+          const matchingResult = this.gradeMatchingAnswer(studentAnswer, question.answer, maxScore);
+          details[question.id] = {
+            type: 'objective',
+            studentAnswer: studentAnswer !== undefined ? studentAnswer : '',
+            correctAnswer: question.answer,
+            isCorrect: matchingResult.isFullyCorrect,
+            score: matchingResult.score,
+            maxScore,
+            feedback: matchingResult.feedback,
+            correctCount: matchingResult.correctCount,
+            totalCount: matchingResult.totalCount,
+          };
+
+          totalScore += matchingResult.score;
+          continue;
+        }
         const correctAnswerText = this.convertAnswerToText(
           question.answer,
           question.options,
@@ -1230,7 +1314,29 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
         message: `正在评分第${currentQuestion}题 (${question.type})`,
       });
 
-      if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
+      if (
+        question.type === 'SINGLE_CHOICE' ||
+        question.type === 'MULTIPLE_CHOICE' ||
+        question.type === 'TRUE_FALSE' ||
+        question.type === 'MATCHING'
+      ) {
+        if (question.type === 'MATCHING') {
+          const matchingResult = this.gradeMatchingAnswer(studentAnswer, question.answer, maxScore);
+          details[question.id] = {
+            type: 'objective',
+            studentAnswer: studentAnswer !== undefined ? studentAnswer : '',
+            correctAnswer: question.answer,
+            isCorrect: matchingResult.isFullyCorrect,
+            score: matchingResult.score,
+            maxScore,
+            feedback: matchingResult.feedback,
+            correctCount: matchingResult.correctCount,
+            totalCount: matchingResult.totalCount,
+          };
+
+          totalScore += matchingResult.score;
+          continue;
+        }
         const correctAnswerText = this.convertAnswerToText(
           question.answer,
           question.options,
@@ -2057,6 +2163,75 @@ ${studentAnswer}
       }
     }
     return false;
+  }
+
+  private gradeMatchingAnswer(
+    studentAnswer: any,
+    correctAnswer: string | null | undefined,
+    maxScore: number
+  ) {
+    const correctPairs = this.parseMatchingPairs(correctAnswer);
+    const studentPairs = this.parseMatchingPairs(studentAnswer);
+
+    if (correctPairs.length === 0) {
+      return {
+        score: 0,
+        isFullyCorrect: false,
+        correctCount: 0,
+        totalCount: 0,
+        feedback: '未提供正确答案',
+      };
+    }
+
+    const totalCount = correctPairs.length;
+    const correctCount = correctPairs.filter((pair) =>
+      studentPairs.some(
+        (studentPair) => studentPair.left === pair.left && studentPair.right === pair.right
+      )
+    ).length;
+
+    const ratio = correctCount / totalCount;
+    const score = Math.round(maxScore * ratio * 100) / 100;
+    const isFullyCorrect = correctCount === totalCount;
+
+    return {
+      score,
+      isFullyCorrect,
+      correctCount,
+      totalCount,
+      feedback: isFullyCorrect
+        ? '答案正确'
+        : `正确 ${correctCount}/${totalCount}，得分 ${score}/${maxScore}`,
+    };
+  }
+
+  private parseMatchingPairs(answer: any) {
+    if (!answer) return [] as Array<{ left: string; right: string }>;
+    if (Array.isArray(answer)) {
+      return answer
+        .map((pair) => ({ left: String(pair.left || ''), right: String(pair.right || '') }))
+        .filter((pair) => pair.left && pair.right);
+    }
+    if (typeof answer === 'string') {
+      try {
+        const parsed = JSON.parse(answer);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((pair) => ({ left: String(pair.left || ''), right: String(pair.right || '') }))
+            .filter((pair) => pair.left && pair.right);
+        }
+        if (parsed && typeof parsed === 'object') {
+          const matches = (parsed as { matches?: Record<string, string> }).matches || {};
+          return Object.entries(matches).map(([left, right]) => ({
+            left: String(left),
+            right: String(right),
+          }));
+        }
+      } catch {
+        return [];
+      }
+    }
+    return [];
   }
 
   async generateStudentAccounts(examId: string, count: number, prefix: string = 'student') {

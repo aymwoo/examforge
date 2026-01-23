@@ -216,10 +216,15 @@ export default function SettingsPage() {
   "questions": [
     {
       "content": "题干内容",
-      "type": "题型(SINGLE_CHOICE/MULTIPLE_CHOICE/TRUE_FALSE/FILL_BLANK/ESSAY)",
+      "type": "题型(SINGLE_CHOICE/MULTIPLE_CHOICE/TRUE_FALSE/FILL_BLANK/MATCHING/ESSAY)",
       "options": [{"label": "A", "content": "选项1"}, ...],
       "answer": "正确答案",
       "explanation": "题目解析",
+      "matching": {
+        "leftItems": ["左侧1", "左侧2"],
+        "rightItems": ["右侧A", "右侧B"],
+        "matches": {"左侧1": "右侧A", "左侧2": "右侧B"}
+      },
       "difficulty": 1,
       "tags": ["标签1", "标签2"],
       "knowledgePoint": "知识点"

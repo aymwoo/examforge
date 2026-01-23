@@ -7,7 +7,12 @@ export interface Question {
   difficulty: number;
   tags: string[];
   options?: Array<{ label: string; content: string }>;
-  answer?: string;
+  matching?: {
+    leftItems: string[];
+    rightItems: string[];
+    matches: Record<string, string>;
+  };
+  answer?: string | Array<{ left: string; right: string }>;
   explanation?: string;
   illustration?: string;
   images?: string[];
