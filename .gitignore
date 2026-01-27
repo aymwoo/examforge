@@ -5,3 +5,6 @@ deploy.tar.gz
 deploy_stage/
 dist
 node_modules
+apps/api/prisma/dev.db
+apps/api/uploads/
+start_dev_output.log
