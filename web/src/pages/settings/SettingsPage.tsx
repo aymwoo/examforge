@@ -498,85 +498,73 @@ export default function SettingsPage() {
   ) => {
     try {
       // 获取系统默认值而不是直接删除用户设置
-      const response = await fetch("/api/settings/default-prompt-template", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({ templateType }),
+      const response = await api.post("/api/settings/default-prompt-template", {
+        templateType,
+      });
+      const defaultTemplate = response.data.template;
+
+      // 只更新本地状态，不保存到数据库
+      setSettings((prev) => {
+        switch (templateType) {
+          case "PROMPT_TEMPLATE":
+            return { ...prev, promptTemplate: defaultTemplate };
+          case "GRADING_PROMPT_TEMPLATE":
+            return { ...prev, gradingPromptTemplate: defaultTemplate };
+          case "ANALYSIS_PROMPT_TEMPLATE":
+            return { ...prev, analysisPromptTemplate: defaultTemplate };
+          case "STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE":
+            return {
+              ...prev,
+              studentAiAnalysisPromptTemplate: defaultTemplate,
+            };
+          case "JSON_GENERATION_PROMPT_TEMPLATE":
+            return { ...prev, jsonGenerationPromptTemplate: defaultTemplate };
+          default:
+            return prev;
+        }
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        const defaultTemplate = result.template;
-
-        // 只更新本地状态，不保存到数据库
-        setSettings((prev) => {
-          switch (templateType) {
-            case "PROMPT_TEMPLATE":
-              return { ...prev, promptTemplate: defaultTemplate };
-            case "GRADING_PROMPT_TEMPLATE":
-              return { ...prev, gradingPromptTemplate: defaultTemplate };
-            case "ANALYSIS_PROMPT_TEMPLATE":
-              return { ...prev, analysisPromptTemplate: defaultTemplate };
-            case "STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE":
-              return {
-                ...prev,
-                studentAiAnalysisPromptTemplate: defaultTemplate,
-              };
-            case "JSON_GENERATION_PROMPT_TEMPLATE":
-              return { ...prev, jsonGenerationPromptTemplate: defaultTemplate };
-            default:
-              return prev;
-          }
-        });
-
-        // 设置变更标志为true，以便用户知道需要保存
-        switch (templateType) {
-          case "PROMPT_TEMPLATE":
-            setPromptTemplateChanged(true);
-            break;
-          case "GRADING_PROMPT_TEMPLATE":
-            setGradingPromptTemplateChanged(true);
-            break;
-          case "ANALYSIS_PROMPT_TEMPLATE":
-            setAnalysisPromptTemplateChanged(true);
-            break;
-          case "STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE":
-            setStudentAiAnalysisPromptTemplateChanged(true);
-            break;
-          case "JSON_GENERATION_PROMPT_TEMPLATE":
-            setJsonGenerationPromptTemplateChanged(true);
-            break;
-        }
-
-        let message = "";
-        switch (templateType) {
-          case "PROMPT_TEMPLATE":
-            message = "试卷生成提示词";
-            break;
-          case "GRADING_PROMPT_TEMPLATE":
-            message = "AI评分提示词";
-            break;
-          case "ANALYSIS_PROMPT_TEMPLATE":
-            message = "分析报告提示词";
-            break;
-          case "STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE":
-            message = "学生AI分析提示词";
-            break;
-          case "JSON_GENERATION_PROMPT_TEMPLATE":
-            message = "AI生成JSON格式提示词";
-            break;
-          default:
-            message = "提示词";
-        }
-
-        setError(`${message}已重置为系统默认值（需点击保存按钮生效）`);
-      } else {
-        const errorData = await response.json();
-        setError(`获取默认值失败：${errorData.message || "未知错误"}`);
+      // 设置变更标志为true，以便用户知道需要保存
+      switch (templateType) {
+        case "PROMPT_TEMPLATE":
+          setPromptTemplateChanged(true);
+          break;
+        case "GRADING_PROMPT_TEMPLATE":
+          setGradingPromptTemplateChanged(true);
+          break;
+        case "ANALYSIS_PROMPT_TEMPLATE":
+          setAnalysisPromptTemplateChanged(true);
+          break;
+        case "STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE":
+          setStudentAiAnalysisPromptTemplateChanged(true);
+          break;
+        case "JSON_GENERATION_PROMPT_TEMPLATE":
+          setJsonGenerationPromptTemplateChanged(true);
+          break;
       }
+
+      let message = "";
+      switch (templateType) {
+        case "PROMPT_TEMPLATE":
+          message = "试卷生成提示词";
+          break;
+        case "GRADING_PROMPT_TEMPLATE":
+          message = "AI评分提示词";
+          break;
+        case "ANALYSIS_PROMPT_TEMPLATE":
+          message = "分析报告提示词";
+          break;
+        case "STUDENT_AI_ANALYSIS_PROMPT_TEMPLATE":
+          message = "学生AI分析提示词";
+          break;
+        case "JSON_GENERATION_PROMPT_TEMPLATE":
+          message = "AI生成JSON格式提示词";
+          break;
+        default:
+          message = "提示词";
+      }
+
+      setError(`${message}已重置为系统默认值（需点击保存按钮生效）`);
     } catch (error: any) {
       console.error("重置提示词失败:", error);
       setError("重置失败：" + (error.response?.data?.message || error.message));

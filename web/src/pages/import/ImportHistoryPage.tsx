@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/Toast";
+import api from "@/services/api";
 
 interface ImportRecord {
   id: string;
@@ -60,18 +61,8 @@ export default function ImportHistoryPage() {
 
   const fetchImportHistory = async () => {
     try {
-      const response = await fetch("/api/import/history", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setRecords(data);
-      } else {
-        showError("获取导入历史失败");
-      }
+      const response = await api.get("/api/import/history");
+      setRecords(response.data);
     } catch (error) {
       showError("获取导入历史失败");
     } finally {
@@ -88,32 +79,21 @@ export default function ImportHistoryPage() {
     setCreating(true);
     setCreateProgress(20);
     try {
-      const response = await fetch(`/api/import/history/${jobId}/create-exam`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify({
+      const response = await api.post(
+        `/api/import/history/${jobId}/create-exam`,
+        {
           examTitle: examTitle.trim(),
           duration: examDuration,
-        }),
-      });
+        },
+      );
 
       setCreateProgress(70);
-
-      if (response.ok) {
-        const result = await response.json();
-        setCreateProgress(100);
-        showSuccess(`考试创建成功！包含 ${result.questionCount} 道题目`);
-        setCreateExamDialog(null);
-        setExamTitle("");
-        setExamDuration(60);
-        navigate(`/exams/${result.examId}`);
-      } else {
-        const error = await response.json();
-        showError(error.message || "创建考试失败");
-      }
+      setCreateProgress(100);
+      showSuccess(`考试创建成功！包含 ${response.data.questionCount} 道题目`);
+      setCreateExamDialog(null);
+      setExamTitle("");
+      setExamDuration(60);
+      navigate(`/exams/${response.data.examId}`);
     } catch (error) {
       showError("创建考试失败");
     } finally {
@@ -132,24 +112,14 @@ export default function ImportHistoryPage() {
     setDetailLoading(true);
 
     try {
-      const response = await fetch(
-        `/api/import/history/${jobId}/questions?page=${page}&limit=${detailPageSize}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
+      const response = await api.get(`/api/import/history/${jobId}/questions`, {
+        params: {
+          page,
+          limit: detailPageSize,
         },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setDetailQuestions(data.data || []);
-        setDetailTotal(data.total || 0);
-      } else {
-        setDetailQuestions([]);
-        setDetailTotal(0);
-        showError("获取题目详情失败");
-      }
+      });
+      setDetailQuestions(response.data.data || []);
+      setDetailTotal(response.data.total || 0);
     } catch (error) {
       console.error("获取题目详情失败:", error);
       setDetailQuestions([]);

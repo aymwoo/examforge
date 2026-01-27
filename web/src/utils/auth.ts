@@ -22,17 +22,21 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const isAuthenticated = (): boolean => {
-  const token = localStorage.getItem("token");
   const user = getCurrentUser();
-  return !!(token && user);
+  return !!user;
 };
 
-export const logout = (): void => {
-  localStorage.removeItem("token");
+export const logout = async (): Promise<void> => {
   localStorage.removeItem("user");
   // 清除考试登录信息
   localStorage.removeItem("examToken");
   localStorage.removeItem("examStudent");
+  try {
+    const { default: api } = await import("@/services/api");
+    await api.post("/api/auth/logout");
+  } catch {
+    // ignore
+  }
   window.location.href = "/";
 };
 

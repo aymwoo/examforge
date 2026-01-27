@@ -13,6 +13,7 @@ const resolvedBaseUrl = (() => {
 const api = axios.create({
   baseURL: resolvedBaseUrl,
   timeout: 60000, // 增加到60秒，以支持长时间的AI生成任务
+  withCredentials: true,
 });
 
 // Request interceptor
@@ -23,10 +24,7 @@ api.interceptors.request.use(
       return config;
     }
 
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    config.withCredentials = true;
     return config;
   },
   (error) => Promise.reject(error),

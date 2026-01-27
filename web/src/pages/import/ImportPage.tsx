@@ -269,7 +269,6 @@ export default function ImportPage() {
 
         // Load user's prompt template (includes user customizations)
         const promptTemplate = settingsData.promptTemplate || "";
-        console.log("Loaded prompt template:", promptTemplate);
 
         if (promptTemplate.trim()) {
           setTempPrompt(promptTemplate);
@@ -502,7 +501,6 @@ export default function ImportPage() {
       });
 
       // 使用轮询方式获取进度（避免SSE的认证问题）
-      const token = localStorage.getItem("token");
       let isCompleted = false;
 
       // 确保jobId存在
@@ -517,26 +515,19 @@ export default function ImportPage() {
         if (isCompleted) return; // 如果已完成则停止轮询
 
         try {
-          const response = await fetch(
-            `/api/ai/generate-questions-json-stream/progress/${jobId}?format=json`,
+          const response = await api.get(
+            `/api/ai/generate-questions-json-stream/progress/${jobId}`,
             {
+              params: {
+                format: "json",
+              },
               headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: "application/json", // 使用普通请求而非SSE
+                Accept: "application/json",
               },
             },
           );
 
-          if (!response.ok) {
-            if (response.status === 401) {
-              console.error("认证失败");
-              setIsGenerating(false);
-              return;
-            }
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          const events: any[] = await response.json();
+          const events: any[] = response.data;
           if (events.length > 0) {
             const latestEvent = events[events.length - 1];
 

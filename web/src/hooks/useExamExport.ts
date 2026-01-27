@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { streamSse } from "@/utils/sse";
 
 export type ExamExportOptions = {
   includeGrades?: boolean;
@@ -17,11 +18,11 @@ export function useExamExport(examId?: string, options?: ExamExportOptions) {
   const [meta, setMeta] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const eventSourceRef = useRef<AbortController | null>(null);
 
   const close = useCallback(() => {
     if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+      eventSourceRef.current.abort();
       eventSourceRef.current = null;
     }
     setIsExporting(false);
@@ -51,7 +52,7 @@ export function useExamExport(examId?: string, options?: ExamExportOptions) {
     hasCompletedRef.current = false;
 
     if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+      eventSourceRef.current.abort();
       eventSourceRef.current = null;
     }
 
@@ -78,68 +79,64 @@ export function useExamExport(examId?: string, options?: ExamExportOptions) {
     }
 
     const url = `/api/exams/${examId}/export/progress${params.toString() ? `?${params.toString()}` : ""}`;
-    const eventSource = new EventSource(url);
-    eventSourceRef.current = eventSource;
+    void (async () => {
+      const controller = await streamSse({
+        url,
+        onMessage: (payload) => {
+          try {
+            const data = JSON.parse(payload);
 
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+            if (data.type === "progress") {
+              setProgress(data.percentage ?? 0);
+              setStep(data.step ?? null);
+              setMessage(data.message ?? "");
+              setMeta(data.meta ?? null);
+              return;
+            }
 
-        if (data.type === "progress") {
-          setProgress(data.percentage ?? 0);
-          setStep(data.step ?? null);
-          setMessage(data.message ?? "");
-          setMeta(data.meta ?? null);
-          return;
-        }
+            if (data.type === "complete") {
+              hasCompletedRef.current = true;
+              setProgress(100);
+              setStep("complete");
+              setMessage("导出完成，正在下载...");
+              window.location.href = data.downloadUrl;
+              setTimeout(() => {
+                close();
+              }, 1000);
+              controller.abort();
+              return;
+            }
 
-        if (data.type === "complete") {
-          hasCompletedRef.current = true;
-          setProgress(100);
-          setStep("complete");
-          setMessage("导出完成，正在下载...");
-          window.location.href = data.downloadUrl;
-          setTimeout(() => {
-            close();
-          }, 1000);
-          return;
-        }
+            if (data.type === "error") {
+              setError(data.message);
+              setIsExporting(false);
+              setStep("error");
+              controller.abort();
+            }
+          } catch {
+            // ignore parse errors
+          }
+        },
+        onError: () => {
+          // 许多浏览器在服务端正常结束 SSE 时也会触发 onerror。
+          // 只要我们已经收到 complete 事件，就把后续 close/error 当成正常收尾。
+          if (hasCompletedRef.current) {
+            return;
+          }
 
-        if (data.type === "error") {
-          setError(data.message);
+          setError("连接中断，请重试");
           setIsExporting(false);
-          setStep("error");
-          eventSource.close();
-          eventSourceRef.current = null;
-        }
-      } catch {
-        // ignore parse errors
-      }
-    };
+        },
+      });
 
-    eventSource.onerror = () => {
-      // 许多浏览器在服务端正常结束 SSE 时也会触发 onerror。
-      // 只要我们已经收到 complete 事件，就把后续 close/error 当成正常收尾。
-      if (
-        hasCompletedRef.current ||
-        eventSource.readyState === EventSource.CLOSED
-      ) {
-        eventSource.close();
-        eventSourceRef.current = null;
-        return;
-      }
-
-      setError("连接中断，请重试");
-      setIsExporting(false);
-      eventSource.close();
-      eventSourceRef.current = null;
-    };
+      eventSourceRef.current = controller;
+    })();
   }, [close, examId, options]);
 
   useEffect(() => {
     return () => {
       if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+        eventSourceRef.current.abort();
         eventSourceRef.current = null;
       }
     };

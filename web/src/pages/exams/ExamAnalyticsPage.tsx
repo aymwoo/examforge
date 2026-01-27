@@ -35,6 +35,7 @@ import Button from "@/components/ui/Button";
 import ExamLayout from "@/components/ExamLayout";
 import { getExamById, type Exam } from "@/services/exams";
 import api from "@/services/api";
+import { streamSse } from "@/utils/sse";
 
 interface SavedAIReport {
   examId: string;
@@ -500,66 +501,61 @@ export default function ExamAnalyticsPage() {
     setAiReport(""); // 清空之前的报告
 
     try {
-      const token = localStorage.getItem("token");
-      const eventSource = new EventSource(
-        `/api/exams/${id}/ai-report-stream?token=${token}`,
-      );
+      const sseController = await streamSse({
+        url: `/api/exams/${id}/ai-report-stream`,
+        onMessage: (payload) => {
+          try {
+            const data = JSON.parse(payload);
 
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-
-          switch (data.type) {
-            case "start":
-            case "progress":
-              console.log(data.message);
-              break;
-            case "stream":
-              setAiReport((prev) => prev + data.content);
-              break;
-            case "complete":
-              setAiReport(data.report);
-              // 更新 savedReport 状态
-              setSavedReport({
-                examId: id || "",
-                examTitle: exam?.title || "",
-                report: data.report,
-                status: "COMPLETED",
-                model: data.model || null, // 使用从后端返回的模型信息
-                generatedAt: data.generatedAt || new Date().toISOString(),
-                hasReport: true,
-              });
-              eventSource.close();
-              setGeneratingReport(false);
-              toast.success("AI分析报告生成完成");
-              break;
-            case "error":
-              eventSource.close();
-              setGeneratingReport(false);
-              if (data.message.includes("未找到可用的AI Provider")) {
-                if (
-                  confirm(
-                    "未找到可用的AI Provider配置。是否前往设置页面配置AI服务？",
-                  )
-                ) {
-                  navigate("/settings");
+            switch (data.type) {
+              case "start":
+              case "progress":
+                break;
+              case "stream":
+                setAiReport((prev) => prev + data.content);
+                break;
+              case "complete":
+                setAiReport(data.report);
+                // 更新 savedReport 状态
+                setSavedReport({
+                  examId: id || "",
+                  examTitle: exam?.title || "",
+                  report: data.report,
+                  status: "COMPLETED",
+                  model: data.model || null, // 使用从后端返回的模型信息
+                  generatedAt: data.generatedAt || new Date().toISOString(),
+                  hasReport: true,
+                });
+                sseController.abort();
+                setGeneratingReport(false);
+                toast.success("AI分析报告生成完成");
+                break;
+              case "error":
+                sseController.abort();
+                setGeneratingReport(false);
+                if (data.message.includes("未找到可用的AI Provider")) {
+                  if (
+                    confirm(
+                      "未找到可用的AI Provider配置。是否前往设置页面配置AI服务？",
+                    )
+                  ) {
+                    navigate("/settings");
+                  }
+                } else {
+                  toast.error(`生成AI报告失败：${data.message}`);
                 }
-              } else {
-                toast.error(`生成AI报告失败：${data.message}`);
-              }
-              break;
+                break;
+            }
+          } catch (error) {
+            console.error("解析SSE数据失败:", error);
           }
-        } catch (error) {
-          console.error("解析SSE数据失败:", error);
-        }
-      };
-
-      eventSource.onerror = (error) => {
-        console.error("SSE连接错误:", error);
-        eventSource.close();
-        setGeneratingReport(false);
-        toast.error("生成AI报告时连接中断，请重试");
-      };
+        },
+        onError: (error) => {
+          console.error("SSE连接错误:", error);
+          setGeneratingReport(false);
+          toast.error("生成AI报告时连接中断，请重试");
+        },
+      });
     } catch (error: any) {
       console.error("生成AI报告失败:", error);
       setGeneratingReport(false);

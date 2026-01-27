@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Check, Search } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import api from "@/services/api";
 import { getExamById, type Exam } from "@/services/exams";
 import { listQuestions, type Question } from "@/services/questions";
 
@@ -177,14 +178,10 @@ export default function AddQuestionsPage() {
     setSaving(true);
     try {
       const promises = Array.from(selectedQuestions).map((questionId, index) =>
-        fetch(`/api/exams/${id}/questions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            questionId,
-            order: (exam?.examQuestions?.length || 0) + index + 1,
-            score: 10,
-          }),
+        api.post(`/api/exams/${id}/questions`, {
+          questionId,
+          order: (exam?.examQuestions?.length || 0) + index + 1,
+          score: 10,
         }),
       );
 

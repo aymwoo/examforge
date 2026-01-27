@@ -15,6 +15,7 @@ import Modal from "@/components/ui/Modal";
 import ExamLayout from "@/components/ExamLayout";
 import { useToast } from "@/components/ui/Toast";
 import api from "@/services/api";
+import { streamSse } from "@/utils/sse";
 import { updateExam } from "@/services/exams";
 import {
   buildStudentAiAnalysisStreamUrl,
@@ -187,108 +188,61 @@ export default function ExamGradingPage() {
       force: options?.force,
     });
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setAnalysisStreaming(false);
-      setAnalysisError("未登录或登录已失效，请重新登录");
-      return;
-    }
-
     const abortController = new AbortController();
     sseAbortRef.current = abortController;
 
-    (async () => {
+    void (async () => {
       try {
-        const response = await fetch(url, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "text/event-stream",
+        const controller = await streamSse({
+          url,
+          onMessage: (payload) => {
+            try {
+              const data = JSON.parse(payload);
+              switch (data.type) {
+                case "start":
+                  setAnalysisProgressMessage(data.message || "开始生成...");
+                  setAnalysisProgress(5);
+                  break;
+                case "progress":
+                  if (typeof data.progress === "number") {
+                    setAnalysisProgress(data.progress);
+                  }
+                  setAnalysisProgressMessage(data.message || "生成中...");
+                  break;
+                case "stream":
+                  if (data.content) {
+                    setAnalysisText((prev) => prev + data.content);
+                  }
+                  break;
+                case "complete":
+                  setAnalysisStreaming(false);
+                  setAnalysisProgress(100);
+                  setAnalysisProgressMessage("完成");
+                  if (typeof data.report === "string") {
+                    setAnalysisText(data.report);
+                  }
+                  closeAnalysisStream();
+                  controller.abort();
+                  return;
+                case "error":
+                  setAnalysisStreaming(false);
+                  setAnalysisError(data.message || "生成失败");
+                  closeAnalysisStream();
+                  controller.abort();
+                  return;
+              }
+            } catch (e) {
+              console.error("Failed to parse SSE data", e);
+            }
           },
-          signal: abortController.signal,
+          onError: () => {
+            setAnalysisStreaming(false);
+            setAnalysisError("连接中断，请重试");
+            closeAnalysisStream();
+          },
         });
 
-        if (response.status === 401) {
-          setAnalysisStreaming(false);
-          setAnalysisError("未授权(401)，请重新登录");
-          closeAnalysisStream();
-          return;
-        }
-
-        if (!response.ok || !response.body) {
-          setAnalysisStreaming(false);
-          setAnalysisError(`连接失败(${response.status})`);
-          closeAnalysisStream();
-          return;
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let buffer = "";
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-
-          let eventSeparatorIndex = buffer.indexOf("\n\n");
-          while (eventSeparatorIndex !== -1) {
-            const rawEvent = buffer.slice(0, eventSeparatorIndex);
-            buffer = buffer.slice(eventSeparatorIndex + 2);
-
-            const dataLines = rawEvent
-              .split("\n")
-              .filter((line) => line.startsWith("data:"))
-              .map((line) => line.slice(5).trimStart());
-
-            const dataText = dataLines.join("\n");
-            if (dataText) {
-              try {
-                const data = JSON.parse(dataText);
-                switch (data.type) {
-                  case "start":
-                    setAnalysisProgressMessage(data.message || "开始生成...");
-                    setAnalysisProgress(5);
-                    break;
-                  case "progress":
-                    if (typeof data.progress === "number") {
-                      setAnalysisProgress(data.progress);
-                    }
-                    setAnalysisProgressMessage(data.message || "生成中...");
-                    break;
-                  case "stream":
-                    if (data.content) {
-                      setAnalysisText((prev) => prev + data.content);
-                    }
-                    break;
-                  case "complete":
-                    setAnalysisStreaming(false);
-                    setAnalysisProgress(100);
-                    setAnalysisProgressMessage("完成");
-                    if (typeof data.report === "string") {
-                      setAnalysisText(data.report);
-                    }
-                    closeAnalysisStream();
-                    return;
-                  case "error":
-                    setAnalysisStreaming(false);
-                    setAnalysisError(data.message || "生成失败");
-                    closeAnalysisStream();
-                    return;
-                }
-              } catch (e) {
-                console.error("Failed to parse SSE data", e);
-              }
-            }
-
-            eventSeparatorIndex = buffer.indexOf("\n\n");
-          }
-        }
-
-        setAnalysisStreaming(false);
-        setAnalysisError("连接中断，请重试");
-        closeAnalysisStream();
+        sseAbortRef.current = controller;
       } catch (err: any) {
         if (err?.name === "AbortError") {
           return;
