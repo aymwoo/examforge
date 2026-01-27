@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   User,
@@ -22,7 +22,10 @@ import {
   getStudentAiAnalysisBySubmission,
   type StudentAiAnalysisReport,
 } from "@/services/student-ai-analysis";
-import MDEditor from "@uiw/react-md-editor";
+const MDEditorMarkdown = lazy(async () => {
+  const mod = (await import("@uiw/react-md-editor")) as any;
+  return { default: mod.Markdown };
+});
 import "@uiw/react-md-editor/markdown-editor.css";
 
 interface Student {
@@ -147,14 +150,13 @@ export default function ExamGradingPage() {
   const loadExamAndSubmissions = async () => {
     try {
       setLoading(true);
-      const examResponse = await api.get(`/api/exams/${examId}`);
+      const [examResponse, submissionsResponse] = await Promise.all([
+        api.get(`/api/exams/${examId}`),
+        api.get(`/api/exams/${examId}/submissions`),
+      ]);
       setExam(examResponse.data);
       setFeedbackVisibility(
         examResponse.data?.feedbackVisibility || "FINAL_SCORE",
-      );
-
-      const submissionsResponse = await api.get(
-        `/api/exams/${examId}/submissions`,
       );
       setSubmissions(submissionsResponse.data || []);
     } catch (err: any) {
@@ -1607,7 +1609,13 @@ export default function ExamGradingPage() {
               )}
               {analysisText ? (
                 <div className="prose prose-sm max-w-none">
-                  <MDEditor.Markdown source={analysisText} />
+                  <Suspense
+                    fallback={
+                      <div className="text-sm text-ink-600">加载报告...</div>
+                    }
+                  >
+                    <MDEditorMarkdown {...({ source: analysisText } as any)} />
+                  </Suspense>
                 </div>
               ) : (
                 <div className="text-sm text-ink-700">

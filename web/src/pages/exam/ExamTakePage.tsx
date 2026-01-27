@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Clock,
@@ -13,7 +13,7 @@ import Button from "@/components/ui/Button";
 import api from "@/services/api";
 import { resolveAssetUrl } from "@/utils/url";
 import { streamSse } from "@/utils/sse";
-import MDEditor from "@uiw/react-md-editor";
+const MDEditor = lazy(() => import("@uiw/react-md-editor"));
 import "@uiw/react-md-editor/markdown-editor.css";
 
 interface Question {
@@ -163,27 +163,25 @@ export default function ExamTakePage() {
       }
     }
 
-    loadExamInfo();
+    void loadExamInfo();
   }, [examId, navigate]);
-
-  useEffect(() => {
-    if (!exam || !student) return;
-    void checkSubmissionStatus();
-  }, [exam, student]);
 
   const loadExamInfo = async () => {
     if (!examId) return;
 
     setLoading(true);
     try {
-      const response = await api.get(`/api/exams/${examId}/take`, {
-        withCredentials: true,
-      });
+      const [examResponse] = await Promise.all([
+        api.get(`/api/exams/${examId}/take`, {
+          withCredentials: true,
+        }),
+        checkSubmissionStatus(),
+      ]);
 
       // 确保images数据不被修改
       const examData = {
-        ...response.data,
-        questions: response.data.questions?.map((q: any) => ({
+        ...examResponse.data,
+        questions: examResponse.data.questions?.map((q: any) => ({
           ...q,
           images: q.images || [],
           matching: normalizeMatchingPayload(q),
@@ -192,7 +190,7 @@ export default function ExamTakePage() {
 
       setExam(examData);
       setFeedbackVisibility(examData?.feedbackVisibility || "FINAL_SCORE");
-      setTimeLeft(response.data.duration * 60); // 转换为秒
+      setTimeLeft(examResponse.data.duration * 60); // 转换为秒
 
       // 检查是否已提交由独立 effect 处理
     } catch (err: any) {
@@ -1166,23 +1164,31 @@ export default function ExamTakePage() {
                   currentQuestion.type === "SHORT_ANSWER" ||
                   currentQuestion.type === "ESSAY") && (
                   <div className="border border-border rounded-xl overflow-hidden">
-                    <MDEditor
-                      value={answers[currentQuestion.id] || ""}
-                      onChange={(value: string | undefined) =>
-                        handleAnswerChange(currentQuestion.id, value || "")
+                    <Suspense
+                      fallback={
+                        <div className="p-4 text-sm text-ink-600">
+                          加载编辑器...
+                        </div>
                       }
-                      preview="edit"
-                      hideToolbar={currentQuestion.type === "FILL_BLANK"}
-                      visibleDragbar={false}
-                      height={
-                        currentQuestion.type === "ESSAY"
-                          ? 300
-                          : currentQuestion.type === "SHORT_ANSWER"
-                            ? 200
-                            : 100
-                      }
-                      data-color-mode="light"
-                    />
+                    >
+                      <MDEditor
+                        value={answers[currentQuestion.id] || ""}
+                        onChange={(value: string | undefined) =>
+                          handleAnswerChange(currentQuestion.id, value || "")
+                        }
+                        preview="edit"
+                        hideToolbar={currentQuestion.type === "FILL_BLANK"}
+                        visibleDragbar={false}
+                        height={
+                          currentQuestion.type === "ESSAY"
+                            ? 300
+                            : currentQuestion.type === "SHORT_ANSWER"
+                              ? 200
+                              : 100
+                        }
+                        data-color-mode="light"
+                      />
+                    </Suspense>
                   </div>
                 )}
               </div>
