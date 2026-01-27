@@ -13,6 +13,7 @@ import {
   HttpStatus,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import {
@@ -33,6 +34,8 @@ import { BatchCreateExamStudentsDto } from './dto/batch-create-exam-students.dto
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AIService } from '../ai/ai.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ExamStudentGuard } from '../auth/guards/exam-student.guard';
+import { CurrentExamStudent } from '../auth/decorators/current-exam-student.decorator';
 
 @ApiTags('exams')
 @Controller('exams')
@@ -335,23 +338,27 @@ export class ExamController {
     },
   })
   @ApiResponse({ status: 201, description: 'Exam submitted successfully' })
+  @UseGuards(ExamStudentGuard)
   async submitExam(
     @Param('id') examId: string,
-    @Body() body: { answers: Record<string, any>; examStudentId: string }
+    @Body() body: { answers: Record<string, any> },
+    @CurrentExamStudent() student: any
   ) {
     // 异步处理提交，立即返回
-    this.examService.submitExamAsync(examId, body.examStudentId, body.answers);
+    this.examService.submitExamAsync(examId, student.id, body.answers);
     return {
       message: '考试提交中，请等待评分完成',
-      submissionId: `${examId}-${body.examStudentId}`,
+      submissionId: `${examId}-${student.id}`,
     };
   }
 
   @Get(':id/submit-progress/:examStudentId')
   @ApiOperation({ summary: 'Get submission progress via SSE' })
+  @UseGuards(ExamStudentGuard)
   async getSubmitProgress(
     @Param('id') examId: string,
     @Param('examStudentId') examStudentId: string,
+    @CurrentExamStudent() student: any,
     @Res() res: Response
   ) {
     res.setHeader('Content-Type', 'text/event-stream');
@@ -359,15 +366,25 @@ export class ExamController {
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
+    if (student?.id !== examStudentId) {
+      res.status(403).end();
+      return;
+    }
+
     return this.examService.streamSubmissionProgress(examId, examStudentId, res);
   }
 
   @Get(':id/submission-status/:examStudentId')
   @ApiOperation({ summary: 'Check if student has submitted' })
+  @UseGuards(ExamStudentGuard)
   checkSubmissionStatus(
     @Param('id') examId: string,
-    @Param('examStudentId') examStudentId: string
+    @Param('examStudentId') examStudentId: string,
+    @CurrentExamStudent() student: any
   ) {
+    if (student?.id !== examStudentId) {
+      throw new ForbiddenException();
+    }
     return this.examService.checkSubmissionStatus(examId, examStudentId);
   }
 
@@ -385,11 +402,13 @@ export class ExamController {
     },
   })
   @ApiResponse({ status: 200, description: 'Answers saved successfully' })
+  @UseGuards(ExamStudentGuard)
   saveAnswers(
     @Param('id') examId: string,
-    @Body() body: { answers: Record<string, any>; examStudentId: string }
+    @Body() body: { answers: Record<string, any> },
+    @CurrentExamStudent() student: any
   ) {
-    return this.examService.saveAnswers(examId, body.examStudentId, body.answers);
+    return this.examService.saveAnswers(examId, student.id, body.answers);
   }
 
   // 评分相关API
@@ -564,6 +583,8 @@ export class ExamController {
   @Get(':id/export/progress')
   @ApiOperation({ summary: 'Export exam data progress stream' })
   @ApiParam({ name: 'id', description: 'Exam ID' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   async exportExam(@Param('id') examId: string, @Query() query: any, @Res() res: Response) {
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache');

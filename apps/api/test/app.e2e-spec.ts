@@ -1,15 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { AppModule } from './../src/app.module';
 import request from 'supertest';
 
 describe('API E2E Tests', () => {
+  jest.setTimeout(20000);
   let app: INestApplication;
   let questionId: string;
   let examId: string;
   let authToken: string;
 
   beforeAll(async () => {
+    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+    const { AppModule } = await import('./../src/app.module');
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -20,7 +22,9 @@ describe('API E2E Tests', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   describe('Auth', () => {

@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Body } from '@nestjs/common';
+import { Controller, Post, Get, Body, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto, RegisterDto } from './dto/login.dto';
+import { Response } from 'express';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -12,16 +13,46 @@ export class AuthController {
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.login(loginDto);
+    if (result.access_token) {
+      res.cookie('access_token', result.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    }
+    return result;
   }
 
   @Post('register')
   @ApiOperation({ summary: 'User registration' })
   @ApiResponse({ status: 201, description: 'Registration successful' })
   @ApiResponse({ status: 409, description: 'Username already exists' })
-  register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.register(registerDto);
+    if (result.access_token) {
+      res.cookie('access_token', result.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    }
+    return result;
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'User logout' })
+  @ApiResponse({ status: 200, description: 'Logout successful' })
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('access_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+    return { message: 'Logged out' };
   }
 
   @Get('check-first-user')

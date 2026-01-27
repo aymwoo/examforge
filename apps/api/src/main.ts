@@ -3,8 +3,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is required');
+  }
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['log', 'error', 'warn'],
   });
@@ -15,6 +19,8 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
+
+  app.use(cookieParser());
 
   app.setGlobalPrefix('api');
 

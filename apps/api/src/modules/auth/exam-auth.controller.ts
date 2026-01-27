@@ -1,9 +1,10 @@
-import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 import { ExamAuthService } from './exam-auth.service';
 import { ExamLoginDto } from './dto/exam-login.dto';
 import { ExamStudentGuard } from './guards/exam-student.guard';
 import { CurrentExamStudent } from './decorators/current-exam-student.decorator';
+import { Response } from 'express';
 
 @ApiTags('exam-auth')
 @Controller('auth')
@@ -15,8 +16,17 @@ export class ExamAuthController {
   @ApiBody({ type: ExamLoginDto })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  examLogin(@Body() dto: ExamLoginDto) {
-    return this.examAuthService.examLogin(dto);
+  async examLogin(@Body() dto: ExamLoginDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.examAuthService.examLogin(dto);
+    if (result.token) {
+      res.cookie('exam_token', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    }
+    return result;
   }
 
   @Post('exam-register')
@@ -34,8 +44,20 @@ export class ExamAuthController {
   })
   @ApiResponse({ status: 200, description: 'Registration and login successful' })
   @ApiResponse({ status: 400, description: 'Registration failed' })
-  examRegister(@Body() dto: { examId: string; studentName: string; password: string }) {
-    return this.examAuthService.examRegister(dto);
+  async examRegister(
+    @Body() dto: { examId: string; studentName: string; password: string },
+    @Res({ passthrough: true }) res: Response
+  ) {
+    const result = await this.examAuthService.examRegister(dto);
+    if (result.token) {
+      res.cookie('exam_token', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    }
+    return result;
   }
 
   @Get('exam-profile')
@@ -51,5 +73,17 @@ export class ExamAuthController {
       examId: student.examId,
       exam: student.exam,
     };
+  }
+
+  @Post('exam-logout')
+  @ApiOperation({ summary: 'Exam student logout' })
+  @ApiResponse({ status: 200, description: 'Logout successful' })
+  examLogout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('exam_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+    return { message: 'Logged out' };
   }
 }

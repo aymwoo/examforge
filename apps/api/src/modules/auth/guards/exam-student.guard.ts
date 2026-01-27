@@ -35,6 +35,16 @@ export class ExamStudentGuard implements CanActivate {
 
   private extractTokenFromHeader(request: any): string | undefined {
     const [type, token] = request.headers.authorization?.split(' ') ?? [];
-    return type === 'Bearer' ? token : undefined;
+    if (type === 'Bearer' && token) {
+      return token;
+    }
+    if (request?.cookies?.exam_token) {
+      return String(request.cookies.exam_token);
+    }
+    const cookieHeader = request?.headers?.cookie;
+    if (!cookieHeader) return undefined;
+    const cookies = cookieHeader.split(';').map((cookie: string) => cookie.trim());
+    const match = cookies.find((cookie: string) => cookie.startsWith('exam_token='));
+    return match ? decodeURIComponent(match.split('=')[1]) : undefined;
   }
 }
