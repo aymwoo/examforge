@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Plus, Search, Trash2, Image, Download } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Button from "@/components/ui/Button";
+import api from "@/services/api";
 import {
   listQuestions,
   deleteQuestions,
@@ -9,6 +10,7 @@ import {
   type Question,
 } from "@/services/questions";
 import { getCurrentUser } from "@/utils/auth";
+import { resolveAssetUrl } from "@/utils/url";
 import { downloadExcel, downloadJson } from "@/utils/exportUtils";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
@@ -349,9 +351,8 @@ export default function QuestionsPage() {
     if (!confirm("确定要清空整个题库吗？此操作不可撤销！")) return;
     if (!confirm("再次确认：这将删除所有题目，确定继续吗？")) return;
 
-    const token = localStorage.getItem("token");
     const currentUser = getCurrentUser();
-    if (!token || !currentUser) {
+    if (!currentUser) {
       setError("请先登录");
       return;
     }
@@ -361,44 +362,9 @@ export default function QuestionsPage() {
       return;
     }
 
-    try {
-      // 获取当前用户信息以验证权限
-      const userResponse = await fetch("/api/auth/me", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!userResponse.ok) {
-        setError("获取用户信息失败");
-        return;
-      }
-
-      const userData = await userResponse.json();
-      if (userData.role !== "ADMIN") {
-        setError("只有系统管理员可以清空题库");
-        return;
-      }
-    } catch (error) {
-      setError("验证权限失败");
-      return;
-    }
-
     setClearing(true);
     try {
-      // 调用新的清空题库API端点
-      const response = await fetch("/api/questions/clear-questions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "清空题库失败");
-      }
+      await api.post("/api/questions/clear-questions");
 
       // 重新加载题目列表（应该为空）
       loadQuestions(1);
@@ -1032,29 +998,40 @@ export default function QuestionsPage() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
           onClick={() => setShowImageModal(false)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              setShowImageModal(false);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="question-image-modal-title"
+          tabIndex={-1}
         >
           <div
             className="max-w-4xl max-h-[90vh] bg-white rounded-2xl p-6 overflow-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-ink-900">题目示意图</h3>
+              <h3
+                id="question-image-modal-title"
+                className="text-lg font-semibold text-ink-900"
+              >
+                题目示意图
+              </h3>
               <button
                 onClick={() => setShowImageModal(false)}
                 className="text-ink-700 hover:text-ink-900 text-xl font-bold"
+                aria-label="关闭题目示意图"
               >
                 ×
               </button>
             </div>
             <div className="grid gap-4">
               {selectedImages.map((imagePath, index) => (
-                <div key={index} className="text-center">
+                <div key={`${imagePath}-${index}`} className="text-center">
                   <img
-                    src={
-                      imagePath.startsWith("data:")
-                        ? imagePath
-                        : `http://localhost:3000/${imagePath}`
-                    }
+                    src={resolveAssetUrl(imagePath)}
                     alt={`示意图 ${index + 1}`}
                     className="max-w-full h-auto rounded-xl border border-border"
                     onError={(e) => {

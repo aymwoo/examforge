@@ -59,7 +59,6 @@ export default function GlobalLoginModal() {
 
     try {
       const response = await authService.login(loginForm);
-      localStorage.setItem("token", response.access_token);
       localStorage.setItem("user", JSON.stringify(response.user));
       window.dispatchEvent(new Event("authChanged"));
 
@@ -104,6 +103,7 @@ export default function GlobalLoginModal() {
           <button
             onClick={handleClose}
             className="text-gray-400 hover:text-gray-600"
+            aria-label="关闭登录弹窗"
           >
             <X className="h-5 w-5" />
           </button>

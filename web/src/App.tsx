@@ -43,7 +43,7 @@ function App() {
 
     // 监听localStorage变化（其他标签页登录/登出）
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "token" || e.key === "user") {
+      if (e.key === "user") {
         // 如果主登录信息发生变化，清除考试登录信息
         localStorage.removeItem("examToken");
         localStorage.removeItem("examStudent");

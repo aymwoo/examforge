@@ -237,14 +237,6 @@ export default function ExamStudentsPage() {
 
   // 按登录模式分组学生
   const getStudentsByMode = () => {
-    console.log(
-      "All students:",
-      examStudents.map((s) => ({
-        name: s.displayName,
-        accountType: s.accountType,
-      })),
-    );
-
     const groups = {
       PERMANENT: examStudents.filter((s) => s.accountType === "PERMANENT"),
       TEMPORARY_IMPORT: examStudents.filter(
@@ -255,12 +247,6 @@ export default function ExamStudentsPage() {
         (s) => s.accountType === "TEMPORARY_REGISTER",
       ),
     };
-
-    console.log("Grouped students:", {
-      PERMANENT: groups.PERMANENT.length,
-      TEMPORARY_IMPORT: groups.TEMPORARY_IMPORT.length,
-      TEMPORARY_REGISTER: groups.TEMPORARY_REGISTER.length,
-    });
 
     return groups;
   };

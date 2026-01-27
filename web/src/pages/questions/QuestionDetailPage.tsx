@@ -13,6 +13,7 @@ import {
 import Button from "@/components/ui/Button";
 import QuestionImageManager from "@/components/QuestionImageManager";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import { resolveAssetUrl } from "@/utils/url";
 import {
   getQuestionById,
   updateQuestion,
@@ -843,16 +844,22 @@ export default function QuestionDetailPage() {
                   </h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {question.images.map((image, index) => (
-                      <img
-                        key={index}
-                        src={
-                          image.startsWith("data:")
-                            ? image
-                            : `http://localhost:3000/${image}`
-                        }
-                        alt={`示例图 ${index + 1}`}
-                        className="w-full max-h-48 object-contain rounded-lg border border-border bg-slate-50"
-                      />
+                      <button
+                        key={`${image}-${index}`}
+                        type="button"
+                        className="rounded-lg border border-border bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        aria-label={`打开示例图 ${index + 1}`}
+                        onClick={() => {
+                          setSelectedImportImages([image]);
+                          setShowImportModal(true);
+                        }}
+                      >
+                        <img
+                          src={resolveAssetUrl(image)}
+                          alt={`示例图 ${index + 1}`}
+                          className="w-full max-h-48 object-contain rounded-lg"
+                        />
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -864,7 +871,7 @@ export default function QuestionDetailPage() {
                     图例（旧版）
                   </h3>
                   <img
-                    src={question.illustration}
+                    src={resolveAssetUrl(question.illustration)}
                     alt="题目图例"
                     className="max-w-full max-h-48 rounded-lg border border-border"
                   />
@@ -972,35 +979,58 @@ export default function QuestionDetailPage() {
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
             onClick={() => setShowImportModal(false)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setShowImportModal(false);
+              }
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="import-image-modal-title"
+            tabIndex={-1}
           >
             <div
               className="max-w-6xl max-h-[90vh] bg-white rounded-2xl p-6 overflow-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-ink-900">
+                <h3
+                  id="import-image-modal-title"
+                  className="text-lg font-semibold text-ink-900"
+                >
                   导入原始图像
                 </h3>
                 <button
                   onClick={() => setShowImportModal(false)}
                   className="text-ink-700 hover:text-ink-900 text-xl font-bold"
+                  aria-label="关闭导入图片预览"
                 >
                   ×
                 </button>
               </div>
               <div className="grid gap-4">
-                {selectedImportImages.map((image, index) => (
-                  <div key={index} className="text-center">
-                    <p className="text-sm text-ink-600 mb-2">
-                      第 {index + 1} 页
-                    </p>
-                    <img
-                      src={image.data}
-                      alt={`导入图像 ${index + 1}`}
-                      className="max-w-full h-auto rounded-xl border border-border mx-auto"
-                    />
-                  </div>
-                ))}
+                {selectedImportImages.map((image, index) => {
+                  const imageSrc =
+                    typeof image === "string"
+                      ? resolveAssetUrl(image)
+                      : image.data;
+
+                  return (
+                    <div
+                      key={`${imageSrc || "image"}-${index}`}
+                      className="text-center"
+                    >
+                      <p className="text-sm text-ink-600 mb-2">
+                        第 {index + 1} 页
+                      </p>
+                      <img
+                        src={imageSrc}
+                        alt={`导入图像 ${index + 1}`}
+                        className="max-w-full h-auto rounded-xl border border-border mx-auto"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

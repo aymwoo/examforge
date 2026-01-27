@@ -18,6 +18,7 @@ import {
   Download,
 } from "lucide-react";
 import api from "@/services/api";
+import { resolveAssetUrl } from "@/utils/url";
 import {
   DndContext,
   closestCenter,
@@ -113,11 +114,9 @@ function SortableTypeBlock({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log("批量设分按钮被点击", type);
             setBatchScoreType(type);
             setBatchScore(10);
             setShowBatchScoreModal(true);
-            console.log("模态框状态已设置为true");
           }}
           className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
         >
@@ -426,19 +425,13 @@ export default function ExamDetailPage() {
   const getImages = (question: any) => {
     const images = [];
     if (question?.illustration) {
-      // 确保图片路径指向后端服务器
-      const imagePath = question.illustration.startsWith("http")
-        ? question.illustration
-        : `http://localhost:3000/${question.illustration.startsWith("/") ? question.illustration.slice(1) : question.illustration}`;
-      images.push(imagePath);
+      images.push(resolveAssetUrl(question.illustration));
     }
     if (question?.images && question.images !== "[]") {
       try {
         const parsedImages = JSON.parse(question.images);
         const processedImages = parsedImages.map((img: string) =>
-          img.startsWith("http")
-            ? img
-            : `http://localhost:3000/${img.startsWith("/") ? img.slice(1) : img}`,
+          resolveAssetUrl(img),
         );
         images.push(...processedImages);
       } catch (e) {
@@ -1043,11 +1036,21 @@ export default function ExamDetailPage() {
         <div
           className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
           onClick={() => setShowImageModal(false)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              setShowImageModal(false);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exam-image-modal-title"
+          tabIndex={-1}
         >
           <div className="relative max-w-full max-h-full">
             <button
               onClick={() => setShowImageModal(false)}
               className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
+              aria-label="关闭图片预览"
             >
               <svg
                 className="w-8 h-8"
@@ -1063,6 +1066,9 @@ export default function ExamDetailPage() {
                 />
               </svg>
             </button>
+            <h3 id="exam-image-modal-title" className="sr-only">
+              题目图片预览
+            </h3>
             <img
               src={selectedImage}
               alt="题目图片"

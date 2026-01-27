@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Upload, Clipboard, X, Image as ImageIcon } from "lucide-react";
 import Button from "@/components/ui/Button";
+import { resolveAssetUrl } from "@/utils/url";
 import {
   uploadQuestionImage,
   addClipboardImage,
@@ -106,12 +107,7 @@ export default function QuestionImageManager({
     }
   };
 
-  const getImageSrc = (imagePath: string) => {
-    if (imagePath.startsWith("data:")) {
-      return imagePath; // base64
-    }
-    return `http://localhost:3000/${imagePath}`; // 服务器路径
-  };
+  const getImageSrc = (imagePath: string) => resolveAssetUrl(imagePath);
 
   return (
     <div className="space-y-4">
@@ -152,7 +148,7 @@ export default function QuestionImageManager({
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((image, index) => (
-            <div key={index} className="relative group">
+            <div key={`${image}-${index}`} className="relative group">
               <img
                 src={getImageSrc(image)}
                 alt={`示例图 ${index + 1}`}
@@ -161,6 +157,7 @@ export default function QuestionImageManager({
               <button
                 onClick={() => handleDeleteImage(index)}
                 className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                aria-label={`删除示例图 ${index + 1}`}
               >
                 <X className="h-3 w-3" />
               </button>

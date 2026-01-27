@@ -43,7 +43,6 @@ const PendingUsersModal: React.FC<PendingUsersModalProps> = ({
         currentPage,
         10,
       );
-      console.log("Pending users response:", response); // 调试日志
       // 确保响应具有正确的结构
       if (
         !response ||

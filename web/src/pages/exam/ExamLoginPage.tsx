@@ -76,8 +76,8 @@ export default function ExamLoginPage() {
         password: loginForm.password,
       });
 
-      // 保存token
-      localStorage.setItem("examToken", response.data.token);
+      // 保存token（与 HttpOnly cookie 配合，前端仅缓存用于必要兼容）
+      localStorage.removeItem("examToken");
       localStorage.setItem(
         "examStudent",
         JSON.stringify(response.data.student),
@@ -118,8 +118,8 @@ export default function ExamLoginPage() {
         password: registerForm.password,
       });
 
-      // 保存token
-      localStorage.setItem("examToken", response.data.token);
+      // 保存token（与 HttpOnly cookie 配合，前端仅缓存用于必要兼容）
+      localStorage.removeItem("examToken");
       localStorage.setItem(
         "examStudent",
         JSON.stringify(response.data.student),

@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import api from "@/services/api";
+import { resolveAssetUrl } from "@/utils/url";
+import { streamSse } from "@/utils/sse";
 import MDEditor from "@uiw/react-md-editor";
 import "@uiw/react-md-editor/markdown-editor.css";
 
@@ -72,6 +74,8 @@ export default function ExamTakePage() {
   const [feedbackVisibility, setFeedbackVisibility] = useState<
     "FINAL_SCORE" | "ANSWERS" | "FULL_DETAILS"
   >("FINAL_SCORE");
+  const [showImagePreview, setShowImagePreview] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const normalizeMatchingPayload = (question: any) => {
     if (!question) return undefined;
@@ -149,21 +153,23 @@ export default function ExamTakePage() {
 
   useEffect(() => {
     // 检查是否已登录
-    const token = localStorage.getItem("examToken");
     const studentData = localStorage.getItem("examStudent");
 
-    if (!token || !studentData) {
-      navigate(`/exam/${examId}/login`);
-      return;
+    if (studentData) {
+      try {
+        setStudent(JSON.parse(studentData));
+      } catch {
+        localStorage.removeItem("examStudent");
+      }
     }
 
-    try {
-      setStudent(JSON.parse(studentData));
-      loadExamInfo();
-    } catch (err) {
-      navigate(`/exam/${examId}/login`);
-    }
+    loadExamInfo();
   }, [examId, navigate]);
+
+  useEffect(() => {
+    if (!exam || !student) return;
+    void checkSubmissionStatus();
+  }, [exam, student]);
 
   const loadExamInfo = async () => {
     if (!examId) return;
@@ -171,9 +177,7 @@ export default function ExamTakePage() {
     setLoading(true);
     try {
       const response = await api.get(`/api/exams/${examId}/take`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("examToken")}`,
-        },
+        withCredentials: true,
       });
 
       // 确保images数据不被修改
@@ -190,8 +194,7 @@ export default function ExamTakePage() {
       setFeedbackVisibility(examData?.feedbackVisibility || "FINAL_SCORE");
       setTimeLeft(response.data.duration * 60); // 转换为秒
 
-      // 检查是否已提交
-      await checkSubmissionStatus();
+      // 检查是否已提交由独立 effect 处理
     } catch (err: any) {
       if (err.response?.status === 401) {
         localStorage.removeItem("examToken");
@@ -211,12 +214,11 @@ export default function ExamTakePage() {
       const studentData = JSON.parse(
         localStorage.getItem("examStudent") || "{}",
       );
+      if (!studentData?.id) return;
       const statusResponse = await api.get(
         `/api/exams/${examId}/submission-status/${studentData.id}`,
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("examToken")}`,
-          },
+          withCredentials: true,
         },
       );
 
@@ -279,12 +281,9 @@ export default function ExamTakePage() {
         `/api/exams/${examId}/save-answers`,
         {
           answers,
-          examStudentId: student.id,
         },
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("examToken")}`,
-          },
+          withCredentials: true,
         },
       );
     } catch (err) {
@@ -367,14 +366,6 @@ export default function ExamTakePage() {
   const handleSubmitExam = async () => {
     if (!student || !examId) return;
 
-    console.log("=== 提交前的完整答案对象 ===");
-    console.log("answers:", JSON.stringify(answers, null, 2));
-    console.log("answers keys:", Object.keys(answers));
-    console.log(
-      "exam questions:",
-      exam?.questions?.map((q) => ({ id: q.id, type: q.type })),
-    );
-
     setIsSubmitting(true);
     setShowProgressModal(true);
     setProgress({ current: 0, total: 0, message: "正在提交..." });
@@ -385,59 +376,53 @@ export default function ExamTakePage() {
         `/api/exams/${examId}/submit`,
         {
           answers,
-          examStudentId: student.id,
         },
         {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("examToken")}`,
-          },
+          withCredentials: true,
         },
       );
 
       // 监听进度
-      const eventSource = new EventSource(
-        `/api/exams/${examId}/submit-progress/${student.id}`,
-      );
+      const sseController = await streamSse({
+        url: `/api/exams/${examId}/submit-progress/${student.id}`,
+        onMessage: (payload) => {
+          const data = JSON.parse(payload);
 
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
+          if (data.type === "progress") {
+            setProgress({
+              current: data.current,
+              total: data.total,
+              message: data.message,
+            });
+          } else if (data.type === "complete") {
+            setSubmissionResult(data.submission);
+            setIsSubmitted(true);
 
-        if (data.type === "progress") {
-          setProgress({
-            current: data.current,
-            total: data.total,
-            message: data.message,
-          });
-        } else if (data.type === "complete") {
-          setSubmissionResult(data.submission);
-          setIsSubmitted(true);
-
-          if (data.submission?.gradingDetails) {
-            try {
-              const parsedDetails =
-                typeof data.submission.gradingDetails === "string"
-                  ? JSON.parse(data.submission.gradingDetails)
-                  : data.submission.gradingDetails;
-              setGradingResults(parsedDetails);
-            } catch {
-              // ignore
+            if (data.submission?.gradingDetails) {
+              try {
+                const parsedDetails =
+                  typeof data.submission.gradingDetails === "string"
+                    ? JSON.parse(data.submission.gradingDetails)
+                    : data.submission.gradingDetails;
+                setGradingResults(parsedDetails);
+              } catch {
+                // ignore
+              }
             }
+
+            setShowProgressModal(false);
+            sseController.abort();
+          } else if (data.type === "error") {
+            setError(data.message);
+            setShowProgressModal(false);
+            sseController.abort();
           }
-
+        },
+        onError: () => {
+          setError("连接中断，请刷新页面查看结果");
           setShowProgressModal(false);
-          eventSource.close();
-        } else if (data.type === "error") {
-          setError(data.message);
-          setShowProgressModal(false);
-          eventSource.close();
-        }
-      };
-
-      eventSource.onerror = () => {
-        setError("连接中断，请刷新页面查看结果");
-        setShowProgressModal(false);
-        eventSource.close();
-      };
+        },
+      });
     } catch (err: any) {
       setError(err.response?.data?.message || "提交失败");
       setShowProgressModal(false);
@@ -448,8 +433,9 @@ export default function ExamTakePage() {
 
   const handleLogout = () => {
     if (confirm("确定要退出考试吗？未保存的答案将丢失。")) {
-      localStorage.removeItem("examToken");
       localStorage.removeItem("examStudent");
+      localStorage.removeItem("examToken");
+      void api.post("/api/auth/exam-logout").catch(() => null);
       navigate(`/exam/${examId}/login`);
     }
   };
@@ -555,9 +541,7 @@ export default function ExamTakePage() {
                           const statusResponse = await api.get(
                             `/api/exams/${examId}/submission-status/${student?.id}`,
                             {
-                              headers: {
-                                Authorization: `Bearer ${localStorage.getItem("examToken")}`,
-                              },
+                              withCredentials: true,
                             },
                           );
 
@@ -938,34 +922,22 @@ export default function ExamTakePage() {
                       </h4>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {currentQuestion.images.map((image, index) => (
-                          <div key={index} className="relative">
-                            <img
-                              src={
-                                image.startsWith("data:")
-                                  ? image
-                                  : `http://localhost:3000/${image}`
-                              }
-                              alt={`题目示例图 ${index + 1}`}
-                              className="w-full max-h-64 object-contain rounded-lg border border-border bg-slate-50 cursor-pointer hover:shadow-md transition-shadow"
+                          <div key={`${image}-${index}`} className="relative">
+                            <button
+                              type="button"
+                              className="w-full rounded-lg border border-border bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                              aria-label={`打开题目示例图 ${index + 1}`}
                               onClick={() => {
-                                // 点击图片放大查看
-                                const modal = document.createElement("div");
-                                modal.className =
-                                  "fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4";
-                                modal.onclick = () => modal.remove();
-
-                                const img = document.createElement("img");
-                                img.src = image.startsWith("data:")
-                                  ? image
-                                  : `http://localhost:3000/${image}`;
-                                img.className =
-                                  "max-w-full max-h-full object-contain rounded-lg";
-                                img.onclick = (e) => e.stopPropagation();
-
-                                modal.appendChild(img);
-                                document.body.appendChild(modal);
+                                setSelectedImage(resolveAssetUrl(image));
+                                setShowImagePreview(true);
                               }}
-                            />
+                            >
+                              <img
+                                src={resolveAssetUrl(image)}
+                                alt={`题目示例图 ${index + 1}`}
+                                className="w-full max-h-64 object-contain rounded-lg hover:shadow-md transition-shadow"
+                              />
+                            </button>
                             {(currentQuestion.images?.length || 0) > 1 && (
                               <div className="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
                                 {index + 1}/{currentQuestion.images?.length}
@@ -1364,9 +1336,25 @@ export default function ExamTakePage() {
 
       {/* 提交进度Modal */}
       {showProgressModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="submit-progress-title"
+          tabIndex={-1}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              setShowProgressModal(false);
+            }
+          }}
+        >
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">提交中</h3>
+            <h3
+              id="submit-progress-title"
+              className="text-lg font-semibold text-gray-900 mb-4"
+            >
+              提交中
+            </h3>
             <div className="space-y-4">
               <div className="text-sm text-gray-600">{progress.message}</div>
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -1384,6 +1372,42 @@ export default function ExamTakePage() {
                 {progress.current}/{progress.total}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showImagePreview && selectedImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exam-image-preview-title"
+          tabIndex={-1}
+          onClick={() => setShowImagePreview(false)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              setShowImagePreview(false);
+            }
+          }}
+        >
+          <div className="relative max-w-5xl max-h-[90vh]">
+            <button
+              type="button"
+              aria-label="关闭图片预览"
+              className="absolute -top-4 -right-4 bg-white rounded-full p-2 shadow"
+              onClick={() => setShowImagePreview(false)}
+            >
+              <X className="h-4 w-4 text-gray-700" />
+            </button>
+            <h3 id="exam-image-preview-title" className="sr-only">
+              题目图片预览
+            </h3>
+            <img
+              src={selectedImage}
+              alt="题目示例图预览"
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}

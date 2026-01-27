@@ -69,8 +69,6 @@ export default function StudentDetailPage() {
       setLoading(true);
       setError("");
 
-      console.log("Token:", localStorage.getItem("token")); // Debug log
-
       // 获取学生信息和考试记录
       const [studentResponse, examsResponse] = await Promise.all([
         api.get(`/api/students/detail/${studentId}`),

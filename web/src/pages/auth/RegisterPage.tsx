@@ -61,8 +61,7 @@ export default function RegisterPage() {
       const response = await authService.register(formData);
 
       // 如果返回了 access_token，说明是第一个用户（管理员），直接登录
-      if (response.access_token) {
-        localStorage.setItem("token", response.access_token);
+      if (response.user) {
         localStorage.setItem("user", JSON.stringify(response.user));
         window.dispatchEvent(new Event("authChanged"));
         // 直接跳转到首页

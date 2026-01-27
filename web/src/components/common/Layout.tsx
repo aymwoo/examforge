@@ -37,7 +37,7 @@ export default function Layout() {
 
   const handleLogout = () => {
     if (confirm("确定要退出登录吗？")) {
-      logout();
+      void logout();
     }
   };
 
