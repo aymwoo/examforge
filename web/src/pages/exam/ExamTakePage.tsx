@@ -1092,15 +1092,23 @@ export default function ExamTakePage() {
                     {autoSaving ? "保存中..." : "保存答案"}
                   </Button>
 
-                  <Button
-                    onClick={() =>
-                      setCurrentQuestionIndex((prev) =>
-                        Math.min((exam.questions?.length || 0) - 1, prev + 1),
-                      )
-                    }
-                  >
-                    下一题
-                  </Button>
+                  {currentQuestionIndex <
+                  (exam.questions?.length || 0) - 1 ? (
+                    <Button
+                      onClick={() =>
+                        setCurrentQuestionIndex((prev) => prev + 1)
+                      }
+                    >
+                      下一题
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => setShowSubmitConfirm(true)}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      提交试卷
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
