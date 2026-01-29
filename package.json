@@ -4,7 +4,7 @@
   "private": true,
   "description": "ExamForge Monorepo - AI-driven question bank and examination system",
   "scripts": {
-    "build": "pnpm --filter ./packages --filter ./apps --filter ./web run build",
+    "build": "pnpm --filter ./packages --filter ./apps/api --filter ./web run build",
     "build:api": "pnpm --filter ./apps/api build",
     "build:web": "pnpm --filter ./web build",
     "dev": "pnpm --parallel --filter ./apps/api --filter ./web run dev",
