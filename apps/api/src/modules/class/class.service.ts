@@ -343,4 +343,139 @@ export class ClassService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  /**
+   * 导入学生（支持自动创建班级或添加到已有班级）
+   * @param students 学生数据数组，包含 className 和 classCode 字段
+   * @param userId 当前用户ID
+   * @param userRole 当前用户角色
+   */
+  async importStudentsWithClass(students: CreateStudentDto[], userId: string, userRole?: string) {
+    const results = [];
+    const classCache = new Map<string, { id: string; name: string; isNew: boolean }>();
+    const createdClasses: string[] = [];
+
+    for (const studentDto of students) {
+      try {
+        // 1. 处理班级信息
+        let classId = studentDto.classId;
+        let classInfo: { id: string; name: string; isNew: boolean } | null = null;
+
+        if (!classId && (studentDto.classCode || studentDto.className)) {
+          const classKey = studentDto.classCode || studentDto.className || '';
+
+          // 检查缓存
+          if (classCache.has(classKey)) {
+            classInfo = classCache.get(classKey)!;
+            classId = classInfo.id;
+          } else {
+            // 查找已有班级（优先通过 classCode 匹配）
+            let existingClass = null;
+            if (studentDto.classCode) {
+              existingClass = await this.prisma.class.findUnique({
+                where: { code: studentDto.classCode },
+              });
+            }
+
+            // 如果通过 classCode 没找到，尝试通过 className 查找
+            if (!existingClass && studentDto.className) {
+              existingClass = await this.prisma.class.findFirst({
+                where: {
+                  name: studentDto.className,
+                  createdBy: userId,
+                },
+              });
+            }
+
+            if (existingClass) {
+              // 使用已有班级
+              classInfo = {
+                id: existingClass.id,
+                name: existingClass.name,
+                isNew: false,
+              };
+              classCache.set(classKey, classInfo);
+              classId = existingClass.id;
+            } else {
+              // 自动创建新班级
+              const newClassCode =
+                studentDto.classCode ||
+                `AUTO_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+              const newClassName = studentDto.className || `自动创建班级_${newClassCode}`;
+
+              const newClass = await this.prisma.class.create({
+                data: {
+                  code: newClassCode,
+                  name: newClassName,
+                  createdBy: userId,
+                },
+              });
+
+              classInfo = {
+                id: newClass.id,
+                name: newClass.name,
+                isNew: true,
+              };
+              classCache.set(classKey, classInfo);
+              classId = newClass.id;
+              createdClasses.push(newClass.name);
+            }
+          }
+        }
+
+        // 2. 检查学号是否已存在
+        const existingStudent = await this.prisma.student.findUnique({
+          where: { studentId: studentDto.studentId },
+        });
+
+        if (existingStudent) {
+          results.push({
+            studentId: studentDto.studentId,
+            name: studentDto.name,
+            className: classInfo?.name || '未指定',
+            success: false,
+            error: '学号已存在',
+          });
+          continue;
+        }
+
+        // 3. 创建学生
+        const hashedPassword = await bcrypt.hash(studentDto.password || '123456', 10);
+
+        const student = await this.prisma.student.create({
+          data: {
+            studentId: studentDto.studentId,
+            name: studentDto.name,
+            password: hashedPassword,
+            gender: studentDto.gender,
+            classId: classId || null,
+          },
+        });
+
+        results.push({
+          studentId: student.studentId,
+          name: student.name,
+          className: classInfo?.name || '未指定',
+          classIsNew: classInfo?.isNew || false,
+          success: true,
+        });
+      } catch (error) {
+        results.push({
+          studentId: studentDto.studentId,
+          name: studentDto.name,
+          className: studentDto.className || studentDto.classCode || '未指定',
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    return {
+      total: students.length,
+      success: results.filter((r) => r.success).length,
+      failed: results.filter((r) => !r.success).length,
+      createdClasses: [...new Set(createdClasses)],
+      results,
+    };
+  }
 }

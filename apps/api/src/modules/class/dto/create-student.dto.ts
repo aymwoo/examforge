@@ -26,4 +26,14 @@ export class CreateStudentDto {
   @IsString()
   @IsOptional()
   classId?: string;
+
+  @ApiPropertyOptional({ description: '班级名称（用于自动创建或匹配班级）' })
+  @IsString()
+  @IsOptional()
+  className?: string;
+
+  @ApiPropertyOptional({ description: '班级代码（用于匹配已有班级）' })
+  @IsString()
+  @IsOptional()
+  classCode?: string;
 }

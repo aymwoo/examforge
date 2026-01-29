@@ -41,6 +41,8 @@ export interface CreateStudentDto {
   password: string;
   gender?: string;
   classId?: string;
+  className?: string; // 班级名称（用于自动创建或匹配班级）
+  classCode?: string; // 班级代码（用于匹配已有班级）
 }
 
 export const getClasses = async (): Promise<Class[]> => {
@@ -96,6 +98,11 @@ export const importStudentsToClass = async (
     `/api/classes/${classId}/students/import`,
     students,
   );
+  return response.data;
+};
+
+export const importStudentsGlobal = async (students: CreateStudentDto[]) => {
+  const response = await api.post("/api/classes/import-students", students);
   return response.data;
 };
 

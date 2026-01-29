@@ -103,6 +103,15 @@ export class ClassController {
     return this.classService.removeStudent(id, studentId, req.user.id, req.user.role);
   }
 
+  @Post('import-students')
+  @Roles('TEACHER', 'ADMIN')
+  @ApiOperation({ summary: '全局批量导入学生（支持自动创建班级）' })
+  @ApiResponse({ status: 201, description: '导入完成' })
+  @HttpCode(HttpStatus.CREATED)
+  importStudentsWithClass(@Body() students: CreateStudentDto[], @Request() req) {
+    return this.classService.importStudentsWithClass(students, req.user.id, req.user.role);
+  }
+
   @Post(':id/students/import')
   @Roles('TEACHER', 'ADMIN')
   @ApiOperation({ summary: '批量导入学生' })
