@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Download } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 import api from "@/services/api";
+import { downloadJson, downloadExcel } from "@/utils/exportUtils";
 
 interface ImportRecord {
   id: string;
@@ -28,6 +30,9 @@ export default function ImportHistoryPage() {
   const [examDuration, setExamDuration] = useState(60);
   const [creating, setCreating] = useState(false);
   const [createProgress, setCreateProgress] = useState(0);
+
+  // 导出状态
+  const [exportingJobId, setExportingJobId] = useState<string | null>(null);
 
   // 详情模态框状态
   const [detailDialog, setDetailDialog] = useState<string | null>(null);
@@ -106,6 +111,111 @@ export default function ImportHistoryPage() {
     setDetailDialog(jobId);
     setDetailPage(1); // Reset to first page when opening new dialog
     // The useEffect will trigger the fetch
+  };
+
+  // 获取批次的所有题目用于导出
+  const fetchAllBatchQuestions = async (jobId: string) => {
+    const allQuestions: any[] = [];
+    let currentPage = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await api.get(`/api/import/history/${jobId}/questions`, {
+        params: {
+          page: currentPage,
+          limit: 100, // 每次获取100条
+        },
+      });
+      allQuestions.push(...(response.data.data || []));
+      const total = response.data.total || 0;
+      hasMore = allQuestions.length < total;
+      currentPage += 1;
+    }
+
+    return allQuestions;
+  };
+
+  // 导出批次题目为 JSON
+  const handleExportBatchJson = async (record: ImportRecord) => {
+    if (record.questionCount === 0) {
+      showError("该批次没有题目可导出");
+      return;
+    }
+
+    setExportingJobId(record.jobId);
+    try {
+      const questions = await fetchAllBatchQuestions(record.jobId);
+      const exportData = questions.map((q) => ({
+        content: q.content,
+        type: q.type,
+        options: q.options,
+        answer: q.answer,
+        explanation: q.explanation,
+        difficulty: q.difficulty,
+        tags: q.tags,
+        knowledgePoint: q.knowledgePoint,
+        matching: q.matching,
+      }));
+      // 生成简洁的文件名
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+      const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "");
+      const filename = `questions_export_${dateStr}_${timeStr}`;
+      downloadJson(exportData, filename);
+      showSuccess(`成功导出 ${questions.length} 道题目`);
+      console.log(`JSON文件已导出: ${filename}.json`);
+    } catch (error) {
+      console.error("导出失败:", error);
+      showError("导出失败");
+    } finally {
+      setExportingJobId(null);
+    }
+  };
+
+  // 导出批次题目为 Excel
+  const handleExportBatchExcel = async (record: ImportRecord) => {
+    if (record.questionCount === 0) {
+      showError("该批次没有题目可导出");
+      return;
+    }
+
+    setExportingJobId(record.jobId);
+    try {
+      const questions = await fetchAllBatchQuestions(record.jobId);
+      const typeLabels: Record<string, string> = {
+        SINGLE_CHOICE: "单选题",
+        MULTIPLE_CHOICE: "多选题",
+        TRUE_FALSE: "判断题",
+        FILL_BLANK: "填空题",
+        MATCHING: "连线题",
+        ESSAY: "简答题",
+      };
+      const rows = questions.map((q) => ({
+        题干: q.content,
+        题型: typeLabels[q.type] || q.type,
+        选项: Array.isArray(q.options)
+          ? q.options.map((opt: any) => `${opt.label}.${opt.content}`).join(" ")
+          : q.options || "",
+        答案: Array.isArray(q.answer) ? q.answer.join(", ") : q.answer || "",
+        解析: q.explanation || "",
+        标签: Array.isArray(q.tags) ? q.tags.join(", ") : q.tags || "",
+        难度: q.difficulty,
+        知识点: q.knowledgePoint || "",
+      }));
+      // 生成简洁的文件名
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
+      const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, "");
+      const filename = `questions_export_${dateStr}_${timeStr}`;
+      downloadExcel(rows, filename, "题目");
+      showSuccess(`成功导出 ${questions.length} 道题目`);
+      console.log(`Excel文件已导出: ${filename}.xlsx`);
+    } catch (error) {
+      console.error("导出失败:", error);
+      showError("导出失败");
+    } finally {
+      setExportingJobId(null);
+    }
   };
 
   const fetchImportDetails = async (jobId: string, page: number) => {
@@ -224,7 +334,7 @@ export default function ImportHistoryPage() {
                 </div>
               )}
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {record.canCreateExam && (
                   <button
                     onClick={() => setCreateExamDialog(record.jobId)}
@@ -240,6 +350,28 @@ export default function ImportHistoryPage() {
                 >
                   查看详情
                 </button>
+
+                {/* 导出按钮 */}
+                {record.questionCount > 0 && (
+                  <>
+                    <button
+                      onClick={() => handleExportBatchJson(record)}
+                      disabled={exportingJobId === record.jobId}
+                      className="px-4 py-2 border border-green-300 text-green-600 rounded hover:bg-green-50 flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <Download className="h-4 w-4" />
+                      {exportingJobId === record.jobId ? "导出中..." : "导出 JSON"}
+                    </button>
+                    <button
+                      onClick={() => handleExportBatchExcel(record)}
+                      disabled={exportingJobId === record.jobId}
+                      className="px-4 py-2 border border-green-300 text-green-600 rounded hover:bg-green-50 flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <Download className="h-4 w-4" />
+                      {exportingJobId === record.jobId ? "导出中..." : "导出 Excel"}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))

@@ -13,10 +13,14 @@ export const downloadJson = (data: any, filename: string) => {
   const link = document.createElement("a");
   link.href = url;
   link.download = `${filename}.json`;
+  link.style.display = "none";
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  // 延迟撤销URL，确保下载开始
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 100);
 };
 
 /**
