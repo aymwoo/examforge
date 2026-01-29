@@ -91,7 +91,6 @@ export const FillBlankQuestion: React.FC<FillBlankQuestionProps> = ({
                   onChange(newValues);
                 }}
                 className="min-w-[100px] border-b-2 border-gray-300 px-2 py-0.5 text-center focus:border-blue-600 focus:outline-none bg-blue-50/30 text-blue-700 font-medium transition-colors rounded-t"
-                placeholder={`${currentIdx + 1}`}
                 style={{ width: `${Math.max(100, (values[currentIdx]?.length || 0) * 16)}px` }}
               />
               <span className="absolute -bottom-5 left-0 w-full text-center text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
