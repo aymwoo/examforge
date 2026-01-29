@@ -2,6 +2,7 @@ export type PdfImportStage =
   | 'received'
   | 'extracting_text'
   | 'converting_pdf_to_images'
+  | 'processing_image'
   | 'chunked_text'
   | 'calling_ai'
   | 'ai_response_received'

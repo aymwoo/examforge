@@ -238,6 +238,8 @@ export default function ImportPage() {
           ? fileType === "image"
             ? "准备图片识别"
             : "PDF 转图片中"
+          : pdfStage === "processing_image"
+            ? latestPdfEvent?.message || "处理图片中"
           : undefined;
 
   const isPdfImporting =

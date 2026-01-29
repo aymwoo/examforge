@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import * as XLSX from 'xlsx';
+import sharp from 'sharp';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateQuestionDto } from '../question/dto/create-question.dto';
 import { QuestionStatus, QuestionType } from '@/common/enums/question.enum';
@@ -198,37 +199,117 @@ export class ImportService {
 
     try {
       this.progressStore.append(jobId, {
+        stage: 'processing_image',
+        message: '正在分析图片尺寸...',
+      });
+
+      const imageBuffers = await this.splitImageIntoChunks(buffer);
+
+      if (imageBuffers.length > 1) {
+        this.progressStore.append(jobId, {
+          stage: 'processing_image',
+          message: `图片过长，已自动切分为 ${imageBuffers.length} 个片段进行识别`,
+          meta: {
+            totalChunks: imageBuffers.length,
+          },
+        });
+      }
+
+      this.progressStore.append(jobId, {
         stage: 'calling_ai',
-        message: '正在使用 AI 识别图片内容',
-        current: 1,
-        total: 1,
+        message: `准备开始识别，共 ${imageBuffers.length} 个片段`,
+        current: 0,
+        total: imageBuffers.length,
       });
 
       const result: ImportResult = { success: 0, failed: 0, errors: [], questionIds: [] };
+      const collectedQuestions: any[] = [];
+      let chunksWithErrors = 0;
 
-      // 将图片转换为base64
-      const base64Image = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+      for (let i = 0; i < imageBuffers.length; i++) {
+        const chunkBuffer = imageBuffers[i];
 
-      // 调用AI识别
-      const aiResponse = await this.aiService.generateExamQuestionsFromImage(
-        base64Image,
-        userId,
-        customPrompt
-      );
+        this.progressStore.append(jobId, {
+          stage: 'calling_ai',
+          message: `正在识别片段 ${i + 1}/${imageBuffers.length}`,
+          current: i + 1,
+          total: imageBuffers.length,
+        });
 
-      // 处理AI返回的题目
-      for (let i = 0; i < aiResponse.questions.length; i++) {
-        const q = aiResponse.questions[i];
+        // 将图片转换为base64
+        const base64Image = `data:image/jpeg;base64,${chunkBuffer.toString('base64')}`;
+
+        // Retry up to 2 times on failure
+        let lastError: Error | null = null;
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            // 调用AI识别
+            const aiResponse = await this.aiService.generateExamQuestionsFromImage(
+              base64Image,
+              userId,
+              customPrompt
+            );
+
+            this.progressStore.append(jobId, {
+              stage: 'ai_response_received',
+              message: `片段 ${i + 1} 识别成功，发现 ${aiResponse.questions.length} 道题`,
+              current: i + 1,
+              total: imageBuffers.length,
+            });
+
+            collectedQuestions.push(...aiResponse.questions);
+            lastError = null;
+            break;
+          } catch (error) {
+            lastError = error as Error;
+            console.error(
+              `[Image] Chunk ${i + 1} attempt ${attempt} failed:`,
+              (error as any)?.message
+            );
+            if (attempt < 2) {
+              await new Promise((r) => setTimeout(r, 1000));
+            }
+          }
+        }
+
+        if (lastError) {
+          chunksWithErrors++;
+          result.errors.push({
+            row: i + 1,
+            message: `片段 ${i + 1} 识别失败: ${lastError.message || 'Unknown'}`,
+          });
+        }
+      }
+
+      this.progressStore.append(jobId, {
+        stage: 'merging_questions',
+        message: '正在合并与去重题目',
+      });
+
+      // 合并去重
+      const mergedQuestions = this.mergeAndDedupeQuestions(collectedQuestions, result);
+
+      this.progressStore.append(jobId, {
+        stage: 'saving_questions',
+        message: '正在保存题目到题库',
+        current: 0,
+        total: mergedQuestions.length,
+      });
+
+      // 保存题目
+      for (let i = 0; i < mergedQuestions.length; i++) {
+        const q = mergedQuestions[i] as any;
 
         try {
           if (!q.content || !q.content.trim()) {
             throw new Error('题目内容不能为空');
           }
 
+          const mappedType = this.mapQuestionType(q.type);
           const createdQuestion = await this.prisma.question.create({
             data: {
               content: q.content,
-              type: q.type as any,
+              type: mappedType as any,
               options: q.options ? JSON.stringify(q.options) : null,
               answer: serializeQuestionAnswer(q.answer ?? q.matching),
               explanation: q.explanation,
@@ -256,9 +337,12 @@ export class ImportService {
           stage: 'saving_questions',
           message: '正在保存题目到题库',
           current: i + 1,
-          total: aiResponse.questions.length,
+          total: mergedQuestions.length,
         });
       }
+
+      // Add chunk-level errors
+      result.failed += chunksWithErrors;
 
       this.progressStore.append(jobId, {
         stage: 'done',
@@ -286,6 +370,58 @@ export class ImportService {
         status: 'failed',
         errorMessage,
       });
+    }
+  }
+
+  private async splitImageIntoChunks(buffer: Buffer): Promise<Buffer[]> {
+    try {
+      const metadata = await sharp(buffer).metadata();
+      const height = metadata.height;
+      const width = metadata.width;
+
+      // 如果高度小于 3000，不切分
+      if (!height || !width || height <= 3000) {
+        return [buffer];
+      }
+
+      const CHUNK_HEIGHT = 2000;
+      const OVERLAP = 400; // 重叠部分，防止题目被切断
+      const chunks: Buffer[] = [];
+
+      let top = 0;
+      while (top < height) {
+        let extractHeight = CHUNK_HEIGHT;
+        // 确保不超出边界
+        if (top + extractHeight > height) {
+          extractHeight = height - top;
+        }
+
+        // 如果最后一块太小（且不是唯一一块），可以考虑合并到上一块（这里简单处理，照样切）
+        // sharp extract
+        const chunk = await sharp(buffer)
+          .extract({
+            left: 0,
+            top: Math.floor(top),
+            width: width,
+            height: Math.floor(extractHeight),
+          })
+          .toBuffer();
+
+        chunks.push(chunk);
+
+        if (top + extractHeight >= height) {
+          break;
+        }
+
+        // 移动 top
+        top += CHUNK_HEIGHT - OVERLAP;
+      }
+
+      return chunks;
+    } catch (error) {
+      console.error('Image splitting failed:', error);
+      // Fallback to original buffer
+      return [buffer];
     }
   }
 
