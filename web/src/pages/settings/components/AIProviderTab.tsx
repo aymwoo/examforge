@@ -28,7 +28,7 @@ interface AIProviderTabProps {
   loadProviders: () => Promise<void>;
   handleEdit: (provider: AIProviderItem) => void;
   handleDelete: (provider: AIProviderItem) => Promise<void>;
-  handleSetDefault: (provider: AIProviderItem) => Promise<void>;
+  handleSetDefault: (provider: AIProviderItem) => void;
   canEditProvider: (provider: AIProviderItem) => boolean;
   canDeleteProvider: (provider: AIProviderItem) => boolean;
   handleSubmit: (event: React.FormEvent) => Promise<void>;

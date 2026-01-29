@@ -50,27 +50,56 @@ export default function Modal({
 }: ModalProps) {
   const sizeClassName = maxWidthClassName || getSizeClassName(size);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const initialFocusSetRef = useRef(false);
+  const previousActiveRef = useRef<HTMLElement | null>(null);
 
+  // Use a stable reference for onClose to prevent effect re-runs
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  // Reset initial focus tracking when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      initialFocusSetRef.current = false;
+    }
+  }, [isOpen]);
+
+  // Handle initial focus only once when modal opens
+  useEffect(() => {
+    if (!isOpen || initialFocusSetRef.current) return;
+
+    previousActiveRef.current = document.activeElement as HTMLElement | null;
+    
+    // Find and focus the first input or textarea, otherwise fall back to any focusable element
+    const inputOrTextarea = containerRef.current?.querySelector<HTMLElement>(
+      "input, textarea, select",
+    );
+    const fallbackFocusable = containerRef.current?.querySelector<HTMLElement>(
+      "button, [href], [tabindex]:not([tabindex='-1'])",
+    );
+    
+    const elementToFocus = inputOrTextarea || fallbackFocusable;
+    elementToFocus?.focus();
+    
+    initialFocusSetRef.current = true;
+  }, [isOpen]);
+
+  // Handle keyboard events separately
   useEffect(() => {
     if (!isOpen) return;
-    const previousActive = document.activeElement as HTMLElement | null;
-    const focusable = containerRef.current?.querySelector<HTMLElement>(
-      "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])",
-    );
-    focusable?.focus();
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onClose();
+        onCloseRef.current();
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      previousActive?.focus();
+      previousActiveRef.current?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

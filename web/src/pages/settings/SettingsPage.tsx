@@ -126,6 +126,11 @@ export default function SettingsPage() {
     isActive: true,
   });
 
+  // Confirmation modal state for setting default provider
+  const [showSetDefaultConfirm, setShowSetDefaultConfirm] = useState(false);
+  const [pendingDefaultProvider, setPendingDefaultProvider] =
+    useState<AIProviderItem | null>(null);
+
   const loadSettings = async () => {
     setLoading(true);
     setError(null);
@@ -757,21 +762,29 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSetDefault = async (provider: AIProviderItem) => {
+  const handleSetDefault = (provider: AIProviderItem) => {
     if (currentUser?.role !== "ADMIN") {
       showError("只有管理员可以设置系统默认Provider");
       return;
     }
-    if (!confirm(`确定要将 "${provider.name}" 设为系统默认AI Provider吗？`))
-      return;
+    // Open confirmation modal instead of using native confirm()
+    setPendingDefaultProvider(provider);
+    setShowSetDefaultConfirm(true);
+  };
+
+  const confirmSetDefault = async () => {
+    if (!pendingDefaultProvider) return;
     try {
-      const result = await setDefaultProvider(provider.id);
+      const result = await setDefaultProvider(pendingDefaultProvider.id);
       showSuccess(result.message);
       loadProviders();
     } catch (error: any) {
       showError(
         "设置失败: " + (error.response?.data?.message || error.message),
       );
+    } finally {
+      setShowSetDefaultConfirm(false);
+      setPendingDefaultProvider(null);
     }
   };
 
@@ -1110,6 +1123,26 @@ export default function SettingsPage() {
             <Button type="submit">{editingUser ? "更新" : "创建"}</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Set Default Provider Confirmation Modal */}
+      <Modal
+        isOpen={showSetDefaultConfirm}
+        onClose={() => {
+          setShowSetDefaultConfirm(false);
+          setPendingDefaultProvider(null);
+        }}
+        title="确认设置默认 Provider"
+        onConfirm={confirmSetDefault}
+        confirmText="确认"
+        cancelText="取消"
+      >
+        <p className="text-gray-700">
+          确定要将 <strong>"{pendingDefaultProvider?.name}"</strong> 设为系统默认AI Provider吗？
+        </p>
+        <p className="mt-2 text-sm text-gray-500">
+          设为默认后，所有未指定Provider的AI请求将使用此配置。
+        </p>
       </Modal>
     </>
   );
