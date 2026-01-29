@@ -15,6 +15,7 @@ import { resolveAssetUrl } from "@/utils/url";
 import { streamSse } from "@/utils/sse";
 const MDEditor = lazy(() => import("@uiw/react-md-editor"));
 import "@uiw/react-md-editor/markdown-editor.css";
+import { FillBlankQuestion } from "@/components/exam/FillBlankQuestion";
 
 interface Question {
   id: string;
@@ -908,7 +909,18 @@ export default function ExamTakePage() {
                   </span>
                 </div>
                 <div className="prose max-w-none">
-                  <p className="text-ink-900">{currentQuestion.content}</p>
+                  {currentQuestion.type === "FILL_BLANK" ? (
+                    <FillBlankQuestion
+                      id={currentQuestion.id}
+                      content={currentQuestion.content}
+                      value={answers[currentQuestion.id]}
+                      onChange={(val) =>
+                        handleAnswerChange(currentQuestion.id, val)
+                      }
+                    />
+                  ) : (
+                    <p className="text-ink-900">{currentQuestion.content}</p>
+                  )}
                 </div>
 
                 {/* 示例图展示 */}
@@ -1160,8 +1172,7 @@ export default function ExamTakePage() {
                     </div>
                   )}
 
-                {(currentQuestion.type === "FILL_BLANK" ||
-                  currentQuestion.type === "SHORT_ANSWER" ||
+                {(currentQuestion.type === "SHORT_ANSWER" ||
                   currentQuestion.type === "ESSAY") && (
                   <div className="border border-border rounded-xl overflow-hidden">
                     <Suspense
@@ -1177,14 +1188,12 @@ export default function ExamTakePage() {
                           handleAnswerChange(currentQuestion.id, value || "")
                         }
                         preview="edit"
-                        hideToolbar={currentQuestion.type === "FILL_BLANK"}
+                        hideToolbar={false}
                         visibleDragbar={false}
                         height={
                           currentQuestion.type === "ESSAY"
                             ? 300
-                            : currentQuestion.type === "SHORT_ANSWER"
-                              ? 200
-                              : 100
+                            : 200
                         }
                         data-color-mode="light"
                       />
