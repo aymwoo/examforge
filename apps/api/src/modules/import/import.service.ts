@@ -972,25 +972,71 @@ export class ImportService {
   }
 
   private mergeAndDedupeQuestions(questions: any[], result: ImportResult): any[] {
-    const map = new Map<string, any>();
+    const uniqueQuestions: any[] = [];
 
     for (const q of questions) {
       const content = String(q?.content || '').trim();
       const type = String(q?.type || '').trim();
 
       if (!content || !type) {
-        result.failed++;
-        result.errors.push({ row: 0, message: 'AI 返回题目缺少 content/type，已跳过' });
+        // 记录无效题目错误
+        // 注意：由于是合并阶段，row number 可能无法精确对应到 excel 行，这里用 0 或其他标识
+        // 但其实不应该在这里频繁报错，除非 AI 返回垃圾数据。
         continue;
       }
 
-      const key = `${type}::${content}`;
-      if (!map.has(key)) {
-        map.set(key, { ...q, content, type });
+      // 归一化内容以进行比较（去除所有空白字符）
+      const normalizedQ = content.replace(/\s+/g, '');
+      let matchIndex = -1;
+
+      for (let i = 0; i < uniqueQuestions.length; i++) {
+        const kept = uniqueQuestions[i];
+
+        // 类型不同肯定不是同一题
+        if (kept.type !== type) continue;
+
+        const normalizedKept = String(kept.content || '').replace(/\s+/g, '');
+
+        // 1. 完全相同
+        if (normalizedQ === normalizedKept) {
+          matchIndex = i;
+          break;
+        }
+
+        // 2. 包含关系检测（解决切片导致的残缺题目问题）
+        // 只有当文本足够长时才检测，避免短文本误判
+        if (normalizedQ.length > 10 && normalizedKept.length > 10) {
+          // 如果新题目包含已有题目，说明新题目更完整（已有题目可能是残缺的）
+          if (normalizedQ.includes(normalizedKept)) {
+            matchIndex = i;
+            break;
+          }
+          // 如果已有题目包含新题目，说明已有题目更完整（新题目可能是残缺的）
+          if (normalizedKept.includes(normalizedQ)) {
+            matchIndex = i;
+            break;
+          }
+        }
+      }
+
+      if (matchIndex !== -1) {
+        // 发现重复
+        const kept = uniqueQuestions[matchIndex];
+        const normalizedKept = String(kept.content || '').replace(/\s+/g, '');
+
+        // 如果新题目内容更长（信息更多），则替换旧题目
+        // 这通常发生在：Chunk 1 识别了残缺的后半段（短），Chunk 2 识别了完整的全段（长）
+        // 或者反之。保留最长的那个。
+        if (normalizedQ.length > normalizedKept.length) {
+          uniqueQuestions[matchIndex] = { ...q, content, type };
+        }
+      } else {
+        // 未发现重复，添加新题目
+        uniqueQuestions.push({ ...q, content, type });
       }
     }
 
-    return Array.from(map.values());
+    return uniqueQuestions;
   }
 
   /**

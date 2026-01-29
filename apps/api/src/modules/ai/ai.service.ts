@@ -491,7 +491,8 @@ export class AIService {
 3. type 字段必须是以下之一：SINGLE_CHOICE, MULTIPLE_CHOICE, TRUE_FALSE, FILL_BLANK, ESSAY
 4. 选择题必须包含 options 数组，格式 [{"label":"A","content":"..."},...]
 5. answer 字段：选择题填选项字母（如 "A" 或 "AB"），判断题填 "正确"/"错误" 或 "对"/"错"，其他题型填完整答案。
-6. 只返回严格 JSON：{"questions":[...]}（不要输出 markdown、代码块或任何说明文字）。`,
+6. 如果发现图片开头或结尾有被截断而不完整的题目，请直接忽略该题目，不要尝试识别或补全残缺内容，只输出完整的题目。
+7. 只返回严格 JSON：{"questions":[...]}（不要输出 markdown、代码块或任何说明文字）。`,
                 },
                 {
                   type: 'image_url',
