@@ -493,7 +493,7 @@ export class AIService {
 5. answer 字段：选择题填选项字母（如 "A" 或 "AB"），判断题填 "正确"/"错误" 或 "对"/"错"，连线题填 [{"left":"...","right":"..."}] 数组，其他题型填完整答案。
 6. 一般规则...
 7. 填空题如果有多个空，请在每个填空位置使用 '___' (三个以上下划线) 表示占位符。
-8. 连线题必须包含 matching 对象，格式 {"leftItems":["..."], "rightItems":["..."]}。
+8. 连线题必须包含 matching 对象，格式 {"leftItems":["..."], "rightItems":["..."]}。如果选项包含图形，请尝试用 Emoji (如 🍎, 📐) 代替，或使用 "[图片: 描述]" 格式。
 9. 只返回严格 JSON：{"questions":[...]}（不要输出 markdown、代码块或任何说明文字）。`,
                 },
                 {
@@ -893,7 +893,7 @@ export class AIService {
 要求：
 - 生成指定数量的题目
 - 不要合并题目；每道题都要单独作为一个 question。
-- 连线题必须包含 matching 对象，格式 {"leftItems":["..."], "rightItems":["..."]}。
+- 连线题必须包含 matching 对象，格式 {"leftItems":["..."], "rightItems":["..."]}。如果选项包含图形，请尝试用 Emoji 代替。
 - 填空题如果有多个空，请在每个填空位置使用 '___' (三个以上下划线) 表示占位符。
 - 只返回严格 JSON：{"questions":[...]}（不要输出 markdown 或说明）。`,
             },

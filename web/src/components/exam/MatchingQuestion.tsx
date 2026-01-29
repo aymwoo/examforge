@@ -127,6 +127,32 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
       setSelectedLeft(null); // Deselect after connecting
   };
 
+  const renderItemContent = (text: string) => {
+    // Match Markdown image: ![alt](url)
+    const mdImageRegex = /!\[([^\]]*)\]\(([^)]+)\)/;
+    const match = text.match(mdImageRegex);
+
+    if (match) {
+        const alt = match[1];
+        const url = match[2];
+        const textBefore = text.substring(0, match.index).trim();
+        const textAfter = text.substring((match.index || 0) + match[0].length).trim();
+        
+        return (
+            <div className="flex flex-col items-center justify-center gap-2 w-full pointer-events-none">
+                {textBefore && <span className="text-sm font-medium text-ink-900">{textBefore}</span>}
+                <img 
+                    src={url} 
+                    alt={alt} 
+                    className="max-h-24 max-w-full object-contain rounded border border-gray-100 bg-white"
+                />
+                {textAfter && <span className="text-sm font-medium text-ink-900">{textAfter}</span>}
+            </div>
+        );
+    }
+    return <span className="text-sm font-medium text-ink-900 pointer-events-none">{text}</span>;
+  };
+
   // Calculate Lines
   const renderLines = () => {
       if (!containerRef.current) return null;
@@ -194,7 +220,7 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
                                 ${isConnected ? 'border-blue-500 bg-blue-50' : ''}
                             `}
                         >
-                            <span className="text-sm font-medium text-ink-900">{item}</span>
+                            {renderItemContent(item)}
                         </div>
                     );
                 })}
@@ -214,7 +240,7 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
                                 ${isConnected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'}
                             `}
                         >
-                             <span className="text-sm font-medium text-ink-900">{item}</span>
+                             {renderItemContent(item)}
                         </div>
                     );
                 })}
