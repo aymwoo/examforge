@@ -1,10 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 
-interface MatchingPair {
-  left: string;
-  right: string;
-}
-
 interface MatchingQuestionProps {
   content: string;
   matching?: {
@@ -25,10 +20,18 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
 }) => {
   const [leftItems, setLeftItems] = useState<string[]>([]);
   const [rightItems, setRightItems] = useState<string[]>([]);
-  const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   
+  // Drag State
+  const [dragStart, setDragStart] = useState<{
+    item: string;
+    side: 'left' | 'right';
+    startX: number;
+    startY: number;
+  } | null>(null);
+  const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
+
   // Parse value into pairs
-  const pairs: MatchingPair[] = useMemo(() => {
+  const pairs: { left: string, right: string }[] = useMemo(() => {
     if (Array.isArray(value)) return value;
     try {
       if (typeof value === 'string') {
@@ -53,10 +56,8 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
       setRightItems(matching.rightItems);
     } else {
         // Fallback: Parse content
-        // Pattern: "左侧" ... "右侧" ...
         try {
             const cleanContent = content.replace(/\s+/g, ' ');
-            // Simple split by "左侧" and "右侧"
             const leftIndex = cleanContent.indexOf("左侧");
             const rightIndex = cleanContent.indexOf("右侧");
             
@@ -65,7 +66,6 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
                  const rightPart = cleanContent.substring(rightIndex);
                  
                  const extract = (text: string) => {
-                     // Split by dash or commonly used separators
                      return text
                         .split(/[-–—]/)
                         .map(s => s.trim())
@@ -94,37 +94,84 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
      return () => clearTimeout(timer);
   }, [leftItems, rightItems]);
 
-  const handleLeftClick = (item: string) => {
-    if (disabled) return;
-    // Toggle selection
-    if (selectedLeft === item) {
-        setSelectedLeft(null);
-    } else {
-        setSelectedLeft(item);
-    }
+  // Drag Handlers
+  useEffect(() => {
+      const handleMouseMove = (e: MouseEvent) => {
+          if (!dragStart || !containerRef.current) return;
+          const rect = containerRef.current.getBoundingClientRect();
+          setDragCurrent({
+              x: e.clientX - rect.left,
+              y: e.clientY - rect.top
+          });
+      };
+
+      const handleMouseUp = (e: MouseEvent) => {
+          if (!dragStart) return;
+          
+          // Check if dropped on a valid target
+          const targetEl = document.elementFromPoint(e.clientX, e.clientY);
+          const targetDiv = targetEl?.closest('[data-matching-item]');
+          
+          if (targetDiv) {
+              const targetItem = targetDiv.getAttribute('data-matching-item');
+              const targetSide = targetDiv.getAttribute('data-matching-side');
+              
+              if (targetItem && targetSide && targetSide !== dragStart.side) {
+                   handleConnect(
+                       dragStart.side === 'left' ? dragStart.item : targetItem,
+                       dragStart.side === 'right' ? dragStart.item : targetItem
+                   );
+              }
+          }
+          
+          setDragStart(null);
+          setDragCurrent(null);
+      };
+
+      if (dragStart) {
+          window.addEventListener('mousemove', handleMouseMove);
+          window.addEventListener('mouseup', handleMouseUp);
+      }
+      return () => {
+          window.removeEventListener('mousemove', handleMouseMove);
+          window.removeEventListener('mouseup', handleMouseUp);
+      };
+  }, [dragStart, pairs]);
+
+  const handleMouseDown = (e: React.MouseEvent, item: string, side: 'left' | 'right') => {
+      if (disabled || !containerRef.current) return;
+      e.preventDefault(); // prevent text selection
+      
+      const rect = containerRef.current.getBoundingClientRect();
+      const node = side === 'left' ? leftRefs.current[item] : rightRefs.current[item];
+      let startX = e.clientX - rect.left;
+      let startY = e.clientY - rect.top;
+      
+      if (node) {
+          const nodeRect = node.getBoundingClientRect();
+          startY = nodeRect.top + nodeRect.height / 2 - rect.top;
+          startX = side === 'left' 
+             ? (nodeRect.right - rect.left) // Right edge for left items
+             : (nodeRect.left - rect.left); // Left edge for right items
+      }
+      
+      setDragStart({ item, side, startX, startY });
+      setDragCurrent({ x: startX, y: startY });
   };
 
-  const handleRightClick = (item: string) => {
-      if (disabled) return;
-      if (!selectedLeft) return;
-      
-      // Update pairs
+  const handleConnect = (left: string, right: string) => {
       const newPairs = [...pairs];
-      // Remove existing pair for the selected left item if any
-      const existingIdx = newPairs.findIndex(p => p.left === selectedLeft);
-      if (existingIdx !== -1) {
-          newPairs.splice(existingIdx, 1);
-      }
-      
-      // Remove existing pair having this right item (assuming 1-to-1)
-      const existingRightIdx = newPairs.findIndex(p => p.right === item);
-      if (existingRightIdx !== -1) {
-          newPairs.splice(existingRightIdx, 1);
-      }
-      
-      newPairs.push({ left: selectedLeft, right: item });
+      // One-to-one constraint: Remove existing connections for these items
+      const cleanPairs = newPairs.filter(p => p.left !== left && p.right !== right);
+      cleanPairs.push({ left, right });
+      onChange(cleanPairs);
+  };
+  
+  const handleRemovePair = (pairIdx: number) => {
+      if (disabled) return;
+      const newPairs = [...pairs];
+      newPairs.splice(pairIdx, 1);
       onChange(newPairs);
-      setSelectedLeft(null); // Deselect after connecting
   };
 
   const renderItemContent = (text: string) => {
@@ -153,40 +200,51 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
     return <span className="text-sm font-medium text-ink-900 pointer-events-none">{text}</span>;
   };
 
-  // Calculate Lines
   const renderLines = () => {
       if (!containerRef.current) return null;
-      
       const containerRect = containerRef.current.getBoundingClientRect();
       
-      return pairs.map((pair) => {
-          const lNode = leftRefs.current[pair.left];
-          const rNode = rightRefs.current[pair.right];
-          if (!lNode || !rNode) return null;
-          
-          const lRect = lNode.getBoundingClientRect();
-          const rRect = rNode.getBoundingClientRect();
-          
-          // Calculate relative coords
-          const x1 = lRect.right - containerRect.left;
-          const y1 = lRect.top + lRect.height/2 - containerRect.top;
-          const x2 = rRect.left - containerRect.left;
-          const y2 = rRect.top + rRect.height/2 - containerRect.top;
-          
-          return (
-              <line 
-                key={`${pair.left}-${pair.right}`}
-                x1={x1} y1={y1} x2={x2} y2={y2}
-                stroke="#3B82F6"
-                strokeWidth="2"
-                strokeDasharray="0"
-              />
-          );
-      });
+      return (
+          <>
+            {pairs.map((pair, idx) => {
+                const lNode = leftRefs.current[pair.left];
+                const rNode = rightRefs.current[pair.right];
+                if (!lNode || !rNode) return null;
+                
+                const lRect = lNode.getBoundingClientRect();
+                const rRect = rNode.getBoundingClientRect();
+                
+                const x1 = lRect.right - containerRect.left;
+                const y1 = lRect.top + lRect.height/2 - containerRect.top;
+                const x2 = rRect.left - containerRect.left;
+                const y2 = rRect.top + rRect.height/2 - containerRect.top;
+                
+                return (
+                    <g key={`${pair.left}-${pair.right}`} className="group cursor-pointer" onClick={() => handleRemovePair(idx)}>
+                        {/* Invisible thicker line for easier clicking */}
+                        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth="15" />
+                        {/* Visible Line */}
+                        <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#3B82F6" strokeWidth="2" className="group-hover:stroke-red-500 group-hover:stroke-[3px] transition-all" />
+                    </g>
+                );
+            })}
+            
+            {/* Transient Drag Line */}
+            {dragStart && dragCurrent && (
+                <line 
+                    x1={dragStart.startX} 
+                    y1={dragStart.startY} 
+                    x2={dragCurrent.x} 
+                    y2={dragCurrent.y} 
+                    stroke="#3B82F6" 
+                    strokeWidth="2" 
+                    strokeDasharray="5,5" 
+                    className="pointer-events-none opacity-60"
+                />
+            )}
+          </>
+      );
   };
-  
-  // Handle Current Selection Line (Phantom Line)
-  // This would require tracking mouse position, might be overkill for now.
 
   if (leftItems.length === 0 || rightItems.length === 0) {
       return (
@@ -198,29 +256,32 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
 
   return (
     <div className="w-full relative select-none" ref={containerRef}>
-        {/* SVG Layer */}
         <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-10" style={{ minHeight: '300px' }}>
-            {renderLines()}
+            <g className="pointer-events-auto">
+                {renderLines()}
+            </g>
         </svg>
         
         <div className="flex justify-between items-start gap-10 relative z-20">
             {/* Left Column */}
             <div className="flex-1 flex flex-col gap-6">
                 {leftItems.map((item) => {
-                    const isSelected = selectedLeft === item;
                     const isConnected = pairs.some(p => p.left === item);
                     return (
                         <div 
                             key={item}
                             ref={el => { leftRefs.current[item] = el; }}
-                            onClick={() => handleLeftClick(item)}
+                            onMouseDown={(e) => handleMouseDown(e, item, 'left')}
+                            data-matching-item={item}
+                            data-matching-side="left"
                             className={`
-                                p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-center min-h-[60px] text-center
-                                ${isSelected ? 'border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200' : 'border-gray-200 bg-white hover:border-blue-300'}
-                                ${isConnected ? 'border-blue-500 bg-blue-50' : ''}
+                                relative p-4 rounded-xl border-2 cursor-grab active:cursor-grabbing transition-all flex items-center justify-center min-h-[60px] text-center
+                                ${isConnected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'}
                             `}
                         >
                             {renderItemContent(item)}
+                            {/* Anchor Point (Right) */}
+                            <div className={`absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border border-white ${isConnected ? 'bg-blue-500' : 'bg-gray-300 group-hover:bg-blue-300'}`}></div>
                         </div>
                     );
                 })}
@@ -234,13 +295,17 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
                         <div 
                             key={item}
                             ref={el => { rightRefs.current[item] = el; }}
-                            onClick={() => handleRightClick(item)}
+                            onMouseDown={(e) => handleMouseDown(e, item, 'right')}
+                            data-matching-item={item}
+                            data-matching-side="right"
                             className={`
-                                p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center justify-center min-h-[60px] text-center
+                                relative p-4 rounded-xl border-2 cursor-grab active:cursor-grabbing transition-all flex items-center justify-center min-h-[60px] text-center
                                 ${isConnected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'}
                             `}
                         >
                              {renderItemContent(item)}
+                             {/* Anchor Point (Left) */}
+                             <div className={`absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border border-white ${isConnected ? 'bg-blue-500' : 'bg-gray-300 group-hover:bg-blue-300'}`}></div>
                         </div>
                     );
                 })}
@@ -248,7 +313,7 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
         </div>
         
         <div className="mt-4 text-xs text-gray-400 text-center">
-           点击左侧选项选中，再点击右侧选项进行连线。再次点击可修改。
+           按住选项圆点或卡片拖动到另一侧进行连线。点击已有的连线可删除。
         </div>
     </div>
   );
