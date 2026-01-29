@@ -488,12 +488,13 @@ export class AIService {
 要求：
 1. 不要合并题目；每道题都要单独作为一个 question。
 2. 如题目/答案跨行或被打散，请尽量还原完整内容。
-3. type 字段必须是以下之一：SINGLE_CHOICE, MULTIPLE_CHOICE, TRUE_FALSE, FILL_BLANK, ESSAY
+3. type 字段必须是以下之一：SINGLE_CHOICE, MULTIPLE_CHOICE, TRUE_FALSE, FILL_BLANK, MATCHING, ESSAY
 4. 选择题必须包含 options 数组，格式 [{"label":"A","content":"..."},...]
-5. answer 字段：选择题填选项字母（如 "A" 或 "AB"），判断题填 "正确"/"错误" 或 "对"/"错"，其他题型填完整答案。
-6. 如果发现图片开头或结尾有被截断而不完整的题目，请直接忽略该题目，不要尝试识别或补全残缺内容，只输出完整的题目。
+5. answer 字段：选择题填选项字母（如 "A" 或 "AB"），判断题填 "正确"/"错误" 或 "对"/"错"，连线题填 [{"left":"...","right":"..."}] 数组，其他题型填完整答案。
+6. 一般规则...
 7. 填空题如果有多个空，请在每个填空位置使用 '___' (三个以上下划线) 表示占位符。
-8. 只返回严格 JSON：{"questions":[...]}（不要输出 markdown、代码块或任何说明文字）。`,
+8. 连线题必须包含 matching 对象，格式 {"leftItems":["..."], "rightItems":["..."]}。
+9. 只返回严格 JSON：{"questions":[...]}（不要输出 markdown、代码块或任何说明文字）。`,
                 },
                 {
                   type: 'image_url',
@@ -892,6 +893,7 @@ export class AIService {
 要求：
 - 生成指定数量的题目
 - 不要合并题目；每道题都要单独作为一个 question。
+- 连线题必须包含 matching 对象，格式 {"leftItems":["..."], "rightItems":["..."]}。
 - 填空题如果有多个空，请在每个填空位置使用 '___' (三个以上下划线) 表示占位符。
 - 只返回严格 JSON：{"questions":[...]}（不要输出 markdown 或说明）。`,
             },

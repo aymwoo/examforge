@@ -16,6 +16,7 @@ import { streamSse } from "@/utils/sse";
 const MDEditor = lazy(() => import("@uiw/react-md-editor"));
 import "@uiw/react-md-editor/markdown-editor.css";
 import { FillBlankQuestion } from "@/components/exam/FillBlankQuestion";
+import { MatchingQuestion } from "@/components/exam/MatchingQuestion";
 
 interface Question {
   id: string;
@@ -302,65 +303,9 @@ export default function ExamTakePage() {
     });
   };
 
-  const initializeMatchingAnswer = (question: Question) => {
-    const leftItems = question.matching?.leftItems || [];
-    const rightItems = question.matching?.rightItems || [];
-    const matches = question.matching?.matches || {};
-    return {
-      leftItems,
-      rightItems,
-      matches,
-      pairs: leftItems.map((left) => ({
-        left,
-        right: matches[left] || "",
-      })),
-    };
-  };
 
-  const getMatchingAnswerPairs = (questionId: string, question: Question) => {
-    const existing = answers[questionId];
-    if (Array.isArray(existing)) {
-      return existing.map((pair: any) => ({
-        left: String(pair.left || ""),
-        right: String(pair.right || ""),
-      }));
-    }
-    if (!question.matching && typeof existing === "string") {
-      try {
-        const parsed = JSON.parse(existing);
-        if (Array.isArray(parsed)) {
-          return parsed.map((pair: any) => ({
-            left: String(pair.left || ""),
-            right: String(pair.right || ""),
-          }));
-        }
-      } catch {
-        return [];
-      }
-    }
-    if (!question.matching) return [];
-    return initializeMatchingAnswer(question).pairs;
-  };
 
-  const handleMatchingDrop = (
-    question: Question,
-    leftItem: string,
-    rightItem: string,
-  ) => {
-    const pairs = getMatchingAnswerPairs(question.id, question);
-    const nextPairs = pairs.map((pair) =>
-      pair.left === leftItem ? { ...pair, right: rightItem } : pair,
-    );
-    handleAnswerChange(question.id, nextPairs);
-  };
 
-  const resetMatchingPair = (question: Question, leftItem: string) => {
-    const pairs = getMatchingAnswerPairs(question.id, question);
-    const nextPairs = pairs.map((pair) =>
-      pair.left === leftItem ? { ...pair, right: "" } : pair,
-    );
-    handleAnswerChange(question.id, nextPairs);
-  };
 
   const handleSubmitExam = async () => {
     if (!student || !examId) return;
@@ -1080,97 +1025,19 @@ export default function ExamTakePage() {
                   </div>
                 )}
 
-                {currentQuestion.type === "MATCHING" &&
-                  currentQuestion.matching && (
-                    <div className="space-y-4">
-                      <div className="rounded-xl border border-border bg-slate-50 p-4 text-sm text-ink-700">
-                        从左侧拖动到右侧完成连线，可再次拖动覆盖。
-                      </div>
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-ink-900">
-                            左侧
-                          </h4>
-                          {currentQuestion.matching.leftItems.map(
-                            (leftItem) => {
-                              const currentPairs = getMatchingAnswerPairs(
-                                currentQuestion.id,
-                                currentQuestion,
-                              );
-                              const matchedRight =
-                                currentPairs.find(
-                                  (pair) => pair.left === leftItem,
-                                )?.right || "";
-                              return (
-                                <div
-                                  key={leftItem}
-                                  draggable
-                                  onDragStart={(event) => {
-                                    event.dataTransfer.setData(
-                                      "text/plain",
-                                      leftItem,
-                                    );
-                                  }}
-                                  className="rounded-xl border border-border bg-white px-3 py-2 text-sm text-ink-900 shadow-sm"
-                                >
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span>{leftItem}</span>
-                                    {matchedRight && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          resetMatchingPair(
-                                            currentQuestion,
-                                            leftItem,
-                                          )
-                                        }
-                                        className="text-xs text-ink-500 hover:text-ink-700"
-                                      >
-                                        清除
-                                      </button>
-                                    )}
-                                  </div>
-                                  {matchedRight && (
-                                    <p className="mt-2 text-xs text-ink-600">
-                                      已连线: {matchedRight}
-                                    </p>
-                                  )}
-                                </div>
-                              );
-                            },
-                          )}
-                        </div>
-                        <div className="space-y-3">
-                          <h4 className="text-sm font-semibold text-ink-900">
-                            右侧
-                          </h4>
-                          {currentQuestion.matching.rightItems.map(
-                            (rightItem) => (
-                              <div
-                                key={rightItem}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={(event) => {
-                                  event.preventDefault();
-                                  const leftItem =
-                                    event.dataTransfer.getData("text/plain");
-                                  if (leftItem) {
-                                    handleMatchingDrop(
-                                      currentQuestion,
-                                      leftItem,
-                                      rightItem,
-                                    );
-                                  }
-                                }}
-                                className="rounded-xl border border-dashed border-border bg-white px-3 py-3 text-sm text-ink-900"
-                              >
-                                {rightItem}
-                              </div>
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+
+                {currentQuestion.type === "MATCHING" && (
+                  <div className="mt-6">
+                    <MatchingQuestion
+                      content={currentQuestion.content}
+                      matching={currentQuestion.matching}
+                      value={answers[currentQuestion.id]}
+                      onChange={(val) =>
+                        handleAnswerChange(currentQuestion.id, val)
+                      }
+                    />
+                  </div>
+                )}
 
                 {(currentQuestion.type === "SHORT_ANSWER" ||
                   currentQuestion.type === "ESSAY") && (
