@@ -549,14 +549,21 @@ export default function ImportHistoryPage() {
                           </span>
                           <span>{question.difficulty}</span>
                         </span>
-                        {question.tags && question.tags.length > 0 && (
-                          <span className="flex items-center gap-1">
-                            <span className="font-semibold text-gray-900">
-                              标签:
+                        {question.tags &&
+                          (Array.isArray(question.tags)
+                            ? question.tags.length > 0
+                            : String(question.tags).trim().length > 0) && (
+                            <span className="flex items-center gap-1">
+                              <span className="font-semibold text-gray-900">
+                                标签:
+                              </span>
+                              <span>
+                                {Array.isArray(question.tags)
+                                  ? question.tags.join(", ")
+                                  : String(question.tags)}
+                              </span>
                             </span>
-                            <span>{question.tags.join(", ")}</span>
-                          </span>
-                        )}
+                          )}
                         {question.knowledgePoint && (
                           <span className="flex items-center gap-1">
                             <span className="font-semibold text-gray-900">
