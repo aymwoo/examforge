@@ -303,10 +303,6 @@ export default function ExamTakePage() {
     });
   };
 
-
-
-
-
   const handleSubmitExam = async () => {
     if (!student || !examId) return;
 
@@ -326,10 +322,74 @@ export default function ExamTakePage() {
         },
       );
 
+      // 轮询后备机制
+      let sseConnected = false;
+      const pollInterval = 2000;
+      const maxPolls = 150;
+      let pollCount = 0;
+      let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+      const startPolling = async () => {
+        setProgress({ current: 0, total: 0, message: "正在获取提交状态..." });
+        pollTimer = setInterval(async () => {
+          pollCount++;
+          if (pollCount > maxPolls) {
+            clearInterval(pollTimer!);
+            setError("提交超时，请刷新页面查看结果");
+            setShowProgressModal(false);
+            return;
+          }
+
+          try {
+            const response = await api.get(
+              `/api/exams/${examId}/submission-status/${student.id}`,
+              { withCredentials: true },
+            );
+
+            if (response.data.hasSubmitted && response.data.submission) {
+              clearInterval(pollTimer!);
+              setSubmissionResult(response.data.submission);
+              setIsSubmitted(true);
+
+              if (response.data.submission?.gradingDetails) {
+                try {
+                  const parsedDetails =
+                    typeof response.data.submission.gradingDetails === "string"
+                      ? JSON.parse(response.data.submission.gradingDetails)
+                      : response.data.submission.gradingDetails;
+                  setGradingResults(parsedDetails);
+                } catch {
+                  // ignore
+                }
+              }
+
+              setShowProgressModal(false);
+              setProgress({ current: 100, total: 100, message: "提交完成" });
+            } else {
+              setProgress({
+                current: pollCount,
+                total: maxPolls,
+                message: `正在等待提交完成... (${pollCount}/${maxPolls})`,
+              });
+            }
+          } catch (err) {
+            console.error("Polling error:", err);
+          }
+        }, pollInterval);
+      };
+
       // 监听进度
       const sseController = await streamSse({
         url: `/api/exams/${examId}/submit-progress/${student.id}`,
         onMessage: (payload) => {
+          if (!sseConnected) {
+            sseConnected = true;
+            if (pollTimer) {
+              clearInterval(pollTimer);
+              pollTimer = null;
+            }
+          }
+
           const data = JSON.parse(payload);
 
           if (data.type === "progress") {
@@ -360,13 +420,28 @@ export default function ExamTakePage() {
             setError(data.message);
             setShowProgressModal(false);
             sseController.abort();
+          } else if (data.type === "connected") {
+            console.log("SSE connected:", data.message);
           }
         },
-        onError: () => {
-          setError("连接中断，请刷新页面查看结果");
-          setShowProgressModal(false);
+        onError: (error) => {
+          console.error("SSE error:", error);
+          // 即使 SSE 失败，也启动轮询检查提交状态
+          if (!pollTimer) {
+            startPolling();
+          } else {
+            // 轮询已在进行中，不做额外处理
+          }
         },
       });
+
+      // 如果3秒内SSE未连接，启动轮询
+      setTimeout(() => {
+        if (!sseConnected && !pollTimer) {
+          console.log("SSE not connected after 3 seconds, starting polling...");
+          startPolling();
+        }
+      }, 3000);
     } catch (err: any) {
       setError(err.response?.data?.message || "提交失败");
       setShowProgressModal(false);
@@ -1025,7 +1100,6 @@ export default function ExamTakePage() {
                   </div>
                 )}
 
-
                 {currentQuestion.type === "MATCHING" && (
                   <div className="mt-6">
                     <MatchingQuestion
@@ -1057,11 +1131,7 @@ export default function ExamTakePage() {
                         preview="edit"
                         hideToolbar={false}
                         visibleDragbar={false}
-                        height={
-                          currentQuestion.type === "ESSAY"
-                            ? 300
-                            : 200
-                        }
+                        height={currentQuestion.type === "ESSAY" ? 300 : 200}
                         data-color-mode="light"
                       />
                     </Suspense>
@@ -1092,8 +1162,7 @@ export default function ExamTakePage() {
                     {autoSaving ? "保存中..." : "保存答案"}
                   </Button>
 
-                  {currentQuestionIndex <
-                  (exam.questions?.length || 0) - 1 ? (
+                  {currentQuestionIndex < (exam.questions?.length || 0) - 1 ? (
                     <Button
                       onClick={() =>
                         setCurrentQuestionIndex((prev) => prev + 1)

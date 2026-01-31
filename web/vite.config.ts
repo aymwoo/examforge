@@ -22,7 +22,9 @@ export default defineConfig({
               req.url?.startsWith("/api/import/pdf/progress") ||
               req.url?.startsWith(
                 "/api/ai/generate-questions-json-stream/progress",
-              )
+              ) ||
+              (req.url?.startsWith("/api/exams/") &&
+                req.url?.includes("/submit-progress/"))
             ) {
               proxyReq.setHeader("Accept", "text/event-stream");
               proxyReq.setHeader("Cache-Control", "no-cache");
@@ -37,6 +39,8 @@ export default defineConfig({
               req.url?.startsWith(
                 "/api/ai/generate-questions-json-stream/progress",
               ) ||
+              (req.url?.startsWith("/api/exams/") &&
+                req.url?.includes("/submit-progress/")) ||
               contentType.includes("text/event-stream");
 
             if (isProgressStream) {

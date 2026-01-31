@@ -365,6 +365,10 @@ export class ExamController {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    // 立即刷新头部，确保 SSE 连接建立
+    res.flushHeaders?.();
 
     if (student?.id !== examStudentId) {
       res.status(403).end();

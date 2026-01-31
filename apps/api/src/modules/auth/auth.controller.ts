@@ -18,7 +18,7 @@ export class AuthController {
     if (result.access_token) {
       res.cookie('access_token', result.access_token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Allow HTTP for development/testing
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000,
       });
@@ -35,7 +35,7 @@ export class AuthController {
     if (result.access_token) {
       res.cookie('access_token', result.access_token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Allow HTTP for development/testing
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000,
       });
@@ -49,7 +49,7 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('access_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Allow HTTP for development/testing
       sameSite: 'lax',
     });
     return { message: 'Logged out' };

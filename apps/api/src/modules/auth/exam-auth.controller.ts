@@ -21,7 +21,7 @@ export class ExamAuthController {
     if (result.token) {
       res.cookie('exam_token', result.token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Allow HTTP for development/testing
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000,
       });
@@ -52,7 +52,7 @@ export class ExamAuthController {
     if (result.token) {
       res.cookie('exam_token', result.token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Allow HTTP for development/testing
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000,
       });
@@ -81,7 +81,7 @@ export class ExamAuthController {
   examLogout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('exam_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Allow HTTP for development/testing
       sameSite: 'lax',
     });
     return { message: 'Logged out' };

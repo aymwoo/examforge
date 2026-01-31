@@ -989,6 +989,14 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
 
   async submitExamAsync(examId: string, examStudentId: string, answers: Record<string, any>) {
     const streamKey = `${examId}-${examStudentId}`;
+    let isCompleted = false;
+
+    const timeout = setTimeout(() => {
+      if (!isCompleted) {
+        console.error(`Submit exam timeout for ${streamKey}`);
+        this.sendProgress(streamKey, { type: 'error', message: '评分超时，请稍后查看结果' });
+      }
+    }, 300000);
 
     try {
       // 检查是否已经提交过（以 gradingDetails 是否存在判断正式提交）
@@ -997,6 +1005,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
       });
 
       if (existingSubmission) {
+        clearTimeout(timeout);
         this.sendProgress(streamKey, { type: 'error', message: '考试已提交，不能重复提交' });
         return;
       }
@@ -1013,6 +1022,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
       });
 
       if (!exam) {
+        clearTimeout(timeout);
         this.sendProgress(streamKey, { type: 'error', message: '考试不存在' });
         return;
       }
@@ -1061,6 +1071,9 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
             },
           });
 
+      isCompleted = true;
+      clearTimeout(timeout);
+
       this.sendProgress(streamKey, {
         type: 'complete',
         submission: {
@@ -1068,15 +1081,17 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
           score: submission.score,
           isAutoGraded: submission.isAutoGraded,
           submittedAt: submission.submittedAt,
-          answers: answers, // 添加原始答案数据
-          gradingResults: gradingResults, // 添加评分结果
+          answers: answers,
+          gradingResults: gradingResults,
         },
       });
 
       console.log('发送完成事件，包含gradingResults:', !!gradingResults);
     } catch (error) {
+      clearTimeout(timeout);
       console.error('异步提交失败:', error);
-      this.sendProgress(streamKey, { type: 'error', message: error.message });
+      const errorMessage = error instanceof Error ? error.message : '评分过程中出现未知错误';
+      this.sendProgress(streamKey, { type: 'error', message: errorMessage });
     }
   }
 
@@ -1089,40 +1104,64 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
 
   async streamSubmissionProgress(examId: string, examStudentId: string, res: any) {
     const streamKey = `${examId}-${examStudentId}`;
-    this.progressStreams.set(streamKey, res);
 
-    // 检查是否已完成（排除草稿）
-    const existingSubmission = await this.prisma.submission.findFirst({
-      where: { examId, examStudentId, gradingDetails: { not: null } },
-    });
+    try {
+      this.progressStreams.set(streamKey, res);
 
-    if (existingSubmission) {
-      res.write(
-        `data: ${JSON.stringify({
-          type: 'complete',
-          submission: {
-            id: existingSubmission.id,
-            score: existingSubmission.score,
-            isAutoGraded: existingSubmission.isAutoGraded,
-            submittedAt: existingSubmission.submittedAt,
-            answers: this.parseSubmissionAnswersMap(existingSubmission.answers),
-            answersArray: this.parseSubmissionAnswersArray(existingSubmission.answers),
-          },
-        })}\n\n`
-      );
-      res.end();
-      return;
-    }
+      // 立即发送握手确认，确保连接建立
+      res.flushHeaders?.();
+      res.write(`data: ${JSON.stringify({ type: 'connected', message: 'SSE 连接已建立' })}\n\n`);
 
-    // 保持连接
-    const keepAlive = setInterval(() => {
-      res.write(`data: ${JSON.stringify({ type: 'ping' })}\n\n`);
-    }, 30000);
+      // 检查是否已完成（排除草稿）
+      const existingSubmission = await this.prisma.submission.findFirst({
+        where: { examId, examStudentId, gradingDetails: { not: null } },
+      });
 
-    res.on('close', () => {
-      clearInterval(keepAlive);
+      if (existingSubmission) {
+        res.write(
+          `data: ${JSON.stringify({
+            type: 'complete',
+            submission: {
+              id: existingSubmission.id,
+              score: existingSubmission.score,
+              isAutoGraded: existingSubmission.isAutoGraded,
+              submittedAt: existingSubmission.submittedAt,
+              answers: this.parseSubmissionAnswersMap(existingSubmission.answers),
+              answersArray: this.parseSubmissionAnswersArray(existingSubmission.answers),
+            },
+          })}\n\n`
+        );
+
+        // 延迟关闭连接，确保数据被客户端接收
+        setTimeout(() => res.end(), 100);
+        return;
+      }
+
+      // 保持连接
+      const keepAlive = setInterval(() => {
+        res.write(`data: ${JSON.stringify({ type: 'ping' })}\n\n`);
+      }, 30000);
+
+      res.on('close', () => {
+        clearInterval(keepAlive);
+        this.progressStreams.delete(streamKey);
+      });
+
+      res.on('error', (error: any) => {
+        console.error('SSE connection error:', error);
+        clearInterval(keepAlive);
+        this.progressStreams.delete(streamKey);
+      });
+    } catch (error) {
+      console.error('Error in streamSubmissionProgress:', error);
       this.progressStreams.delete(streamKey);
-    });
+      try {
+        res.write(`data: ${JSON.stringify({ type: 'error', message: '连接建立失败' })}\n\n`);
+      } catch (writeError) {
+        // 忽略写入错误，连接可能已经关闭
+      }
+      setTimeout(() => res.end(), 100);
+    }
   }
 
   async checkSubmissionStatus(examId: string, examStudentId: string) {

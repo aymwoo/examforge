@@ -76,7 +76,9 @@ export class SubmissionService {
     const submittedQuestionIds = new Set(dto.answers.map((a) => a.questionId));
     const examQuestionIds = new Set(exam.examQuestions.map((eq) => eq.questionId));
 
-    const missingQuestions = [...examQuestionIds].filter((id) => !submittedQuestionIds.has(id));
+    const missingQuestions = [...examQuestionIds].filter(
+      (id) => !submittedQuestionIds.has(id as string)
+    );
     if (missingQuestions.length > 0) {
       throw new BadRequestException(
         `Missing answers for questions: ${missingQuestions.join(', ')}`

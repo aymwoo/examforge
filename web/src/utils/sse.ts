@@ -29,17 +29,13 @@ export const streamSse = async ({
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = "";
+    let sseBuffer = "";
 
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-
-      let delimiterIndex = buffer.indexOf("\n\n");
-      while (delimiterIndex !== -1) {
-        const chunk = buffer.slice(0, delimiterIndex);
-        buffer = buffer.slice(delimiterIndex + 2);
+    const processBuffer = () => {
+      let delimiterIdx = sseBuffer.indexOf("\n\n");
+      while (delimiterIdx !== -1) {
+        const chunk = sseBuffer.slice(0, delimiterIdx);
+        sseBuffer = sseBuffer.slice(delimiterIdx + 2);
 
         const lines = chunk.split("\n");
         for (const line of lines) {
@@ -51,8 +47,21 @@ export const streamSse = async ({
           }
         }
 
-        delimiterIndex = buffer.indexOf("\n\n");
+        delimiterIdx = sseBuffer.indexOf("\n\n");
       }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        if (sseBuffer.trim()) {
+          sseBuffer += "\n\n";
+          processBuffer();
+        }
+        break;
+      }
+      sseBuffer += decoder.decode(value, { stream: true });
+      processBuffer();
     }
   } catch (error) {
     if (!controller.signal.aborted) {
