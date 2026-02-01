@@ -5,10 +5,21 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import cookieParser from 'cookie-parser';
 
+// Default JWT secret for development/demo purposes
+const DEFAULT_JWT_SECRET = 'examforge-default-jwt-secret-please-change-in-production';
+
 async function bootstrap() {
+  // Handle JWT_SECRET
   if (!process.env.JWT_SECRET) {
-    throw new Error('JWT_SECRET is required');
+    console.warn('\n' + '='.repeat(70));
+    console.warn('⚠️  WARNING: JWT_SECRET is not set!');
+    console.warn('   Using default secret for demo purposes.');
+    console.warn('   THIS IS NOT SECURE FOR PRODUCTION USE!');
+    console.warn('   Please set JWT_SECRET environment variable with a secure random string.');
+    console.warn('='.repeat(70) + '\n');
+    process.env.JWT_SECRET = DEFAULT_JWT_SECRET;
   }
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['log', 'error', 'warn'],
   });
