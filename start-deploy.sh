@@ -271,10 +271,16 @@ if [ ! -d "$SCRIPT_DIR/api/node_modules" ]; then
     exit 1
 fi
 
-# Default DB (SQLite) location
-export DATABASE_URL="${DATABASE_URL:-file:./prisma/prod.db}"
-export NODE_ENV="${NODE_ENV:-production}"
-export PORT="${PORT:-3000}"
+# Default DB (SQLite) location - use absolute path for consistency
+DB_PATH="\$SCRIPT_DIR/api/prisma/prod.db"
+export DATABASE_URL="\${DATABASE_URL:-file:\$DB_PATH}"
+export NODE_ENV="\${NODE_ENV:-production}"
+export PORT="\${PORT:-3000}"
+
+# Security warning for default JWT_SECRET
+if [ "\${JWT_SECRET:-default_secret_for_dev}" = "default_secret_for_dev" ]; then
+    echo -e "\${YELLOW}[WARNING]\${NC} Using default JWT_SECRET. Please set a secure JWT_SECRET in production!"
+fi
 
 # Initialize database if missing
 if [ ! -f "$SCRIPT_DIR/api/prisma/prod.db" ]; then
