@@ -15,11 +15,17 @@ import { AIProviderModule } from './modules/ai-provider/ai-provider.module';
 import { ClassModule } from './modules/class/class.module';
 import { StudentModule } from './modules/student/student.module';
 import { StudentAiAnalysisModule } from './modules/student-ai-analysis/student-ai-analysis.module';
+import { join } from 'path';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      // 优先加载根目录的 .env，然后是 apps/api/.env 作为后备
+      envFilePath: [
+        join(__dirname, '..', '..', '..', '.env'), // 根目录 .env
+        join(__dirname, '..', '.env'), // apps/api/.env (后备)
+      ],
     }),
     PrismaModule,
     QuestionModule,
