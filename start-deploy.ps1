@@ -269,10 +269,10 @@ $packageJson = @'
   "type": "commonjs",
   "scripts": {
     "start": "node main.js",
-    "db:generate": "node -e \"require('child_process').execSync('npx prisma generate --schema=./prisma/schema.prisma', { stdio: 'inherit' })\"",
-    "db:migrate": "node -e \"require('child_process').execSync('npx prisma migrate deploy --schema=./prisma/schema.prisma', { stdio: 'inherit' })\"",
-    "db:seed": "node -e \"require('child_process').execSync('npx tsx ./prisma/seed-ai-providers.ts', { stdio: 'inherit' })\"",
-    "db:init": "pnpm run db:generate && pnpm run db:migrate && pnpm run db:seed"
+    "db:generate": "npx prisma generate --schema=./prisma/schema.prisma",
+    "db:migrate": "npx prisma migrate deploy --schema=./prisma/schema.prisma",
+    "db:seed": "npx tsx ./prisma/seed-ai-providers.ts",
+    "db:init": "npm run db:generate && npm run db:migrate && npm run db:seed"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.11",
