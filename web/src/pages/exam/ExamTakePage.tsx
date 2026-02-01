@@ -794,6 +794,22 @@ export default function ExamTakePage() {
 
   const currentQuestion = exam?.questions?.[currentQuestionIndex];
 
+  // 如果没有题目，显示空状态
+  if (!currentQuestion) {
+    return (
+      <div className="bg-slatebg text-ink-900 antialiased min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">考试暂无题目</h2>
+          <p className="text-ink-600 mb-4">该考试还没有添加任何题目</p>
+          <Button onClick={() => navigate(`/exam/${examId}/login`)}>
+            返回
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-slatebg text-ink-900 antialiased min-h-screen">
       {/* 顶部导航 */}
