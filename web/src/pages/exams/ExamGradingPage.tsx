@@ -1162,7 +1162,10 @@ export default function ExamGradingPage() {
                                         选项:
                                       </p>
                                       <div className="space-y-1">
-                                        {JSON.parse(question.options).map(
+                                        {(Array.isArray(question.options)
+                                          ? question.options
+                                          : JSON.parse(question.options)
+                                        ).map(
                                           (
                                             option:
                                               | string
