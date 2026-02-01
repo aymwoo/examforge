@@ -418,12 +418,19 @@ if (-not (Test-Path (Join-Path $ScriptDir 'api/node_modules'))) {
   exit 1
 }
 
-$env:DATABASE_URL = $env:DATABASE_URL ?? 'file:./prisma/prod.db'
-$env:NODE_ENV = $env:NODE_ENV ?? 'production'
-$env:PORT = $env:PORT ?? '3000'
-$env:WEB_PORT = $env:WEB_PORT ?? '4173'
+# Default DB (SQLite) location - use absolute path for consistency
+$dbPath = Join-Path $ScriptDir 'api\prisma\prod.db'
+$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { "file:$dbPath" }
+$env:NODE_ENV = if ($env:NODE_ENV) { $env:NODE_ENV } else { 'production' }
+$env:PORT = if ($env:PORT) { $env:PORT } else { '3000' }
+$env:WEB_PORT = if ($env:WEB_PORT) { $env:WEB_PORT } else { '4173' }
 
-if (-not (Test-Path (Join-Path $ScriptDir 'api/prisma/prod.db'))) {
+# Security warning for default JWT_SECRET
+if (-not $env:JWT_SECRET -or $env:JWT_SECRET -eq 'default_secret_for_dev') {
+  Write-Host "[WARNING] Using default JWT_SECRET. Please set a secure JWT_SECRET in production!" -ForegroundColor Yellow
+}
+
+if (-not (Test-Path $dbPath)) {
   Write-Host "[INFO] Initializing database..."
   Push-Location (Join-Path $ScriptDir 'api')
   try {

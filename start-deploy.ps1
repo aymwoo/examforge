@@ -169,16 +169,9 @@ Print-Success "npm registry configured"
 
 # Install dependencies
 Print-Status "Installing dependencies..."
+$env:CI = "true"
 pnpm install
 Print-Success "Dependencies installed"
-
-# Build the applications
-Print-Status "Building applications..."
-pnpm run build
-Print-Success "Applications built"
-
-# Setup database
-Print-Status "Setting up database..."
 
 # Check if .env exists
 if (-not (Test-Path "apps/api/.env")) {
@@ -186,13 +179,26 @@ if (-not (Test-Path "apps/api/.env")) {
     Copy-Item "apps/api/.env.example" "apps/api/.env"
 }
 
+# Generate Prisma client (required for build)
+Print-Status "Generating Prisma client..."
+pnpm --filter ./apps/api run prisma:generate
+Print-Success "Prisma client generated"
+
+# Build shared types
+Print-Status "Building shared types..."
+pnpm --filter ./packages/shared-types run build
+Print-Success "Shared types built"
+
+# Build the API application
+Print-Status "Building API application..."
+pnpm run build:api
+Print-Success "API application built"
+
+# Setup database
+Print-Status "Setting up database..."
+
 # Navigate to API directory
 Push-Location "apps/api"
-
-# Generate Prisma client
-Print-Status "Generating Prisma client..."
-pnpm run prisma:generate
-Print-Success "Prisma client generated"
 
 # Apply all migrations to create the database schema
 Print-Status "Applying database migrations..."
@@ -283,6 +289,7 @@ $packageJson = @'
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "cookie-parser": "^1.4.7",
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -351,10 +358,16 @@ if [ ! -d "$SCRIPT_DIR/api/node_modules" ]; then
     exit 1
 fi
 
-# Default DB (SQLite) location
-export DATABASE_URL="${DATABASE_URL:-file:./prisma/prod.db}"
+# Default DB (SQLite) location - use absolute path for consistency
+DB_PATH="$SCRIPT_DIR/api/prisma/prod.db"
+export DATABASE_URL="${DATABASE_URL:-file:$DB_PATH}"
 export NODE_ENV="${NODE_ENV:-production}"
 export PORT="${PORT:-3000}"
+
+# Security warning for default JWT_SECRET
+if [ "${JWT_SECRET:-default_secret_for_dev}" = "default_secret_for_dev" ]; then
+    echo -e "${YELLOW}[WARNING]${NC} Using default JWT_SECRET. Please set a secure JWT_SECRET in production!"
+fi
 
 # Initialize database if missing
 if [ ! -f "$SCRIPT_DIR/api/prisma/prod.db" ]; then
@@ -494,12 +507,18 @@ if (-not (Test-Path (Join-Path $ScriptDir 'api/node_modules'))) {
     exit 1
 }
 
-$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { 'file:./prisma/prod.db' }
+# Default DB (SQLite) location - use absolute path for consistency
+$dbPath = Join-Path $ScriptDir 'api\prisma\prod.db'
+$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { "file:$dbPath" }
 $env:NODE_ENV = if ($env:NODE_ENV) { $env:NODE_ENV } else { 'production' }
 $env:PORT = if ($env:PORT) { $env:PORT } else { '3000' }
 $env:WEB_PORT = if ($env:WEB_PORT) { $env:WEB_PORT } else { '4173' }
 
-$dbPath = Join-Path $ScriptDir 'api/prisma/prod.db'
+# Security warning for default JWT_SECRET
+if (-not $env:JWT_SECRET -or $env:JWT_SECRET -eq 'default_secret_for_dev') {
+    Write-Host "[WARNING] Using default JWT_SECRET. Please set a secure JWT_SECRET in production!" -ForegroundColor Yellow
+}
+
 if (-not (Test-Path $dbPath)) {
     Write-Host "[INFO] Initializing database..." -ForegroundColor Blue
     Push-Location (Join-Path $ScriptDir 'api')
