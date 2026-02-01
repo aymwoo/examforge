@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Users, Edit, Trash2, UserPlus, Upload, Download } from "lucide-react";
+import {
+  Plus,
+  Users,
+  Edit,
+  Trash2,
+  UserPlus,
+  Upload,
+  Download,
+} from "lucide-react";
 import * as XLSX from "xlsx";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -145,7 +153,7 @@ export default function ClassesPage() {
         班级名称: "2024级1班",
         班级代码: "202401",
       },
-       {
+      {
         学号: "2024003",
         姓名: "王五",
         性别: "男",
@@ -170,7 +178,7 @@ export default function ClassesPage() {
             <p className="text-ink-600 mt-2">管理班级和学生信息</p>
           </div>
           <div className="flex gap-4">
-             <Button
+            <Button
               variant="outline"
               onClick={downloadTemplate}
               className="flex items-center gap-2"
@@ -178,9 +186,11 @@ export default function ClassesPage() {
               <Download className="h-4 w-4" />
               下载模板
             </Button>
-             <Button
+            <Button
               variant="outline"
-              onClick={() => document.getElementById("global-file-upload")?.click()}
+              onClick={() =>
+                document.getElementById("global-file-upload")?.click()
+              }
               className="flex items-center gap-2"
             >
               <Upload className="h-4 w-4" />
@@ -372,8 +382,12 @@ export default function ClassesPage() {
                       <th className="px-2 py-2 text-left bg-gray-50">学号</th>
                       <th className="px-2 py-2 text-left bg-gray-50">姓名</th>
                       <th className="px-2 py-2 text-left bg-gray-50">性别</th>
-                      <th className="px-2 py-2 text-left bg-gray-50">班级名称</th>
-                      <th className="px-2 py-2 text-left bg-gray-50">班级代码</th>
+                      <th className="px-2 py-2 text-left bg-gray-50">
+                        班级名称
+                      </th>
+                      <th className="px-2 py-2 text-left bg-gray-50">
+                        班级代码
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -382,8 +396,12 @@ export default function ClassesPage() {
                         <td className="px-2 py-1">{student.studentId}</td>
                         <td className="px-2 py-1">{student.name}</td>
                         <td className="px-2 py-1">{student.gender || "-"}</td>
-                        <td className="px-2 py-1 text-gray-500">{student.className || "-"}</td>
-                        <td className="px-2 py-1 text-gray-500">{student.classCode || "-"}</td>
+                        <td className="px-2 py-1 text-gray-500">
+                          {student.className || "-"}
+                        </td>
+                        <td className="px-2 py-1 text-gray-500">
+                          {student.classCode || "-"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -400,18 +418,23 @@ export default function ClassesPage() {
                   <p className="text-green-600">成功: {importResult.success}</p>
                   <p className="text-red-600">失败: {importResult.failed}</p>
                 </div>
-                {importResult.createdClasses && importResult.createdClasses.length > 0 && (
-                  <div className="bg-blue-50 p-3 rounded">
-                    <p className="text-blue-800 text-sm">自动创建班级 ({importResult.createdClasses.length})</p>
-                    <ul className="list-disc list-inside text-sm text-blue-700 mt-1 max-h-20 overflow-y-auto">
-                      {importResult.createdClasses.map((cls: string, i: number) => (
-                        <li key={i}>{cls}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                {importResult.createdClasses &&
+                  importResult.createdClasses.length > 0 && (
+                    <div className="bg-blue-50 p-3 rounded">
+                      <p className="text-blue-800 text-sm">
+                        自动创建班级 ({importResult.createdClasses.length})
+                      </p>
+                      <ul className="list-disc list-inside text-sm text-blue-700 mt-1 max-h-20 overflow-y-auto">
+                        {importResult.createdClasses.map(
+                          (cls: string, i: number) => (
+                            <li key={i}>{cls}</li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
+                  )}
               </div>
-              
+
               {importResult.failed > 0 && (
                 <div className="mt-4">
                   <h5 className="font-medium mb-2 text-red-700">失败详情</h5>
@@ -419,10 +442,18 @@ export default function ClassesPage() {
                     {importResult.results
                       .filter((r: any) => !r.success)
                       .map((result: any, index: number) => (
-                        <p key={index} className="text-red-600 py-0.5 border-b border-red-100 last:border-0">
+                        <p
+                          key={index}
+                          className="text-red-600 py-0.5 border-b border-red-100 last:border-0"
+                        >
                           {result.studentId} {result.name}
-                          {result.className && <span className="text-gray-500"> ({result.className})</span>}: 
-                          <span className="font-medium"> {result.error}</span>
+                          {result.className && (
+                            <span className="text-gray-500">
+                              {" "}
+                              ({result.className})
+                            </span>
+                          )}
+                          :<span className="font-medium"> {result.error}</span>
                         </p>
                       ))}
                   </div>

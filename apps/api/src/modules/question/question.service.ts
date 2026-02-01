@@ -355,12 +355,42 @@ export class QuestionService {
     }
     return {
       ...question,
-      options: question.options ? JSON.parse(question.options) : undefined,
+      options: this.safeParseOptions(question.options),
       answer: question.answer ?? undefined,
       matching,
-      tags: question.tags ? JSON.parse(question.tags) : [],
+      tags: this.safeParseTags(question.tags),
       images: question.images ? this.safeParseImages(question.images) : [],
     };
+  }
+
+  private safeParseOptions(optionsStr: string | null | undefined): string[] | undefined {
+    if (!optionsStr || typeof optionsStr !== 'string' || !optionsStr.trim()) {
+      return undefined;
+    }
+    try {
+      const parsed = JSON.parse(optionsStr);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private safeParseTags(tagsStr: string | null | undefined): string[] {
+    if (!tagsStr || typeof tagsStr !== 'string' || !tagsStr.trim()) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(tagsStr);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      return [];
+    } catch {
+      return [];
+    }
   }
 
   private parseMatchingAnswer(answer?: string | null) {

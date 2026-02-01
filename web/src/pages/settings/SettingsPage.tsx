@@ -1138,7 +1138,8 @@ export default function SettingsPage() {
         cancelText="取消"
       >
         <p className="text-gray-700">
-          确定要将 <strong>"{pendingDefaultProvider?.name}"</strong> 设为系统默认AI Provider吗？
+          确定要将 <strong>"{pendingDefaultProvider?.name}"</strong>{" "}
+          设为系统默认AI Provider吗？
         </p>
         <p className="mt-2 text-sm text-gray-500">
           设为默认后，所有未指定Provider的AI请求将使用此配置。

@@ -555,7 +555,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
   private transformExam(exam: any) {
     return {
       ...exam,
-      accountModes: exam.accountModes ? JSON.parse(exam.accountModes) : ['TEMPORARY_IMPORT'],
+      accountModes: this.safeParseAccountModes(exam.accountModes),
       examQuestions: exam.examQuestions.map((eq: any) => ({
         id: eq.id,
         examId: eq.examId,
@@ -579,7 +579,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
     return {
       ...question,
       matching,
-      options: question.options ? JSON.parse(question.options) : undefined,
+      options: this.safeParseOptions(question.options),
     };
   }
 
@@ -628,6 +628,36 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
     }
 
     return undefined;
+  }
+
+  private safeParseOptions(optionsStr: string | null | undefined): string[] | undefined {
+    if (!optionsStr || typeof optionsStr !== 'string' || !optionsStr.trim()) {
+      return undefined;
+    }
+    try {
+      const parsed = JSON.parse(optionsStr);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private safeParseAccountModes(accountModesStr: string | null | undefined): string[] {
+    if (!accountModesStr || typeof accountModesStr !== 'string' || !accountModesStr.trim()) {
+      return ['TEMPORARY_IMPORT'];
+    }
+    try {
+      const parsed = JSON.parse(accountModesStr);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      return ['TEMPORARY_IMPORT'];
+    } catch {
+      return ['TEMPORARY_IMPORT'];
+    }
   }
 
   // 学生管理功能

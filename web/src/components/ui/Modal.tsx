@@ -69,7 +69,7 @@ export default function Modal({
     if (!isOpen || initialFocusSetRef.current) return;
 
     previousActiveRef.current = document.activeElement as HTMLElement | null;
-    
+
     // Find and focus the first input or textarea, otherwise fall back to any focusable element
     const inputOrTextarea = containerRef.current?.querySelector<HTMLElement>(
       "input, textarea, select",
@@ -77,10 +77,10 @@ export default function Modal({
     const fallbackFocusable = containerRef.current?.querySelector<HTMLElement>(
       "button, [href], [tabindex]:not([tabindex='-1'])",
     );
-    
+
     const elementToFocus = inputOrTextarea || fallbackFocusable;
     elementToFocus?.focus();
-    
+
     initialFocusSetRef.current = true;
   }, [isOpen]);
 

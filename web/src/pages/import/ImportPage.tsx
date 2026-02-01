@@ -240,7 +240,7 @@ export default function ImportPage() {
             : "PDF 转图片中"
           : pdfStage === "processing_image"
             ? latestPdfEvent?.message || "处理图片中"
-          : undefined;
+            : undefined;
 
   const isPdfImporting =
     isUploading || (!!pdfJobId && pdfStage !== "done" && !pdfError);

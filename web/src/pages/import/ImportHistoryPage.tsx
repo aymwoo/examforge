@@ -360,7 +360,9 @@ export default function ImportHistoryPage() {
                       className="px-4 py-2 border border-green-300 text-green-600 rounded hover:bg-green-50 flex items-center gap-1 disabled:opacity-50"
                     >
                       <Download className="h-4 w-4" />
-                      {exportingJobId === record.jobId ? "导出中..." : "导出 JSON"}
+                      {exportingJobId === record.jobId
+                        ? "导出中..."
+                        : "导出 JSON"}
                     </button>
                     <button
                       onClick={() => handleExportBatchExcel(record)}
@@ -368,7 +370,9 @@ export default function ImportHistoryPage() {
                       className="px-4 py-2 border border-green-300 text-green-600 rounded hover:bg-green-50 flex items-center gap-1 disabled:opacity-50"
                     >
                       <Download className="h-4 w-4" />
-                      {exportingJobId === record.jobId ? "导出中..." : "导出 Excel"}
+                      {exportingJobId === record.jobId
+                        ? "导出中..."
+                        : "导出 Excel"}
                     </button>
                   </>
                 )}

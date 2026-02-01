@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { BadRequestException } from '@nestjs/common';
 import { AIService } from '../ai/ai.service';
 import { SettingsService } from '../settings/settings.service';
+import { ImportProgressStore } from './import-progress.store';
 
 // Mock dependencies
 jest.mock(
@@ -40,14 +41,6 @@ jest.mock(
   { virtual: true }
 );
 
-jest.mock(
-  './import-progress.store',
-  () => ({
-    ImportProgressStore: jest.fn(),
-  }),
-  { virtual: true }
-);
-
 describe('ImportService', () => {
   let service: ImportService;
   let prismaService: PrismaService;
@@ -68,6 +61,14 @@ describe('ImportService', () => {
   const mockAIService = {};
   const mockSettingsService = {};
 
+  // Create a proper mock for ImportProgressStore
+  const mockProgressStore = {
+    createJob: jest.fn(),
+    append: jest.fn(),
+    getEventsSince: jest.fn(),
+    delete: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -76,6 +77,7 @@ describe('ImportService', () => {
         { provide: ConfigService, useValue: mockConfigService },
         { provide: AIService, useValue: mockAIService },
         { provide: SettingsService, useValue: mockSettingsService },
+        { provide: ImportProgressStore, useValue: mockProgressStore },
       ],
     }).compile();
 
@@ -135,7 +137,10 @@ describe('ImportService', () => {
       });
 
       expect(result).toEqual({
-        data: mockQuestions,
+        data: [
+          { id: 'q1', content: 'Question 1', importOrder: 1, tags: [] },
+          { id: 'q2', content: 'Question 2', importOrder: 2, tags: [] },
+        ],
         total: 3,
         page: 1,
         limit: 2,

@@ -9,6 +9,25 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        passes: 1,
+        pure_getters: false,
+        unsafe: false,
+        unsafe_comps: false,
+        unsafe_math: false,
+      },
+      mangle: {
+        properties: false,
+        reserved: ["break", "continue", "return", "throw"],
+      },
+      format: {
+        comments: false,
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {
