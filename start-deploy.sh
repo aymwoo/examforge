@@ -276,9 +276,10 @@ DB_PATH="$SCRIPT_DIR/api/prisma/prod.db"
 export DATABASE_URL="${DATABASE_URL:-file:$DB_PATH}"
 export NODE_ENV="${NODE_ENV:-production}"
 export PORT="${PORT:-3000}"
+export JWT_SECRET="${JWT_SECRET:-examforge-default-jwt-secret-please-change-in-production}"
 
 # Security warning for default JWT_SECRET
-if [ "${JWT_SECRET:-default_secret_for_dev}" = "default_secret_for_dev" ]; then
+if [ "$JWT_SECRET" = "examforge-default-jwt-secret-please-change-in-production" ]; then
     echo -e "${YELLOW}[WARNING]${NC} Using default JWT_SECRET. Please set a secure JWT_SECRET in production!"
 fi
 
@@ -329,8 +330,8 @@ const getMime = (p) => ({
 })[path.extname(p)] || 'application/octet-stream';
 
 http.createServer((req, res) => {
-  // Proxy API requests to the API server
-  if (req.url.startsWith('/api/') || req.url.startsWith('/admin/')) {
+  // Proxy API and uploads requests to the API server
+  if (req.url.startsWith('/api/') || req.url.startsWith('/admin/') || req.url.startsWith('/uploads/')) {
     const options = {
       hostname: 'localhost',
       port: apiPort,
@@ -475,7 +476,8 @@ const getMime = (p) => ({
 })[path.extname(p)] || 'application/octet-stream';
 
 http.createServer((req, res) => {
-  if (req.url.startsWith('/api/') || req.url.startsWith('/admin/')) {
+  // Proxy API and uploads requests to the API server
+  if (req.url.startsWith('/api/') || req.url.startsWith('/admin/') || req.url.startsWith('/uploads/')) {
     const options = {
       hostname: 'localhost',
       port: apiPort,
