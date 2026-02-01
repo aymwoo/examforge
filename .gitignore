@@ -8,3 +8,8 @@ node_modules
 apps/api/prisma/dev.db
 apps/api/uploads/
 start_dev_output.log
+
+# VPS deployment (not tracked in git)
+deploy-vps.sh
+ecosystem.config.cjs
+examforge-deploy.tar.gz
