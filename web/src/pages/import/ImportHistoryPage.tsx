@@ -31,6 +31,12 @@ export default function ImportHistoryPage() {
   const [creating, setCreating] = useState(false);
   const [createProgress, setCreateProgress] = useState(0);
 
+  // 批量设置标签状态
+  const [batchTagDialog, setBatchTagDialog] = useState<string | null>(null);
+  const [batchTagsInput, setBatchTagsInput] = useState("");
+  const [batchTagging, setBatchTagging] = useState(false);
+  const [batchTagProgress, setBatchTagProgress] = useState(0);
+
   // 导出状态
   const [exportingJobId, setExportingJobId] = useState<string | null>(null);
 
@@ -111,6 +117,53 @@ export default function ImportHistoryPage() {
     setDetailDialog(jobId);
     setDetailPage(1); // Reset to first page when opening new dialog
     // The useEffect will trigger the fetch
+  };
+
+  const parseTagsInput = (value: string) =>
+    value
+      .split(/[,\s]+/)
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length > 0);
+
+  const handleBatchUpdateTagsForImport = async (jobId: string) => {
+    const tags = parseTagsInput(batchTagsInput);
+    if (tags.length === 0) {
+      showError("请输入至少一个标签");
+      return;
+    }
+
+    setBatchTagging(true);
+    setBatchTagProgress(20);
+    try {
+      const questions = await fetchAllBatchQuestions(jobId);
+      const ids = questions.map((q) => q.id).filter(Boolean);
+
+      if (ids.length === 0) {
+        showError("该批次没有可更新标签的题目");
+        return;
+      }
+
+      setBatchTagProgress(60);
+      const response = await api.post("/api/questions/batch-update-tags", {
+        ids,
+        tags,
+      });
+
+      setBatchTagProgress(100);
+      showSuccess(`已更新 ${response.data.updated ?? ids.length} 道题目的标签`);
+      setBatchTagDialog(null);
+      setBatchTagsInput("");
+
+      if (detailDialog === jobId) {
+        fetchImportDetails(jobId, detailPage);
+      }
+    } catch (error) {
+      console.error("批量设置标签失败:", error);
+      showError("批量设置标签失败");
+    } finally {
+      setBatchTagging(false);
+      setBatchTagProgress(0);
+    }
   };
 
   // 获取批次的所有题目用于导出
@@ -355,6 +408,12 @@ export default function ImportHistoryPage() {
                 {record.questionCount > 0 && (
                   <>
                     <button
+                      onClick={() => setBatchTagDialog(record.jobId)}
+                      className="px-4 py-2 border border-blue-300 text-blue-600 rounded hover:bg-blue-50"
+                    >
+                      批量设置标签
+                    </button>
+                    <button
                       onClick={() => handleExportBatchJson(record)}
                       disabled={exportingJobId === record.jobId}
                       className="px-4 py-2 border border-green-300 text-green-600 rounded hover:bg-green-50 flex items-center gap-1 disabled:opacity-50"
@@ -469,6 +528,86 @@ export default function ImportHistoryPage() {
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
                 >
                   {creating ? "创建中..." : "创建考试"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批量设置标签对话框 */}
+      {batchTagDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold mb-4">批量设置标签</h2>
+
+            {batchTagging && (
+              <div className="mb-4">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                  <div
+                    className="h-full bg-blue-500 transition-all duration-300"
+                    style={{ width: `${batchTagProgress}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-500">正在更新标签...</p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">文件名</label>
+                <div className="text-sm text-gray-600">
+                  {records.find((r) => r.jobId === batchTagDialog)?.fileName}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  题目数量
+                </label>
+                <div className="text-sm text-gray-600">
+                  {
+                    records.find((r) => r.jobId === batchTagDialog)
+                      ?.questionCount
+                  }{" "}
+                  道题目
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="batchTags"
+                  className="block text-sm font-medium mb-1"
+                >
+                  标签（逗号或空格分隔）
+                </label>
+                <input
+                  id="batchTags"
+                  type="text"
+                  value={batchTagsInput}
+                  onChange={(e) => setBatchTagsInput(e.target.value)}
+                  placeholder="例如：数学, 高考, 几何"
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  将覆盖该批次所有题目的原有标签
+                </p>
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setBatchTagDialog(null)}
+                  disabled={batchTagging}
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => handleBatchUpdateTagsForImport(batchTagDialog)}
+                  disabled={batchTagging}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {batchTagging ? "更新中..." : "确认更新"}
                 </button>
               </div>
             </div>
