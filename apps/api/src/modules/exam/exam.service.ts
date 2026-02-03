@@ -1480,16 +1480,17 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
   private async getAIGradingForSubjective(
     questionContent: string,
     referenceAnswer: string,
-    studentAnswer: string,
+    studentAnswer: unknown,
     maxScore: number
   ) {
+    const normalizedStudentAnswer = this.normalizeStudentAnswer(studentAnswer);
     console.log(`=== 开始AI评分主观题 ===`);
     console.log(`题目内容: ${questionContent}`);
     console.log(`参考答案: ${referenceAnswer}`);
-    console.log(`学生答案: ${studentAnswer}`);
+    console.log(`学生答案: ${normalizedStudentAnswer}`);
     console.log(`满分: ${maxScore}`);
 
-    if (!studentAnswer || studentAnswer.trim() === '') {
+    if (!normalizedStudentAnswer || normalizedStudentAnswer.trim() === '') {
       console.log(`学生未作答，返回0分`);
       return {
         suggestedScore: 0,
@@ -1503,7 +1504,7 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
     const prompt = await this.buildGradingPrompt(
       questionContent,
       referenceAnswer,
-      studentAnswer,
+      normalizedStudentAnswer,
       maxScore
     );
 
@@ -1523,11 +1524,11 @@ export class ExamService implements OnModuleInit, OnModuleDestroy {
       console.error('AI评分失败:', error);
 
       // AI评分失败时的降级处理
-      const wordCount = studentAnswer.length;
+      const wordCount = normalizedStudentAnswer.length;
       const hasKeywords = referenceAnswer
-        ? this.checkKeywords(studentAnswer, referenceAnswer)
+        ? this.checkKeywords(normalizedStudentAnswer, referenceAnswer)
         : 0.5;
-      const isValidAnswer = this.isValidAnswer(studentAnswer);
+      const isValidAnswer = this.isValidAnswer(normalizedStudentAnswer);
 
       let scoreRatio = 0;
       if (isValidAnswer) {
@@ -1616,11 +1617,13 @@ ${studentAnswer}
 
   // 检查答案有效性
   private isValidAnswer(studentAnswer: string): boolean {
-    if (!studentAnswer || studentAnswer.trim().length < 3) {
+    const normalizedStudentAnswer = this.normalizeStudentAnswer(studentAnswer);
+
+    if (!normalizedStudentAnswer || normalizedStudentAnswer.trim().length < 3) {
       return false;
     }
 
-    const answer = studentAnswer.trim().toLowerCase();
+    const answer = normalizedStudentAnswer.trim().toLowerCase();
 
     // 检查是否只是数字或无意义字符
     if (/^[0-9\s]+$/.test(answer)) {
@@ -1643,7 +1646,8 @@ ${studentAnswer}
   private checkKeywords(studentAnswer: string, referenceAnswer: string): number {
     if (!referenceAnswer) return 0.5;
 
-    const studentWords = studentAnswer.toLowerCase().split(/\s+/);
+    const normalizedStudentAnswer = this.normalizeStudentAnswer(studentAnswer);
+    const studentWords = normalizedStudentAnswer.toLowerCase().split(/\s+/);
     const referenceWords = referenceAnswer.toLowerCase().split(/\s+/);
 
     let matchCount = 0;
@@ -1654,6 +1658,26 @@ ${studentAnswer}
     }
 
     return referenceWords.length > 0 ? matchCount / referenceWords.length : 0;
+  }
+
+  private normalizeStudentAnswer(studentAnswer: unknown): string {
+    if (studentAnswer === null || studentAnswer === undefined) {
+      return '';
+    }
+
+    if (typeof studentAnswer === 'string') {
+      return studentAnswer;
+    }
+
+    if (Array.isArray(studentAnswer)) {
+      return studentAnswer.map((item) => String(item ?? '')).join(' ');
+    }
+
+    if (typeof studentAnswer === 'object') {
+      return JSON.stringify(studentAnswer);
+    }
+
+    return String(studentAnswer);
   }
 
   // 生成评分理由
