@@ -9,6 +9,7 @@
     "copy:assets": "sh -c 'mkdir -p dist/assets && cp -R assets/* dist/assets/'",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
+    "dev": "nest start --watch",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",

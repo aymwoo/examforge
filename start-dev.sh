@@ -9,9 +9,9 @@ set -e  # Exit on error
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 数据库文件的固定绝对路径
+# 数据库文件的固定绝对路径（与 start-deploy.sh 一致）
 DB_PATH="$SCRIPT_DIR/apps/api/prisma/dev.db"
-DATABASE_URL="file:$DB_PATH"
+DATABASE_URL="file:./dev.db"
 
 # Colors
 GREEN='\033[0;32m'
@@ -36,15 +36,15 @@ print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-# 0. Check .env file
-if [ ! -f ".env" ]; then
-    print_error ".env 文件不存在!"
-    if [ -f ".env.example" ]; then
-        print_status "正在从 .env.example 创建 .env 文件..."
-        cp .env.example .env
-        print_success ".env 文件已创建，请根据需要修改配置"
+# 0. Check apps/api/.env file (与 start-deploy.sh 保持一致)
+if [ ! -f "apps/api/.env" ]; then
+    print_error "apps/api/.env 文件不存在!"
+    if [ -f "apps/api/.env.example" ]; then
+        print_status "正在从 apps/api/.env.example 创建 apps/api/.env 文件..."
+        cp apps/api/.env.example apps/api/.env
+        print_success "apps/api/.env 文件已创建，请根据需要修改配置"
     else
-        print_status "请创建 .env 文件并配置以下必要参数："
+        print_status "请创建 apps/api/.env 文件并配置以下必要参数："
         echo "   - DATABASE_URL: 数据库连接字符串"
         echo "   - JWT_SECRET: JWT 密钥"
         echo "   - 其他 AI API 相关配置"
@@ -52,32 +52,31 @@ if [ ! -f ".env" ]; then
     fi
 fi
 
-# 确保 .env 中的 DATABASE_URL 使用正确的绝对路径
+# 确保 apps/api/.env 中的 DATABASE_URL 与 start-deploy.sh 一致
 print_status "🔧 检查数据库路径配置..."
-if grep -q "DATABASE_URL" .env; then
-    # 更新 DATABASE_URL 为正确的绝对路径
+if grep -q "DATABASE_URL" apps/api/.env; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS
-        sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=\"file:$DB_PATH\"|" .env
+        sed -i '' "s|^DATABASE_URL=.*|DATABASE_URL=\"$DATABASE_URL\"|" apps/api/.env
     else
         # Linux
-        sed -i "s|^DATABASE_URL=.*|DATABASE_URL=\"file:$DB_PATH\"|" .env
+        sed -i "s|^DATABASE_URL=.*|DATABASE_URL=\"$DATABASE_URL\"|" apps/api/.env
     fi
     print_success "数据库路径已设置: $DB_PATH"
 else
     # 添加 DATABASE_URL
-    echo "DATABASE_URL=\"file:$DB_PATH\"" >> .env
+    echo "DATABASE_URL=\"$DATABASE_URL\"" >> apps/api/.env
     print_success "数据库路径已添加: $DB_PATH"
 fi
 
-print_success ".env 文件检查通过"
+print_success "apps/api/.env 文件检查通过"
 
-# 加载根目录 .env 到当前 shell 环境（供 Prisma 和其他工具使用）
+# 加载 apps/api/.env 到当前 shell 环境（供 Prisma 和其他工具使用）
 print_status "📋 加载环境变量..."
 set -a  # 自动导出所有变量
-source .env
-# 强制使用计算出的绝对路径，覆盖 .env 中可能的错误配置
-export DATABASE_URL="file:$DB_PATH"
+source apps/api/.env
+# 强制与 start-deploy.sh 使用一致的数据库路径
+export DATABASE_URL="$DATABASE_URL"
 set +a
 
 print_status "📍 数据库位置: $DB_PATH"
