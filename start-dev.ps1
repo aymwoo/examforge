@@ -99,11 +99,8 @@ $lanIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
     $_.IPAddress -notmatch '^127\.'
 } | Select-Object -First 1).IPAddress
 
-# Set HOST=0.0.0.0 so Vite listens on all interfaces (LAN accessible)
-$env:HOST = "0.0.0.0"
-
 Print-Success "Development environment is ready!"
-Write-Host "   - API: http://localhost:3000"
+Write-Host "   - API (local): http://localhost:3000"
 Write-Host "   - Web (local): http://localhost:5173"
 if ($lanIp) {
     Write-Host "   - Web (LAN):   http://${lanIp}:5173" -ForegroundColor Cyan
