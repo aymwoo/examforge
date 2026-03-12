@@ -6,7 +6,7 @@
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build && pnpm copy:assets",
-    "copy:assets": "sh -c 'mkdir -p dist/assets && cp -R assets/* dist/assets/'",
+    "copy:assets": "node -e \"const fs=require('fs'); if(fs.existsSync('assets')){fs.cpSync('assets', 'dist/assets', {recursive:true, force:true})}\"",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "dev": "nest start --watch",

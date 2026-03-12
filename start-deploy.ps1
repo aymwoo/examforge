@@ -419,11 +419,11 @@ http.createServer((req, res) => {
   // Proxy API requests to the API server
   if (req.url.startsWith('/api/') || req.url.startsWith('/admin/')) {
     const options = {
-      hostname: 'localhost',
+      hostname: '127.0.0.1',
       port: apiPort,
       path: req.url,
       method: req.method,
-      headers: { ...req.headers, host: 'localhost:' + apiPort }
+      headers: { ...req.headers, host: '127.0.0.1:' + apiPort }
     };
     const proxyReq = http.request(options, (proxyRes) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
@@ -458,7 +458,7 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': getMime(filePath) });
     res.end(data);
   });
-}).listen(port, () => console.log('Web running on http://localhost:' + port));
+}).listen(port, '0.0.0.0', () => console.log('Web running on http://0.0.0.0:' + port));
 " &
 WEB_PID=$!
 
@@ -466,9 +466,9 @@ WEB_PID=$!
 echo ""
 echo "🎉 ExamForge deployed successfully!"
 echo ""
-echo "🌐 API Server: http://localhost:${PORT}"
-echo "📄 API Documentation: http://localhost:${PORT}/api"
-echo "🌐 Web: http://localhost:${WEB_PORT:-4173}"
+echo "🌐 API Server: http://0.0.0.0:${PORT} (or your LAN IP)"
+echo "📄 API Documentation: http://0.0.0.0:${PORT}/api"
+echo "🌐 Web: http://0.0.0.0:${WEB_PORT:-4173} (Access this from your LAN!)"
 echo ""
 echo "Note: Please register your first user account through the web interface."
 echo "      The first registered user will automatically become an administrator."
@@ -572,11 +572,11 @@ const getMime = (p) => ({
 http.createServer((req, res) => {
   if (req.url.startsWith('/api/') || req.url.startsWith('/admin/')) {
     const options = {
-      hostname: 'localhost',
+      hostname: '127.0.0.1',
       port: apiPort,
       path: req.url,
       method: req.method,
-      headers: { ...req.headers, host: 'localhost:' + apiPort }
+      headers: { ...req.headers, host: '127.0.0.1:' + apiPort }
     };
     const proxyReq = http.request(options, (proxyRes) => {
       res.writeHead(proxyRes.statusCode, proxyRes.headers);
@@ -609,7 +609,7 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': getMime(filePath) });
     res.end(data);
   });
-}).listen(port, () => console.log('Web running on http://localhost:' + port));
+}).listen(port, '0.0.0.0', () => console.log('Web running on http://0.0.0.0:' + port));
 "@
 
 $webJob = Start-Job -ScriptBlock {
@@ -622,9 +622,9 @@ Start-Sleep -Seconds 2
 Write-Host ""
 Write-Host "🎉 ExamForge deployed successfully!" -ForegroundColor Green
 Write-Host ""
-Write-Host "🌐 API Server: http://localhost:$env:PORT" -ForegroundColor Cyan
-Write-Host "📄 API Documentation: http://localhost:$env:PORT/api" -ForegroundColor Cyan
-Write-Host "🌐 Web: http://localhost:$env:WEB_PORT" -ForegroundColor Cyan
+Write-Host "🌐 API Server: http://0.0.0.0:$env:PORT (or your LAN IP)" -ForegroundColor Cyan
+Write-Host "📄 API Documentation: http://0.0.0.0:$env:PORT/api" -ForegroundColor Cyan
+Write-Host "🌐 Web: http://0.0.0.0:$env:WEB_PORT (Access this from your LAN!)" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Note: Please register your first user account through the web interface."
 Write-Host "      The first registered user will automatically become an administrator."
@@ -671,9 +671,9 @@ powershell -ExecutionPolicy Bypass -File .\start-production.ps1
 
 ## Endpoints
 
-- API: http://localhost:3000
-- Web: http://localhost:4173
-- API docs: http://localhost:3000/api
+- API: http://0.0.0.0:3000
+- Web: http://0.0.0.0:4173 (Access this from your LAN!)
+- API docs: http://0.0.0.0:3000/api
 
 ## Database
 
@@ -698,6 +698,29 @@ $readme | Out-File -FilePath "dist/README.md" -Encoding UTF8
 Print-Success "Production startup script created: dist/start-production.sh"
 Print-Success "Production startup script created: dist/start-production.ps1"
 Print-Success "dist/README.md created"
+
+# Setup auto-start in Windows Startup folder
+$AutoStartScript = @'
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File ""{0}\start-production.ps1""", 0, False
+'@ -f (Join-Path $ProjectRoot "dist")
+$AutoStartScript | Out-File -FilePath "dist\examforge-startup.vbs" -Encoding ASCII
+
+$StartupFolder = [Environment]::GetFolderPath('Startup')
+$ShortcutPath = Join-Path $StartupFolder "ExamForge.lnk"
+
+try {
+    $WshShell = New-Object -ComObject WScript.Shell
+    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
+    $Shortcut.TargetPath = "wscript.exe"
+    $Shortcut.Arguments = "`"$ProjectRoot\dist\examforge-startup.vbs`""
+    $Shortcut.WorkingDirectory = "$ProjectRoot\dist"
+    $Shortcut.Description = "ExamForge Service Auto-Start"
+    $Shortcut.Save()
+    Print-Success "Auto-start configured: Service will run automatically on Windows startup"
+} catch {
+    Print-Warning "Failed to create auto-start shortcut: $_"
+}
 
 # Print deployment summary
 Print-Success "🎉 ExamForge deployment completed successfully!"
