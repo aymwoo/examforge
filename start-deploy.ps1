@@ -507,9 +507,9 @@ if (-not (Test-Path (Join-Path $ScriptDir 'api/node_modules'))) {
     exit 1
 }
 
-# Default DB (SQLite) location - use absolute path for consistency
+# Default DB (SQLite) location - Use relative path or properly formatted URI for Prisma
 $dbPath = Join-Path $ScriptDir 'api\prisma\prod.db'
-$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { "file:$dbPath" }
+$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { "file:./prisma/prod.db" }
 $env:NODE_ENV = if ($env:NODE_ENV) { $env:NODE_ENV } else { 'production' }
 $env:PORT = if ($env:PORT) { $env:PORT } else { '3000' }
 $env:WEB_PORT = if ($env:WEB_PORT) { $env:WEB_PORT } else { '4173' }
