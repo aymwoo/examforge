@@ -451,7 +451,7 @@ Production startup script for ExamForge (Windows)
 #>
 
 $ErrorActionPreference = 'Stop'
-Write-Host "🚀 Starting ExamForge in production mode..." -ForegroundColor Cyan
+Write-Host "Starting ExamForge in production mode..." -ForegroundColor Cyan
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
@@ -460,169 +460,133 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-if (-not (Test-Path (Join-Path $ScriptDir 'api/node_modules'))) {
+if (-not (Test-Path (Join-Path $ScriptDir 'api\node_modules'))) {
     Write-Host "[ERROR] Missing dist/api/node_modules. Please re-run start-deploy.ps1." -ForegroundColor Red
     exit 1
 }
 
-# Default DB (SQLite) location - use absolute path with forward slashes for Prisma
-$dbPath = Join-Path $ScriptDir 'api\prisma\prod.db'
-$dbPathForward = $dbPath -replace '\\', '/'
-$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { "file:$dbPathForward" }
-$env:NODE_ENV = if ($env:NODE_ENV) { $env:NODE_ENV } else { 'production' }
-$env:PORT = if ($env:PORT) { $env:PORT } else { '3000' }
-$env:WEB_PORT = if ($env:WEB_PORT) { $env:WEB_PORT } else { '4173' }
+# Resolve paths
+$apiDir    = Join-Path $ScriptDir 'api'
+$dbPath    = Join-Path $apiDir 'prisma\prod.db'
+$dbUrl     = "file:" + ($dbPath -replace '\\', '/')
+$apiLog    = Join-Path $apiDir 'api-server.log'
+$apiErrLog = Join-Path $apiDir 'api-error.log'
 
-# Security warning for default JWT_SECRET
+# Env defaults
+if (-not $env:DATABASE_URL) { $env:DATABASE_URL = $dbUrl }
+if (-not $env:NODE_ENV)     { $env:NODE_ENV = 'production' }
+if (-not $env:PORT)         { $env:PORT = '3000' }
+if (-not $env:WEB_PORT)     { $env:WEB_PORT = '4173' }
+
 if (-not $env:JWT_SECRET -or $env:JWT_SECRET -eq 'default_secret_for_dev') {
-    Write-Host "[WARNING] Using default JWT_SECRET. Please set a secure JWT_SECRET in production!" -ForegroundColor Yellow
+    Write-Host "[WARNING] Using default JWT_SECRET. Set JWT_SECRET env var for production!" -ForegroundColor Yellow
 }
 
-$apiDir = Join-Path $ScriptDir 'api'
-$apiLogPath = Join-Path $apiDir 'api-server.log'
-
+# Initialize DB if missing
 if (-not (Test-Path $dbPath)) {
-    Write-Host "[INFO] Initializing database..." -ForegroundColor Blue
+    Write-Host "[INFO] Initializing database ($dbUrl)..." -ForegroundColor Blue
     Push-Location $apiDir
     try {
-        $env:DATABASE_URL | Out-Null
+        $env:DATABASE_URL = $dbUrl
         npm run db:init
     } finally {
         Pop-Location
     }
 }
 
-Write-Host "[INFO] Starting API server..." -ForegroundColor Blue
-Write-Host "[INFO] API log: $apiLogPath" -ForegroundColor DarkGray
+Write-Host "[INFO] DATABASE_URL = $env:DATABASE_URL" -ForegroundColor DarkGray
+Write-Host "[INFO] Starting API server (log: $apiLog)..." -ForegroundColor Blue
 
-# Write a wrapper script so env vars and workdir are set correctly
-$apiLauncherPath = Join-Path $apiDir 'start-api.ps1'
-@"
-`$env:PORT = '$($env:PORT)'
-`$env:DATABASE_URL = '$($env:DATABASE_URL -replace "'", "''")'
-`$env:NODE_ENV = '$($env:NODE_ENV)'
-`$env:JWT_SECRET = '$($env:JWT_SECRET -replace "'", "''")'
-Set-Location '$($apiDir -replace "'", "''")'
-node main.js
-"@ | Out-File -FilePath $apiLauncherPath -Encoding UTF8
+# Build env block for cmd /c set
+$envBlock = "DATABASE_URL=$($env:DATABASE_URL)&& set NODE_ENV=$($env:NODE_ENV)&& set PORT=$($env:PORT)"
+if ($env:JWT_SECRET) { $envBlock += "&& set JWT_SECRET=$($env:JWT_SECRET)" }
 
-$apiProcess = Start-Process -FilePath "powershell.exe" `
-    -ArgumentList "-ExecutionPolicy Bypass -File `"$apiLauncherPath`"" `
+$apiProcess = Start-Process -FilePath "cmd.exe" `
+    -ArgumentList "/c set $envBlock && cd /d `"$apiDir`" && node main.js" `
     -WorkingDirectory $apiDir `
-    -RedirectStandardOutput $apiLogPath `
-    -RedirectStandardError "$apiDir\api-error.log" `
+    -RedirectStandardOutput $apiLog `
+    -RedirectStandardError  $apiErrLog `
     -NoNewWindow -PassThru
 
-Start-Sleep -Seconds 4
+Start-Sleep -Seconds 5
 
 if ($apiProcess.HasExited) {
-    Write-Host "[ERROR] API server exited immediately. Check log:" -ForegroundColor Red
-    Write-Host "  $apiLogPath" -ForegroundColor Red
-    if (Test-Path $apiLogPath) { Get-Content $apiLogPath -Tail 20 }
-    if (Test-Path "$apiDir\api-error.log") { Get-Content "$apiDir\api-error.log" -Tail 20 }
+    Write-Host "[ERROR] API server crashed on startup!" -ForegroundColor Red
+    if (Test-Path $apiLog)    { Write-Host "--- stdout ---"; Get-Content $apiLog    -Tail 30 }
+    if (Test-Path $apiErrLog) { Write-Host "--- stderr ---"; Get-Content $apiErrLog -Tail 30 }
     exit 1
 }
 Write-Host "[SUCCESS] API server started (PID: $($apiProcess.Id))" -ForegroundColor Green
 
+# Start web static + proxy server
 Write-Host "[INFO] Starting web server..." -ForegroundColor Blue
-$webScript = @"
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const root = path.join('$($ScriptDir -replace '\\', '/')', 'web');
-const port = $env:WEB_PORT;
-const apiPort = $env:PORT;
-
-const getMime = (p) => ({
-  '.html': 'text/html',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
-  '.json': 'application/json',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf'
-})[path.extname(p)] || 'application/octet-stream';
-
-http.createServer((req, res) => {
-  if (req.url.startsWith('/api/') || req.url.startsWith('/admin/')) {
-    const options = {
-      hostname: '127.0.0.1',
-      port: apiPort,
-      path: req.url,
-      method: req.method,
-      headers: { ...req.headers, host: '127.0.0.1:' + apiPort }
-    };
-    const proxyReq = http.request(options, (proxyRes) => {
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
-      proxyRes.pipe(res);
-    });
-    proxyReq.on('error', (e) => {
-      res.writeHead(502);
-      res.end('API server unavailable');
-    });
-    req.pipe(proxyReq);
+$webRoot   = ($ScriptDir -replace '\\', '/') + '/web'
+$webPort   = [int]$env:WEB_PORT
+$apiPort   = [int]$env:PORT
+$webServer = @"
+const http = require('http'), fs = require('fs'), path = require('path');
+const root = '$webRoot';
+const port = $webPort, apiPort = $apiPort;
+const mime = {'.html':'text/html','.js':'text/javascript','.css':'text/css',
+  '.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml',
+  '.json':'application/json','.ico':'image/x-icon',
+  '.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf'};
+http.createServer((req,res)=>{
+  if(req.url.startsWith('/api/')||req.url.startsWith('/admin/')){
+    const opt={hostname:'127.0.0.1',port:apiPort,path:req.url,method:req.method,
+      headers:{...req.headers,host:'127.0.0.1:'+apiPort}};
+    req.pipe(http.request(opt,(pr)=>{res.writeHead(pr.statusCode,pr.headers);pr.pipe(res)})
+      .on('error',()=>res.writeHead(502).end('API unavailable')));
     return;
   }
-  
-  let file = req.url === '/' ? '/index.html' : req.url.split('?')[0];
-  let filePath = path.join(root, file);
-  if (!filePath.startsWith(root)) return res.writeHead(403).end();
-  
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
-      fs.readFile(path.join(root, 'index.html'), (err2, indexData) => {
-        if (err2) {
-          res.writeHead(404);
-          return res.end('Not found');
-        }
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.end(indexData);
-      });
-      return;
-    }
-    res.writeHead(200, { 'Content-Type': getMime(filePath) });
-    res.end(data);
+  const f=req.url==='/'?'/index.html':req.url.split('?')[0];
+  const fp=path.join(root,f);
+  if(!fp.startsWith(root)){res.writeHead(403).end();return;}
+  fs.readFile(fp,(err,d)=>{
+    if(err){fs.readFile(path.join(root,'index.html'),(e,id)=>
+      e?res.writeHead(404).end('Not found'):(res.writeHead(200,{'Content-Type':'text/html'}),res.end(id)));return;}
+    res.writeHead(200,{'Content-Type':mime[path.extname(fp)]||'application/octet-stream'});
+    res.end(d);
   });
-}).listen(port, '0.0.0.0', () => console.log('Web running on http://0.0.0.0:' + port));
+}).listen(port,'0.0.0.0',()=>console.log('Web running on http://0.0.0.0:'+port));
 "@
 
-$webJob = Start-Job -ScriptBlock {
-    param($script)
-    node -e $script
-} -ArgumentList $webScript
-
+$webJob = Start-Job -ScriptBlock { param($s) node -e $s } -ArgumentList $webServer
 Start-Sleep -Seconds 2
 
+# Get LAN IP
+$lanIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
+    $_.InterfaceAlias -notmatch 'Loopback' -and
+    $_.IPAddress -notmatch '^169\.' -and
+    $_.IPAddress -notmatch '^127\.'
+} | Select-Object -First 1).IPAddress
+
 Write-Host ""
-Write-Host "🎉 ExamForge deployed successfully!" -ForegroundColor Green
+Write-Host "ExamForge is running!" -ForegroundColor Green
+Write-Host "  Web  (local): http://localhost:$env:WEB_PORT"          -ForegroundColor Cyan
+if ($lanIp) {
+    Write-Host "  Web  (LAN):   http://${lanIp}:$env:WEB_PORT" -ForegroundColor Cyan
+}
+Write-Host "  API  (local): http://localhost:$env:PORT/api"           -ForegroundColor Cyan
+Write-Host "  Log:          $apiLog"                                   -ForegroundColor DarkGray
 Write-Host ""
-Write-Host "🌐 API Server: http://0.0.0.0:$env:PORT (or your LAN IP)" -ForegroundColor Cyan
-Write-Host "📄 API Documentation: http://0.0.0.0:$env:PORT/api" -ForegroundColor Cyan
-Write-Host "🌐 Web: http://0.0.0.0:$env:WEB_PORT (Access this from your LAN!)" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Note: Please register your first user account through the web interface."
-Write-Host "      The first registered user will automatically become an administrator."
-Write-Host ""
-Write-Host "Press Ctrl+C to stop the servers"
+Write-Host "Note: First registered user becomes administrator."
+Write-Host "Press Ctrl+C to stop."
 Write-Host ""
 
 try {
     while ($true) {
-        Start-Sleep -Seconds 1
-        # Check if jobs are still running
+        Start-Sleep -Seconds 3
         if ($apiProcess.HasExited) {
-            Write-Host "[WARNING] API server stopped unexpectedly. Check log: $apiLogPath" -ForegroundColor Yellow
-            if (Test-Path $apiLogPath) { Get-Content $apiLogPath -Tail 10 }
+            Write-Host "[WARNING] API stopped unexpectedly. Last log:" -ForegroundColor Yellow
+            if (Test-Path $apiLog) { Get-Content $apiLog -Tail 10 }
+            break
         }
     }
 } finally {
-    Write-Host "`n🛑 Shutting down ExamForge..." -ForegroundColor Yellow
+    Write-Host "`nShutting down ExamForge..." -ForegroundColor Yellow
     if ($apiProcess -and -not $apiProcess.HasExited) { $apiProcess.Kill() }
-    Stop-Job $webJob -ErrorAction SilentlyContinue
+    Stop-Job  $webJob -ErrorAction SilentlyContinue
     Remove-Job $webJob -ErrorAction SilentlyContinue
 }
 '@
