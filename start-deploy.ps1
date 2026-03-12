@@ -465,9 +465,10 @@ if (-not (Test-Path (Join-Path $ScriptDir 'api/node_modules'))) {
     exit 1
 }
 
-# Default DB (SQLite) location - Use relative path or properly formatted URI for Prisma
+# Default DB (SQLite) location - use absolute path with forward slashes for Prisma
 $dbPath = Join-Path $ScriptDir 'api\prisma\prod.db'
-$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { "file:./prod.db" }
+$dbPathForward = $dbPath -replace '\\', '/'
+$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { "file:$dbPathForward" }
 $env:NODE_ENV = if ($env:NODE_ENV) { $env:NODE_ENV } else { 'production' }
 $env:PORT = if ($env:PORT) { $env:PORT } else { '3000' }
 $env:WEB_PORT = if ($env:WEB_PORT) { $env:WEB_PORT } else { '4173' }
@@ -477,10 +478,14 @@ if (-not $env:JWT_SECRET -or $env:JWT_SECRET -eq 'default_secret_for_dev') {
     Write-Host "[WARNING] Using default JWT_SECRET. Please set a secure JWT_SECRET in production!" -ForegroundColor Yellow
 }
 
+$apiDir = Join-Path $ScriptDir 'api'
+$apiLogPath = Join-Path $apiDir 'api-server.log'
+
 if (-not (Test-Path $dbPath)) {
     Write-Host "[INFO] Initializing database..." -ForegroundColor Blue
-    Push-Location (Join-Path $ScriptDir 'api')
+    Push-Location $apiDir
     try {
+        $env:DATABASE_URL | Out-Null
         npm run db:init
     } finally {
         Pop-Location
@@ -488,24 +493,36 @@ if (-not (Test-Path $dbPath)) {
 }
 
 Write-Host "[INFO] Starting API server..." -ForegroundColor Blue
-$apiJob = Start-Job -ScriptBlock {
-    param($dir, $port, $dbUrl, $nodeEnv, $jwtSecret)
-    Set-Location $dir
-    $env:PORT = $port
-    $env:DATABASE_URL = $dbUrl
-    $env:NODE_ENV = $nodeEnv
-    if ($jwtSecret) { $env:JWT_SECRET = $jwtSecret }
-    node main.js > api-server.log 2>&1
-} -ArgumentList (Join-Path $ScriptDir 'api'), $env:PORT, $env:DATABASE_URL, $env:NODE_ENV, $env:JWT_SECRET
+Write-Host "[INFO] API log: $apiLogPath" -ForegroundColor DarkGray
 
-Start-Sleep -Seconds 3
+# Write a wrapper script so env vars and workdir are set correctly
+$apiLauncherPath = Join-Path $apiDir 'start-api.ps1'
+@"
+`$env:PORT = '$($env:PORT)'
+`$env:DATABASE_URL = '$($env:DATABASE_URL -replace "'", "''")'
+`$env:NODE_ENV = '$($env:NODE_ENV)'
+`$env:JWT_SECRET = '$($env:JWT_SECRET -replace "'", "''")'
+Set-Location '$($apiDir -replace "'", "''")'
+node main.js
+"@ | Out-File -FilePath $apiLauncherPath -Encoding UTF8
 
-if ($apiJob.State -ne 'Running') {
-    Write-Host "[ERROR] Failed to start API server." -ForegroundColor Red
-    Receive-Job $apiJob
+$apiProcess = Start-Process -FilePath "powershell.exe" `
+    -ArgumentList "-ExecutionPolicy Bypass -File `"$apiLauncherPath`"" `
+    -WorkingDirectory $apiDir `
+    -RedirectStandardOutput $apiLogPath `
+    -RedirectStandardError "$apiDir\api-error.log" `
+    -NoNewWindow -PassThru
+
+Start-Sleep -Seconds 4
+
+if ($apiProcess.HasExited) {
+    Write-Host "[ERROR] API server exited immediately. Check log:" -ForegroundColor Red
+    Write-Host "  $apiLogPath" -ForegroundColor Red
+    if (Test-Path $apiLogPath) { Get-Content $apiLogPath -Tail 20 }
+    if (Test-Path "$apiDir\api-error.log") { Get-Content "$apiDir\api-error.log" -Tail 20 }
     exit 1
 }
-Write-Host "[SUCCESS] API server started" -ForegroundColor Green
+Write-Host "[SUCCESS] API server started (PID: $($apiProcess.Id))" -ForegroundColor Green
 
 Write-Host "[INFO] Starting web server..." -ForegroundColor Blue
 $webScript = @"
@@ -597,16 +614,15 @@ try {
     while ($true) {
         Start-Sleep -Seconds 1
         # Check if jobs are still running
-        if ($apiJob.State -ne 'Running') {
-            Write-Host "[WARNING] API server stopped unexpectedly" -ForegroundColor Yellow
-            Receive-Job $apiJob
+        if ($apiProcess.HasExited) {
+            Write-Host "[WARNING] API server stopped unexpectedly. Check log: $apiLogPath" -ForegroundColor Yellow
+            if (Test-Path $apiLogPath) { Get-Content $apiLogPath -Tail 10 }
         }
     }
 } finally {
     Write-Host "`n🛑 Shutting down ExamForge..." -ForegroundColor Yellow
-    Stop-Job $apiJob -ErrorAction SilentlyContinue
+    if ($apiProcess -and -not $apiProcess.HasExited) { $apiProcess.Kill() }
     Stop-Job $webJob -ErrorAction SilentlyContinue
-    Remove-Job $apiJob -ErrorAction SilentlyContinue
     Remove-Job $webJob -ErrorAction SilentlyContinue
 }
 '@
