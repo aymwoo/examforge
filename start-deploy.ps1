@@ -70,7 +70,7 @@ if ($currentVersion -lt $minVersion) {
 
 # Check for native module build tools (bcrypt, sharp require compilation)
 function Test-BuildTools {
-    # Check if cl.exe (MSVC compiler) is available
+    # Check if cl.exe (MSVC compiler) is available via vswhere
     $vsWhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
     if (Test-Path $vsWhere) {
         $vsPath = & $vsWhere -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
@@ -78,10 +78,14 @@ function Test-BuildTools {
             return $true
         }
     }
-    # Check if node-gyp can find build tools
+    # Check if cl.exe is directly accessible on PATH
+    if (Get-Command cl.exe -ErrorAction SilentlyContinue) {
+        return $true
+    }
+    # Check if node-gyp msvs_version is configured
     try {
         $result = npm config get msvs_version 2>$null
-        if ($result -and $result -ne "undefined") {
+        if ($result -and $result -ne "undefined" -and $result -ne "null") {
             return $true
         }
     } catch {}
@@ -93,63 +97,17 @@ function Test-IsAdmin {
     return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Install-BuildTools {
-    Print-Status "Attempting to install Visual Studio Build Tools..."
-    
-    # Check if running as admin
-    if (-not (Test-IsAdmin)) {
-        Print-Warning "Installing build tools requires Administrator privileges."
-        Print-Warning "Please run this script as Administrator, or install manually:"
-        Print-Warning "  npm install -g windows-build-tools"
-        Print-Warning ""
-        $response = Read-Host "Do you want to continue without build tools? (y/N)"
-        if ($response -ne 'y' -and $response -ne 'Y') {
-            Print-Error "Deployment cancelled. Please run as Administrator or install build tools manually."
-            exit 1
-        }
-        return $false
-    }
-    
-    Print-Status "Installing windows-build-tools via npm (this may take several minutes)..."
-    Print-Status "This will install Visual Studio Build Tools and Python..."
-    
-    try {
-        # Use npm to install windows-build-tools globally
-        $process = Start-Process -FilePath "npm" -ArgumentList "install", "-g", "windows-build-tools", "--vs2017" -Wait -PassThru -NoNewWindow
-        if ($process.ExitCode -eq 0) {
-            Print-Success "Windows Build Tools installed successfully"
-            return $true
-        } else {
-            Print-Warning "windows-build-tools installation failed with exit code: $($process.ExitCode)"
-            return $false
-        }
-    } catch {
-        Print-Warning "Failed to install windows-build-tools: $_"
-        return $false
-    }
-}
-
 if (-not (Test-BuildTools)) {
-    Print-Warning "Visual Studio Build Tools not detected."
-    Print-Warning "Native modules (bcrypt, sharp) require C++ build tools to compile."
+    Print-Warning "Visual Studio C++ Build Tools not detected."
+    Print-Warning "Native modules (bcrypt, sharp) need them to compile from source."
+    Print-Warning "However, if pre-built binaries are available, installation may succeed without them."
     Print-Warning ""
-    
-    $response = Read-Host "Do you want to install build tools automatically? (Y/n)"
-    if ($response -eq '' -or $response -eq 'y' -or $response -eq 'Y') {
-        $installed = Install-BuildTools
-        if (-not $installed) {
-            Print-Warning "Continuing without build tools - native modules may fail to compile..."
-            Start-Sleep -Seconds 2
-        }
-    } else {
-        Print-Warning "Skipping build tools installation."
-        Print-Warning "You can install manually later:"
-        Print-Warning "  1. Run as Admin: npm install -g windows-build-tools"
-        Print-Warning "  2. Or download from: https://visualstudio.microsoft.com/visual-cpp-build-tools/"
-        Print-Warning ""
-        Print-Warning "Continuing anyway - build may fail if tools are not available..."
-        Start-Sleep -Seconds 2
-    }
+    Print-Warning "If the build fails, install build tools manually:"
+    Print-Warning "  https://visualstudio.microsoft.com/visual-cpp-build-tools/"
+    Print-Warning "  (Select 'Desktop development with C++' workload)"
+    Print-Warning ""
+    Print-Warning "Continuing anyway..."
+    Start-Sleep -Seconds 2
 } else {
     Print-Success "Visual Studio Build Tools detected"
 }
