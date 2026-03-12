@@ -99,6 +99,23 @@ $lanIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
     $_.IPAddress -notmatch '^127\.'
 } | Select-Object -First 1).IPAddress
 
+# Open firewall ports for LAN access (requires admin, silently skip if no permission)
+function Ensure-FirewallRule($name, $port) {
+    $existing = Get-NetFirewallRule -DisplayName $name -ErrorAction SilentlyContinue
+    if (-not $existing) {
+        try {
+            New-NetFirewallRule -DisplayName $name -Direction Inbound -Protocol TCP `
+                -LocalPort $port -Action Allow -Profile Any -ErrorAction Stop | Out-Null
+            Print-Success "Firewall rule added: $name (port $port)"
+        } catch {
+            Print-Warning "Could not add firewall rule for port $port. Run as Administrator or add manually."
+            Print-Warning "  netsh advfirewall firewall add rule name=`"$name`" protocol=TCP dir=in localport=$port action=allow"
+        }
+    }
+}
+Ensure-FirewallRule "ExamForge Web Dev (5173)" 5173
+Ensure-FirewallRule "ExamForge API Dev (3000)" 3000
+
 Print-Success "Development environment is ready!"
 Write-Host "   - API (local): http://localhost:3000"
 Write-Host "   - Web (local): http://localhost:5173"
