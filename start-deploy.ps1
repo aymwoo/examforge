@@ -531,11 +531,14 @@ if (-not (Test-Path $dbPath)) {
 
 Write-Host "[INFO] Starting API server..." -ForegroundColor Blue
 $apiJob = Start-Job -ScriptBlock {
-    param($dir, $port)
+    param($dir, $port, $dbUrl, $nodeEnv, $jwtSecret)
     Set-Location $dir
     $env:PORT = $port
+    $env:DATABASE_URL = $dbUrl
+    $env:NODE_ENV = $nodeEnv
+    if ($jwtSecret) { $env:JWT_SECRET = $jwtSecret }
     node main.js
-} -ArgumentList (Join-Path $ScriptDir 'api'), $env:PORT
+} -ArgumentList (Join-Path $ScriptDir 'api'), $env:PORT, $env:DATABASE_URL, $env:NODE_ENV, $env:JWT_SECRET
 
 Start-Sleep -Seconds 3
 
