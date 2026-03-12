@@ -509,7 +509,7 @@ if (-not (Test-Path (Join-Path $ScriptDir 'api/node_modules'))) {
 
 # Default DB (SQLite) location - Use relative path or properly formatted URI for Prisma
 $dbPath = Join-Path $ScriptDir 'api\prisma\prod.db'
-$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { "file:./prisma/prod.db" }
+$env:DATABASE_URL = if ($env:DATABASE_URL) { $env:DATABASE_URL } else { "file:./prod.db" }
 $env:NODE_ENV = if ($env:NODE_ENV) { $env:NODE_ENV } else { 'production' }
 $env:PORT = if ($env:PORT) { $env:PORT } else { '3000' }
 $env:WEB_PORT = if ($env:WEB_PORT) { $env:WEB_PORT } else { '4173' }
@@ -537,7 +537,7 @@ $apiJob = Start-Job -ScriptBlock {
     $env:DATABASE_URL = $dbUrl
     $env:NODE_ENV = $nodeEnv
     if ($jwtSecret) { $env:JWT_SECRET = $jwtSecret }
-    node main.js
+    node main.js > api-server.log 2>&1
 } -ArgumentList (Join-Path $ScriptDir 'api'), $env:PORT, $env:DATABASE_URL, $env:NODE_ENV, $env:JWT_SECRET
 
 Start-Sleep -Seconds 3
