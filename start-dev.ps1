@@ -116,6 +116,41 @@ function Ensure-FirewallRule($name, $port) {
 Ensure-FirewallRule "ExamForge Web Dev (5173)" 5173
 Ensure-FirewallRule "ExamForge API Dev (3000)" 3000
 
+# Setup auto-start in Windows Startup folder (dev mode)
+function Ensure-DevAutoStart {
+    $StartupFolder = [Environment]::GetFolderPath('Startup')
+    $ShortcutPath  = Join-Path $StartupFolder "ExamForge-Dev.lnk"
+    $VbsPath       = Join-Path $ScriptDir "examforge-dev-startup.vbs"
+
+    # Write the VBScript launcher (opens a visible terminal window so logs are accessible)
+    $vbsContent = "Set WshShell = CreateObject(""WScript.Shell"")" + [Environment]::NewLine +
+                  "WshShell.Run ""powershell.exe -ExecutionPolicy Bypass -File """"" + $ScriptDir + "\start-dev.ps1"""""", 1, False"
+    try {
+        $vbsContent | Out-File -FilePath $VbsPath -Encoding ASCII -Force
+    } catch {
+        Print-Warning "Could not write startup VBScript: $_"
+        return
+    }
+
+    # Create / update shortcut in Startup folder
+    try {
+        $WshShell  = New-Object -ComObject WScript.Shell
+        $Shortcut  = $WshShell.CreateShortcut($ShortcutPath)
+        $Shortcut.TargetPath       = "wscript.exe"
+        $Shortcut.Arguments        = "`"$VbsPath`""
+        $Shortcut.WorkingDirectory = $ScriptDir
+        $Shortcut.Description      = "ExamForge Dev Server Auto-Start"
+        $Shortcut.Save()
+        Print-Success "Auto-start configured (dev): will launch on Windows startup"
+        Print-Status  "  Shortcut: $ShortcutPath"
+        Print-Status  "  To remove: delete the shortcut above"
+    } catch {
+        Print-Warning "Could not create auto-start shortcut: $_"
+        Print-Warning "You can add it manually: target wscript.exe, argument `"$VbsPath`""
+    }
+}
+Ensure-DevAutoStart
+
 Print-Success "Development environment is ready!"
 Write-Host "   - API (local): http://localhost:3000"
 Write-Host "   - Web (local): http://localhost:5173"
