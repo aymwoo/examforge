@@ -91,9 +91,23 @@ pnpm --filter ./apps/api exec prisma migrate deploy
 
 # 6. Start Dev Servers
 Print-Status "Starting development servers (API + Web)..."
+
+# Get local LAN IP for display
+$lanIp = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {
+    $_.InterfaceAlias -notmatch 'Loopback' -and
+    $_.IPAddress -notmatch '^169\.' -and
+    $_.IPAddress -notmatch '^127\.'
+} | Select-Object -First 1).IPAddress
+
+# Set HOST=0.0.0.0 so Vite listens on all interfaces (LAN accessible)
+$env:HOST = "0.0.0.0"
+
 Print-Success "Development environment is ready!"
 Write-Host "   - API: http://localhost:3000"
-Write-Host "   - Web: http://localhost:5173"
+Write-Host "   - Web (local): http://localhost:5173"
+if ($lanIp) {
+    Write-Host "   - Web (LAN):   http://${lanIp}:5173" -ForegroundColor Cyan
+}
 Write-Host "   (Press Ctrl+C to stop)"
 
 pnpm dev

@@ -29,6 +29,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: process.env.HOST || "localhost",
     port: 5173,
     proxy: {
       "/api": {
