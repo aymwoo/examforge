@@ -1198,14 +1198,16 @@ export class ImportService {
     });
 
     // 添加题目到考试
-    for (let i = 0; i < questionIds.length; i++) {
-      await this.prisma.examQuestion.create({
-        data: {
-          examId: exam.id,
-          questionId: questionIds[i],
-          order: i + 1,
-          score: 5,
-        },
+    if (questionIds.length > 0) {
+      const examQuestionData = questionIds.map((questionId, i) => ({
+        examId: exam.id,
+        questionId: questionId,
+        order: i + 1,
+        score: 5,
+      }));
+
+      await this.prisma.examQuestion.createMany({
+        data: examQuestionData,
       });
     }
 
@@ -1305,14 +1307,16 @@ export class ImportService {
     });
 
     // 添加题目到考试，保持导入顺序
-    for (let i = 0; i < questions.length; i++) {
-      await this.prisma.examQuestion.create({
-        data: {
-          examId: exam.id,
-          questionId: questions[i].id,
-          order: i + 1,
-          score: 1, // 默认分数
-        },
+    if (questions.length > 0) {
+      const examQuestionData = questions.map((question, i) => ({
+        examId: exam.id,
+        questionId: question.id,
+        order: i + 1,
+        score: 1, // 默认分数
+      }));
+
+      await this.prisma.examQuestion.createMany({
+        data: examQuestionData,
       });
     }
 
