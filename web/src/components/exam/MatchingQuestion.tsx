@@ -41,8 +41,9 @@ export const MatchingQuestion: React.FC<MatchingQuestionProps> = ({
         const parsed = JSON.parse(value);
         if (Array.isArray(parsed)) return parsed;
       }
-      // eslint-disable-next-line no-empty
-    } catch (e) {}
+    } catch (e) {
+      console.error("Failed to parse matching pairs from value:", e);
+    }
     return [];
   }, [value]);
 
