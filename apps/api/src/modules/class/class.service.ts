@@ -175,15 +175,22 @@ export class ClassService {
     await this.findOne(classId, userId, userRole);
 
     const results = [];
+    const studentIds = students.map((s) => s.studentId);
+
+    // 提前获取所有已存在的学生，避免 N+1 查询
+    const existingStudents = await this.prisma.student.findMany({
+      where: {
+        studentId: { in: studentIds },
+      },
+      select: { studentId: true },
+    });
+
+    const existingStudentIds = new Set(existingStudents.map((s) => s.studentId));
 
     for (const studentDto of students) {
       try {
         // 检查学号是否已存在
-        const existingStudent = await this.prisma.student.findUnique({
-          where: { studentId: studentDto.studentId },
-        });
-
-        if (existingStudent) {
+        if (existingStudentIds.has(studentDto.studentId)) {
           results.push({
             studentId: studentDto.studentId,
             name: studentDto.name,
@@ -203,6 +210,9 @@ export class ClassService {
             classId,
           },
         });
+
+        // 加入 Set 以防止同一批次中有重复学号
+        existingStudentIds.add(student.studentId);
 
         results.push({
           studentId: student.studentId,
@@ -354,6 +364,17 @@ export class ClassService {
     const results = [];
     const classCache = new Map<string, { id: string; name: string; isNew: boolean }>();
     const createdClasses: string[] = [];
+    const studentIds = students.map((s) => s.studentId);
+
+    // 提前获取所有已存在的学生，避免 N+1 查询
+    const existingStudents = await this.prisma.student.findMany({
+      where: {
+        studentId: { in: studentIds },
+      },
+      select: { studentId: true },
+    });
+
+    const existingStudentIds = new Set(existingStudents.map((s) => s.studentId));
 
     for (const studentDto of students) {
       try {
@@ -424,11 +445,7 @@ export class ClassService {
         }
 
         // 2. 检查学号是否已存在
-        const existingStudent = await this.prisma.student.findUnique({
-          where: { studentId: studentDto.studentId },
-        });
-
-        if (existingStudent) {
+        if (existingStudentIds.has(studentDto.studentId)) {
           results.push({
             studentId: studentDto.studentId,
             name: studentDto.name,
@@ -451,6 +468,9 @@ export class ClassService {
             classId: classId || null,
           },
         });
+
+        // 加入 Set 以防止同一批次中有重复学号
+        existingStudentIds.add(student.studentId);
 
         results.push({
           studentId: student.studentId,
